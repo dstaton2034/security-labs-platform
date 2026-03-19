@@ -29,7 +29,24 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(10,14,26,.92
 .hero-stat .val{font-size:2rem;font-weight:800;background:linear-gradient(135deg,var(--cyan),var(--blue));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .hero-stat .lbl{font-size:.78rem;color:var(--text-dim)}
 
-/* SEARCH & FILTER */
+/* ABOUT SECTION */
+.about{max-width:1100px;margin:0 auto;padding:4rem 2rem 2rem}
+.about-header{text-align:center;margin-bottom:3rem}
+.about-header h2{font-size:1.8rem;font-weight:800;margin-bottom:.75rem}
+.about-header h2 .accent{background:linear-gradient(135deg,var(--cyan),var(--blue));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.about-header p{color:var(--text-dim);max-width:620px;margin:0 auto;font-size:1rem;line-height:1.7}
+.about-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1.25rem;margin-bottom:2.5rem}
+.about-card{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:16px;padding:1.5rem;transition:border-color .2s}
+.about-card:hover{border-color:rgba(0,229,255,.3)}
+.about-card .ac-icon{font-size:2rem;margin-bottom:.75rem}
+.about-card h3{font-size:1rem;font-weight:700;margin-bottom:.4rem}
+.about-card p{font-size:.85rem;color:var(--text-dim);line-height:1.6}
+.about-card .ac-tag{display:inline-block;margin-top:.75rem;font-size:.7rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:.2rem .6rem;border-radius:20px}
+.about-card .ac-tag.live{background:rgba(34,197,94,.15);color:#22c55e;border:1px solid rgba(34,197,94,.3)}
+.about-card .ac-tag.soon{background:rgba(234,179,8,.12);color:#fbbf24;border:1px solid rgba(234,179,8,.3)}
+.about-feedback{background:linear-gradient(135deg,rgba(0,229,255,.06),rgba(168,85,247,.06));border:1px solid rgba(0,229,255,.2);border-radius:16px;padding:2rem;text-align:center}
+.about-feedback h3{font-size:1.1rem;font-weight:700;margin-bottom:.5rem}
+.about-feedback p{color:var(--text-dim);font-size:.9rem;max-width:520px;margin:0 auto}
 .toolbar{max-width:1300px;margin:0 auto 2rem;padding:0 2rem;display:flex;gap:1rem;flex-wrap:wrap;align-items:center}
 .search-box{flex:1;min-width:200px;padding:.6rem 1rem;border-radius:10px;border:1px solid var(--border);background:var(--glass);color:var(--text);font-size:.9rem;font-family:inherit;outline:none;transition:border-color .2s}
 .search-box:focus{border-color:var(--cyan)}
@@ -100,6 +117,55 @@ footer a{color:var(--cyan);text-decoration:none}
   <div class="emoji">🔍</div>
   <p>No labs match your search. Try a different keyword.</p>
 </div>
+
+<section class="about">
+  <div class="about-header">
+    <h2>What is <span class="accent">this hub?</span></h2>
+    <p>I built this because I got tired of jumping between Learn docs trying to piece things together. I needed something more hands-on and interactive — so I made it. Here's everything you can do here.</p>
+  </div>
+  <div class="about-grid">
+    <div class="about-card">
+      <div class="ac-icon">🏗️</div>
+      <h3>Architecture Deep-Dives</h3>
+      <p>Visual, interactive breakdowns of MDE, MDC, Microsoft Sentinel, Azure Networking, and more — how they work, how they connect, and where they fit.</p>
+      <span class="ac-tag live">Live</span>
+    </div>
+    <div class="about-card">
+      <div class="ac-icon">🔬</div>
+      <h3>Hands-On Labs</h3>
+      <p>Step-by-step labs built around real portal workflows. Follow along in the actual product — no sandbox needed. Checkboxes, KQL snippets, hints, and a completion badge when you're done.</p>
+      <span class="ac-tag live">Live</span>
+    </div>
+    <div class="about-card">
+      <div class="ac-icon">🎭</div>
+      <h3>Customer Meeting Simulator</h3>
+      <p>Practice handling real customer conversations across MDE, XDR, Sentinel, and MDC. Pick a product, choose your difficulty, and work through a simulated meeting with a scorecard at the end.</p>
+      <span class="ac-tag soon">Preview</span>
+    </div>
+    <div class="about-card">
+      <div class="ac-icon">🤖</div>
+      <h3>AI Lab Generator</h3>
+      <p>Describe a scenario and get a complete, numbered lab — real portal steps, KQL queries, expected results, and hints — generated instantly. Powered by Azure AI Foundry.</p>
+      <span class="ac-tag soon">Coming Soon</span>
+    </div>
+    <div class="about-card">
+      <div class="ac-icon">📋</div>
+      <h3>Certification Prep</h3>
+      <p>Scenario-based practice tied to AZ-500 and SC-series exams. Work through real exam-style situations inside the portal, not just flashcards.</p>
+      <span class="ac-tag live">Live</span>
+    </div>
+    <div class="about-card">
+      <div class="ac-icon">🔐</div>
+      <h3>Unified Security Coverage</h3>
+      <p>One place for the full Microsoft Security portfolio — Defender, Sentinel, Purview, Entra, and Azure security services. No more hunting across 12 different doc sites.</p>
+      <span class="ac-tag live">Live</span>
+    </div>
+  </div>
+  <div class="about-feedback">
+    <h3>💬 Have ideas to make this better?</h3>
+    <p>This hub is a work in progress and built for the community. If something's missing, broken, or could be better — send a message. Every suggestion helps.</p>
+  </div>
+</section>
 
 <footer>
   <p>Your Security Learning Hub &nbsp;|&nbsp; <a href="https://learn.microsoft.com" target="_blank">Microsoft Learn</a> &nbsp;|&nbsp; <a href="admin/index.html">Create a Lab with AI</a></p>
