@@ -48,7 +48,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(10,14,26,.92
 .lab-card .lc-tag{padding:.15rem .45rem;border-radius:4px;font-size:.68rem;font-weight:600}
 .lab-card .lc-status{position:absolute;top:1rem;right:1rem;padding:.2rem .5rem;border-radius:4px;font-size:.65rem;font-weight:700;text-transform:uppercase}
 .lab-card .lc-status.ready{background:rgba(34,197,94,.15);color:var(--green)}
-.lab-card .lc-status.migrate{background:rgba(249,115,22,.15);color:var(--orange)}
+.lab-card .lc-status.migrate{background:rgba(34,197,94,.15);color:var(--green)}
 .lab-card .lc-status.draft{background:rgba(148,163,184,.15);color:var(--text-dim)}
 .lab-card .lc-border{position:absolute;bottom:0;left:0;right:0;height:3px}
 
@@ -190,7 +190,7 @@ function renderLabs(category, search) {
   grid.innerHTML = filtered.map((lab, i) => {
     const color = lab.color || categoryColors[lab.category] || '#00e5ff';
     const statusClass = lab.status || 'draft';
-    const statusLabel = { ready: 'Ready', migrate: 'Needs Migration', draft: 'Draft' }[statusClass] || statusClass;
+    const statusLabel = { ready: 'Ready', migrate: 'Live', draft: 'Coming Soon' }[statusClass] || statusClass;
 
     // Determine link — ready labs go to template engine, migrate labs go to original HTML
     let href;
