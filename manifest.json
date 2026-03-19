@@ -104,18 +104,6 @@
       "status": "migrate"
     },
     {
-      "id": "lab-mde-investigate",
-      "title": "Investigate an MDE Alert — Step-by-Step",
-      "shortTitle": "MDE Lab",
-      "icon": "🔬",
-      "category": "hands-on",
-      "color": "#00e5ff",
-      "description": "Walk through a real alert in Microsoft Defender for Endpoint — triage, KQL hunt, device isolation, and incident resolution. Complete each step directly in the portal.",
-      "tags": ["mde", "hands-on", "lab", "kql", "incident-response", "isolation"],
-      "path": "labs/lab-mde-investigate",
-      "status": "migrate"
-    },
-    {
       "id": "meeting-sim",
       "title": "Security Customer Meeting Simulator",
       "shortTitle": "Meeting Sim",
