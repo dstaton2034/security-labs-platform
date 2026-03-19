@@ -3,7 +3,7 @@
     "name": "Security Labs Platform",
     "description": "Interactive security training & architecture deep-dives",
     "version": "1.0.0",
-    "author": "dstaton"
+    "maintainer": "Microsoft Security Team"
   },
   "labs": [
     {
