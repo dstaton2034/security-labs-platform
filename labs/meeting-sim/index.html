@@ -13,6 +13,9 @@
 }
 body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.6;min-height:100vh;overflow:hidden}
 
+/* ── COMING SOON BAR ── */
+.coming-soon-bar{background:linear-gradient(90deg,rgba(234,179,8,.18),rgba(249,115,22,.18));border-bottom:2px solid rgba(234,179,8,.5);padding:.6rem 1.5rem;display:flex;align-items:center;justify-content:center;gap:.75rem;font-size:.82rem;font-weight:700;color:#fde68a;z-index:300;position:relative;text-align:center}
+.coming-soon-bar .cs-badge{background:rgba(234,179,8,.25);border:1px solid rgba(234,179,8,.5);border-radius:20px;padding:.15rem .7rem;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase}
 /* ── BANNER ── */
 .banner{background:linear-gradient(90deg,rgba(0,229,255,.12),rgba(168,85,247,.12));border-bottom:1px solid rgba(0,229,255,.2);padding:.5rem 1.5rem;display:flex;align-items:center;gap:.75rem;font-size:.78rem;color:var(--text-dim);z-index:200;position:relative}
 .banner strong{color:var(--cyan)}
@@ -148,6 +151,10 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 <body>
 
 <!-- BANNER -->
+<div class="coming-soon-bar">
+  <span class="cs-badge">🚧 Coming Soon</span>
+  This simulator is a preview — explore the concept, but it's not fully built yet.
+</div>
 <div class="banner">
   <div class="banner-dot"></div>
   <span><strong>Demo Mode</strong> — Pre-scripted preview. Full AI-powered version coming with Azure AI Foundry.</span>
