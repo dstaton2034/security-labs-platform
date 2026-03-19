@@ -75,7 +75,7 @@ footer a{color:var(--cyan);text-decoration:none}
 <div class="nav-inner">
   <div class="logo">🔐 Security Labs</div>
   <div class="nav-right">
-    <a href="admin/index.html" class="nav-btn">🧠 AI Lab Generator</a>
+    <a href="admin/index.html" class="nav-btn">✨ AI Generator — Coming Soon</a>
   </div>
 </div>
 </nav>
@@ -85,8 +85,8 @@ footer a{color:var(--cyan);text-decoration:none}
   <p>Interactive architecture deep-dives, training modules, and comparison guides for the Microsoft security ecosystem.</p>
   <div class="hero-stats">
     <div class="hero-stat"><div class="val" id="stat-total">—</div><div class="lbl">Total Labs</div></div>
-    <div class="hero-stat"><div class="val" id="stat-ready">—</div><div class="lbl">Ready</div></div>
-    <div class="hero-stat"><div class="val" id="stat-categories">—</div><div class="lbl">Categories</div></div>
+    <div class="hero-stat"><div class="val" id="stat-ready">—</div><div class="lbl">Live Now</div></div>
+    <div class="hero-stat"><div class="val" id="stat-categories">—</div><div class="lbl">Product Areas</div></div>
   </div>
 </div>
 
@@ -128,9 +128,9 @@ async function init() {
     allLabs = [];
   }
 
-  // Stats
+  // Stats — total, live (migrate + ready), product areas
   document.getElementById('stat-total').textContent = allLabs.length;
-  document.getElementById('stat-ready').textContent = allLabs.filter(l => l.status === 'ready').length;
+  document.getElementById('stat-ready').textContent = allLabs.filter(l => l.status === 'ready' || l.status === 'migrate').length;
   const cats = new Set(allLabs.map(l => l.category));
   document.getElementById('stat-categories').textContent = cats.size;
 

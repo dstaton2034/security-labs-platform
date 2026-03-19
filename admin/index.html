@@ -3,279 +3,196 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🧠 AI Lab Generator — Security Labs Platform</title>
+<title>AI Lab Generator — Coming Soon</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{--bg:#0a0e1a;--bg2:#111827;--cyan:#00e5ff;--purple:#a855f7;--green:#22c55e;--text:#e2e8f0;--text-dim:#94a3b8;--glass:rgba(255,255,255,.04);--border:rgba(255,255,255,.08)}
-body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.6;min-height:100vh;display:flex;flex-direction:column}
+:root{--bg:#0a0e1a;--bg2:#111827;--cyan:#00e5ff;--blue:#3b82f6;--purple:#a855f7;--green:#22c55e;--pink:#ec4899;--text:#e2e8f0;--text-dim:#94a3b8;--glass:rgba(255,255,255,.04);--border:rgba(255,255,255,.08)}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.6;min-height:100vh}
 ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:rgba(0,229,255,.3);border-radius:3px}
-
-nav{background:rgba(10,14,26,.92);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:0 2rem}
-.nav-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;gap:2rem;height:60px}
+nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(10,14,26,.92);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:0 2rem}
+.nav-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;height:60px;gap:1rem}
 .logo{font-size:1.05rem;font-weight:700;color:var(--cyan)}
-.logo a{color:var(--text-dim);text-decoration:none;font-size:.85rem;margin-left:1rem}
-.logo a:hover{color:var(--cyan)}
+.back{color:var(--text-dim);text-decoration:none;font-size:.85rem;margin-left:auto;padding:.35rem .85rem;border-radius:8px;border:1px solid var(--border);transition:all .2s}
+.back:hover{color:var(--cyan);border-color:var(--cyan)}
+#particles-canvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;opacity:.2}
+.page{position:relative;z-index:1;max-width:900px;margin:0 auto;padding:8rem 2rem 5rem}
 
-.main{max-width:1200px;margin:0 auto;padding:5rem 2rem 4rem;flex:1;width:100%}
-h1{font-size:2rem;font-weight:800;margin-bottom:.5rem}
-h1 .accent{background:linear-gradient(135deg,var(--cyan),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.subtitle{color:var(--text-dim);margin-bottom:2.5rem;font-size:1rem}
+/* HERO */
+.badge{display:inline-flex;align-items:center;gap:.5rem;padding:.35rem 1rem;border-radius:99px;border:1px solid rgba(0,229,255,.3);background:rgba(0,229,255,.06);font-size:.78rem;font-weight:600;color:var(--cyan);margin-bottom:1.5rem}
+.badge .dot{width:7px;height:7px;border-radius:50%;background:var(--cyan);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.4)}}
+h1{font-size:clamp(2rem,5vw,3rem);font-weight:800;line-height:1.2;margin-bottom:1rem}
+h1 .g1{background:linear-gradient(135deg,var(--cyan),var(--blue));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+h1 .g2{background:linear-gradient(135deg,var(--purple),var(--pink));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hero-sub{font-size:1.1rem;color:var(--text-dim);max-width:620px;margin-bottom:3rem;line-height:1.7}
 
-/* FORM */
-.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:2rem}
-@media(max-width:768px){.form-grid{grid-template-columns:1fr}}
-.field{display:flex;flex-direction:column;gap:.35rem}
-.field label{font-size:.82rem;font-weight:600;color:var(--text-dim)}
-.field input,.field select,.field textarea{padding:.6rem 1rem;border-radius:10px;border:1px solid var(--border);background:var(--glass);color:var(--text);font-size:.9rem;font-family:inherit;outline:none;transition:border-color .2s}
-.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--cyan)}
-.field select{cursor:pointer}
-.field textarea{min-height:120px;resize:vertical}
-.field.full{grid-column:1/-1}
+/* WHAT IT DOES */
+.section-label{font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:1.25rem}
+.flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin-bottom:3rem}
+.flow-step{background:var(--glass);border:1px solid var(--border);border-radius:14px;padding:1.5rem;position:relative;overflow:hidden}
+.flow-step::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.flow-step.s1::before{background:linear-gradient(90deg,var(--cyan),transparent)}
+.flow-step.s2::before{background:linear-gradient(90deg,var(--blue),transparent)}
+.flow-step.s3::before{background:linear-gradient(90deg,var(--purple),transparent)}
+.flow-step.s4::before{background:linear-gradient(90deg,var(--green),transparent)}
+.step-num{font-size:.72rem;font-weight:700;color:var(--text-dim);margin-bottom:.5rem}
+.step-title{font-size:1rem;font-weight:700;margin-bottom:.4rem}
+.step-desc{font-size:.84rem;color:var(--text-dim);line-height:1.5}
 
-.btn-row{display:flex;gap:1rem;margin-bottom:2rem}
-.btn{padding:.7rem 1.5rem;border-radius:10px;border:none;font-size:.9rem;font-weight:600;cursor:pointer;transition:all .2s;font-family:inherit}
-.btn-primary{background:linear-gradient(135deg,var(--cyan),#3b82f6);color:#000}
-.btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,229,255,.2)}
-.btn-secondary{background:var(--glass);border:1px solid var(--border);color:var(--text)}
-.btn-secondary:hover{border-color:var(--cyan);color:var(--cyan)}
-.btn:disabled{opacity:.5;cursor:not-allowed;transform:none!important}
+/* MOCKUP */
+.mockup{background:var(--glass);border:1px solid var(--border);border-radius:16px;padding:1.75rem;margin-bottom:3rem}
+.mockup-header{display:flex;align-items:center;gap:.75rem;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid var(--border)}
+.mockup-dot{width:10px;height:10px;border-radius:50%}
+.mockup-title{font-size:.9rem;font-weight:600;color:var(--text-dim)}
+.mockup-fields{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem}
+@media(max-width:600px){.mockup-fields{grid-template-columns:1fr}}
+.mfield{display:flex;flex-direction:column;gap:.3rem}
+.mfield label{font-size:.72rem;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em}
+.mfield .mval{padding:.55rem 1rem;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,.02);font-size:.85rem;color:var(--text)}
+.mfield .mval.accent{border-color:rgba(0,229,255,.3);color:var(--cyan);background:rgba(0,229,255,.04)}
+.mockup-btn{display:inline-flex;align-items:center;gap:.5rem;padding:.65rem 1.5rem;border-radius:10px;background:linear-gradient(135deg,var(--cyan),var(--blue));color:#000;font-size:.9rem;font-weight:700;border:none;cursor:default}
+.no-key-note{display:flex;align-items:center;gap:.5rem;font-size:.78rem;color:var(--green);margin-top:.75rem}
 
-/* OUTPUT */
-.output-section{margin-top:1rem}
-.output-header{display:flex;align-items:center;justify-content:between;gap:1rem;margin-bottom:1rem}
-.output-header h2{font-size:1.2rem;font-weight:700}
-.output-box{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:1.5rem;font-family:'Cascadia Code','Fira Code',monospace;font-size:.8rem;color:var(--text-dim);max-height:500px;overflow-y:auto;white-space:pre-wrap;word-break:break-word;line-height:1.5}
-.output-box.success{border-color:rgba(34,197,94,.3)}
-.output-box.error{border-color:rgba(239,68,68,.3)}
+/* WHY FOUNDRY */
+.why-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem;margin-bottom:3rem}
+.why-card{background:var(--glass);border:1px solid var(--border);border-radius:12px;padding:1.25rem}
+.why-icon{font-size:1.5rem;margin-bottom:.6rem}
+.why-title{font-size:.9rem;font-weight:700;margin-bottom:.3rem}
+.why-desc{font-size:.82rem;color:var(--text-dim);line-height:1.5}
 
-/* STATUS */
-.status-bar{padding:.75rem 1rem;border-radius:10px;margin-bottom:1.5rem;font-size:.85rem;display:none;align-items:center;gap:.5rem}
-.status-bar.loading{display:flex;background:rgba(0,229,255,.08);border:1px solid rgba(0,229,255,.2);color:var(--cyan)}
-.status-bar.success{display:flex;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);color:var(--green)}
-.status-bar.error{display:flex;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);color:#ef4444}
-.spinner{width:16px;height:16px;border:2px solid rgba(0,229,255,.3);border-top-color:var(--cyan);border-radius:50%;animation:spin .8s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-
-/* INSTRUCTIONS */
-.instructions{background:var(--glass);border:1px solid var(--border);border-radius:12px;padding:1.5rem;margin-bottom:2rem}
-.instructions h3{font-size:.95rem;font-weight:700;margin-bottom:.75rem;color:var(--cyan)}
-.instructions ol{padding-left:1.25rem;color:var(--text-dim);font-size:.85rem}
-.instructions li{margin-bottom:.5rem}
-.instructions code{background:rgba(0,229,255,.08);padding:.1rem .35rem;border-radius:4px;font-size:.8rem;color:var(--cyan)}
-
-footer{text-align:center;padding:2rem;border-top:1px solid var(--border);font-size:.8rem;color:var(--text-dim)}
+/* CTA */
+.cta{background:linear-gradient(135deg,rgba(0,229,255,.06),rgba(168,85,247,.06));border:1px solid rgba(0,229,255,.15);border-radius:16px;padding:2.5rem;text-align:center}
+.cta h2{font-size:1.5rem;font-weight:800;margin-bottom:.75rem}
+.cta p{color:var(--text-dim);margin-bottom:1.5rem;max-width:500px;margin-left:auto;margin-right:auto;font-size:.95rem}
+.cta-btn{display:inline-flex;align-items:center;gap:.5rem;padding:.75rem 2rem;border-radius:12px;background:linear-gradient(135deg,var(--cyan),var(--blue));color:#000;font-size:.95rem;font-weight:700;text-decoration:none;transition:all .2s}
+.cta-btn:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,229,255,.25)}
+footer{text-align:center;padding:2rem;border-top:1px solid var(--border);font-size:.8rem;color:var(--text-dim);position:relative;z-index:1}
 footer a{color:var(--cyan);text-decoration:none}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.page>*{animation:fadeUp .5s ease forwards;opacity:0}
+.page>*:nth-child(1){animation-delay:.05s}
+.page>*:nth-child(2){animation-delay:.1s}
+.page>*:nth-child(3){animation-delay:.15s}
+.page>*:nth-child(4){animation-delay:.2s}
+.page>*:nth-child(5){animation-delay:.25s}
+.page>*:nth-child(6){animation-delay:.3s}
+.page>*:nth-child(7){animation-delay:.35s}
 </style>
 </head>
 <body>
+<canvas id="particles-canvas"></canvas>
+<nav><div class="nav-inner">
+  <div class="logo">🔐 Security Labs</div>
+  <a href="../index.html" class="back">← Back to Portal</a>
+</div></nav>
 
-<nav><div class="nav-inner"><div class="logo">🧠 AI Lab Generator <a href="../index.html">← Back to Portal</a></div></div></nav>
+<div class="page">
 
-<div class="main">
-  <h1>Generate a New <span class="accent">Security Lab</span></h1>
-  <p class="subtitle">Describe what you want and AI will generate a complete lab content file (JSON) ready to deploy.</p>
+  <div class="badge"><span class="dot"></span> Powered by Azure AI Foundry — Coming Soon</div>
 
-  <div class="instructions">
-    <h3>🔧 Setup Instructions</h3>
-    <ol>
-      <li>Deploy an <strong>Azure OpenAI</strong> resource with a GPT-4o model</li>
-      <li>Enter your endpoint and API key below (stored only in your browser, never sent anywhere except Azure OpenAI)</li>
-      <li>Describe the lab you want — the AI generates the JSON content file</li>
-      <li>Copy the JSON, save it as <code>content.json</code> in a new folder under <code>labs/</code></li>
-      <li>Add an entry to <code>manifest.json</code> and your lab appears in the portal!</li>
-    </ol>
-  </div>
+  <h1>The <span class="g1">AI Lab Generator</span><br>turns any topic into a<br><span class="g2">full learning experience</span></h1>
+  <p class="hero-sub">Describe a security concept, paste in a reference document, or pick a Microsoft product — and the AI builds a complete, interactive lab in seconds. No coding required.</p>
 
-  <div class="form-grid">
-    <div class="field">
-      <label>Azure OpenAI Endpoint</label>
-      <input type="text" id="endpoint" placeholder="https://your-resource.openai.azure.com" />
+  <p class="section-label">How it works</p>
+  <div class="flow">
+    <div class="flow-step s1">
+      <div class="step-num">STEP 01</div>
+      <div class="step-title">You describe the topic</div>
+      <div class="step-desc">Type something like "explain how MDE detects ransomware" or paste in a doc from SharePoint.</div>
     </div>
-    <div class="field">
-      <label>API Key</label>
-      <input type="password" id="apikey" placeholder="Your Azure OpenAI API key" />
+    <div class="flow-step s2">
+      <div class="step-num">STEP 02</div>
+      <div class="step-title">AI Foundry generates the lab</div>
+      <div class="step-desc">Azure OpenAI structures the content into sections, diagrams, comparisons, and quizzes.</div>
     </div>
-    <div class="field">
-      <label>Deployment Name</label>
-      <input type="text" id="deployment" placeholder="gpt-4o" value="gpt-4o" />
+    <div class="flow-step s3">
+      <div class="step-num">STEP 03</div>
+      <div class="step-title">Preview &amp; publish</div>
+      <div class="step-desc">Review the generated lab, make edits, and publish it to the portal with one click.</div>
     </div>
-    <div class="field">
-      <label>API Version</label>
-      <input type="text" id="apiversion" value="2024-08-01-preview" />
-    </div>
-    <div class="field">
-      <label>Lab Category</label>
-      <select id="category">
-        <option value="endpoint">🖥️ Endpoint Security</option>
-        <option value="cloud">☁️ Cloud Security</option>
-        <option value="identity">🔑 Identity</option>
-        <option value="siem">📊 SIEM / XDR</option>
-        <option value="ai">🧠 AI & Copilot</option>
-        <option value="networking">🌐 Networking</option>
-        <option value="comparison">⚖️ Comparison</option>
-        <option value="certification">📝 Certification</option>
-      </select>
-    </div>
-    <div class="field">
-      <label>Primary Color</label>
-      <input type="color" id="color" value="#00e5ff" />
-    </div>
-    <div class="field full">
-      <label>Describe the Lab You Want</label>
-      <textarea id="prompt" placeholder="Example: Create an interactive deep-dive on Microsoft Entra ID architecture. Cover Conditional Access policies, authentication flows (SAML, OAuth, OIDC), PIM, Identity Protection risk detections, and how it integrates with Defender for Identity and Sentinel. Include a comparison of Entra ID P1 vs P2 features."></textarea>
+    <div class="flow-step s4">
+      <div class="step-num">STEP 04</div>
+      <div class="step-title">Team learns instantly</div>
+      <div class="step-desc">The new lab appears on the portal for every employee — personalized, current, and searchable.</div>
     </div>
   </div>
 
-  <div class="btn-row">
-    <button class="btn btn-primary" id="btn-generate" onclick="generate()">🧠 Generate Lab Content</button>
-    <button class="btn btn-secondary" id="btn-copy" onclick="copyOutput()" disabled>📋 Copy JSON</button>
-    <button class="btn btn-secondary" id="btn-download" onclick="downloadOutput()" disabled>💾 Download content.json</button>
+  <p class="section-label">What it will look like</p>
+  <div class="mockup">
+    <div class="mockup-header">
+      <div class="mockup-dot" style="background:#22c55e"></div>
+      <div class="mockup-dot" style="background:#eab308"></div>
+      <div class="mockup-dot" style="background:#ef4444"></div>
+      <div class="mockup-title">AI Lab Generator — Admin Panel</div>
+    </div>
+    <div class="mockup-fields">
+      <div class="mfield"><label>Lab Topic</label><div class="mval accent">How Microsoft Sentinel detects lateral movement</div></div>
+      <div class="mfield"><label>Product Area</label><div class="mval">Microsoft Sentinel</div></div>
+      <div class="mfield"><label>Audience Level</label><div class="mval">New Hire — 0 to 90 days</div></div>
+      <div class="mfield"><label>Reference Document</label><div class="mval">sentinel-architecture.pdf (optional)</div></div>
+    </div>
+    <div class="mockup-btn">🧠 Generate Lab with AI</div>
+    <div class="no-key-note">✓ No API keys needed — powered by the team Azure AI Foundry tenant</div>
   </div>
 
-  <div class="status-bar" id="status"></div>
-
-  <div class="output-section">
-    <div class="output-header"><h2>Generated Content</h2></div>
-    <div class="output-box" id="output">Your generated lab JSON will appear here...</div>
+  <p class="section-label">Why Azure AI Foundry</p>
+  <div class="why-grid">
+    <div class="why-card">
+      <div class="why-icon">🔐</div>
+      <div class="why-title">No keys per user</div>
+      <div class="why-desc">One org-level tenant. The key lives in Azure Key Vault — employees never see or enter anything.</div>
+    </div>
+    <div class="why-card">
+      <div class="why-icon">📋</div>
+      <div class="why-title">Content governance</div>
+      <div class="why-desc">All generated content goes through Microsoft's safety filters. No hallucinations shipped to employees.</div>
+    </div>
+    <div class="why-card">
+      <div class="why-icon">⚡</div>
+      <div class="why-title">Always current</div>
+      <div class="why-desc">New product launches? Paste the release notes and generate a lab the same day.</div>
+    </div>
+    <div class="why-card">
+      <div class="why-icon">📊</div>
+      <div class="why-title">Usage tracking</div>
+      <div class="why-desc">See which labs get generated, which get used most, and where knowledge gaps exist across the team.</div>
+    </div>
   </div>
+
+  <div class="cta">
+    <h2>Ready to unlock this?</h2>
+    <p>This feature is built and waiting. All it needs is an Azure AI Foundry tenant provisioned for this platform.</p>
+    <a href="../index.html" class="cta-btn">← Explore the platform</a>
+  </div>
+
 </div>
 
-<footer>
-  <p>Security Labs Platform — AI Generator &nbsp;|&nbsp; Powered by <a href="https://learn.microsoft.com/azure/ai-services/openai/" target="_blank">Azure OpenAI</a></p>
-</footer>
+<footer><p>Security Labs Platform &nbsp;|&nbsp; <a href="https://learn.microsoft.com" target="_blank">Microsoft Learn</a></p></footer>
 
 <script>
-// Persist settings in localStorage
-['endpoint', 'apikey', 'deployment', 'apiversion'].forEach(id => {
-  const el = document.getElementById(id);
-  const saved = localStorage.getItem('labgen_' + id);
-  if (saved) el.value = saved;
-  el.addEventListener('change', () => localStorage.setItem('labgen_' + id, el.value));
-});
-
-const SYSTEM_PROMPT = `You are an expert content generator for the Security Labs Platform. You generate structured JSON content files that follow a specific schema for interactive security training pages.
-
-The JSON must follow this structure:
-{
-  "meta": { "id": "kebab-case-id", "title": "Full Title", "shortTitle": "Short", "icon": "emoji", "category": "one of: endpoint|cloud|identity|siem|ai|networking|comparison|certification", "color": "#hex", "colorSecondary": "#hex (optional)", "updated": "Month Year", "description": "One line", "tags": ["tag1","tag2"] },
-  "hero": { "badge": "text", "title": [{"text":"word","accent":true/false,"accentIndex":0}], "subtitle": "HTML text", "stats": [{"value":"X","label":"desc","accentIndex":0}] },
-  "sections": [ ... array of section objects ... ]
-}
-
-Available section types:
-1. "cards-grid" — content: { cards: [{ icon, title, description, tags:[], color, expandable:bool, details:"expanded HTML" }] }
-2. "dual-compare" — content: { left: { title, icon, items: [{icon,title,description}] }, right: { same structure } }
-3. "head-to-head" — content: { categories: [{ id, label, left: {title,description,score:0-100,scoreLabel}, right: {same} }] }
-4. "flow-diagram" — content: { rows: [{ nodes: [{icon,name,sub,style:"primary|secondary|shared"}], showArrows:bool }, { type:"arrow", rotate:90 }] }
-5. "decision-guide" — content: { cards: [{ question, options: [{label,sublabel,type:"primary|secondary|both",dimmed:bool}] }] }
-6. "pricing" — content: { cards: [{ name, icon, price, period, accentIndex, featured:bool, features:["..."] }] }
-7. "why-box" — content: { title, items: [{ icon, title, description }] }
-8. "expandable-cards" — content: { cards: [{ icon, title, description, color, details:"expanded HTML with technical details" }] }
-9. "timeline" — content: { steps: [{ title, description }] }
-
-Guidelines:
-- Generate 5-8 sections per lab for depth
-- Use rich emoji icons throughout
-- Make descriptions technical but accessible
-- Include expandable details with real technical depth
-- Use head-to-head for comparison topics
-- Use flow-diagram for architecture topics
-- Include practical decision guides where relevant
-- Output ONLY valid JSON, no markdown wrapping`;
-
-async function generate() {
-  const endpoint = document.getElementById('endpoint').value.trim();
-  const apikey = document.getElementById('apikey').value.trim();
-  const deployment = document.getElementById('deployment').value.trim();
-  const apiversion = document.getElementById('apiversion').value.trim();
-  const prompt = document.getElementById('prompt').value.trim();
-  const category = document.getElementById('category').value;
-  const color = document.getElementById('color').value;
-
-  if (!endpoint || !apikey || !prompt) {
-    setStatus('error', '⚠️ Please fill in endpoint, API key, and prompt');
-    return;
-  }
-
-  const btn = document.getElementById('btn-generate');
-  btn.disabled = true;
-  setStatus('loading', 'Generating lab content... This may take 30-60 seconds.');
-
-  const userPrompt = `Generate a complete Security Lab content JSON for the following:
-
-Category: ${category}
-Primary Color: ${color}
-Request: ${prompt}
-
-Remember: Output ONLY the JSON object, no markdown code fences.`;
-
-  try {
-    const url = `${endpoint.replace(/\/$/, '')}/openai/deployments/${deployment}/chat/completions?api-version=${apiversion}`;
-    const resp = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'api-key': apikey },
-      body: JSON.stringify({
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: userPrompt }
-        ],
-        temperature: 0.7,
-        max_tokens: 8000
-      })
-    });
-
-    if (!resp.ok) {
-      const err = await resp.text();
-      throw new Error(`API Error (${resp.status}): ${err}`);
-    }
-
-    const data = await resp.json();
-    let content = data.choices[0].message.content;
-
-    // Strip markdown fences if present
-    content = content.replace(/^```json?\s*/i, '').replace(/```\s*$/i, '').trim();
-
-    // Validate JSON
-    const parsed = JSON.parse(content);
-    const pretty = JSON.stringify(parsed, null, 2);
-
-    document.getElementById('output').textContent = pretty;
-    document.getElementById('output').classList.add('success');
-    document.getElementById('output').classList.remove('error');
-    document.getElementById('btn-copy').disabled = false;
-    document.getElementById('btn-download').disabled = false;
-
-    setStatus('success', `✅ Lab content generated! ${parsed.sections?.length || 0} sections created. Copy or download the JSON.`);
-  } catch(e) {
-    document.getElementById('output').textContent = e.message;
-    document.getElementById('output').classList.add('error');
-    document.getElementById('output').classList.remove('success');
-    setStatus('error', `❌ ${e.message}`);
-  } finally {
-    btn.disabled = false;
-  }
-}
-
-function setStatus(type, msg) {
-  const el = document.getElementById('status');
-  el.className = 'status-bar ' + type;
-  el.innerHTML = type === 'loading' ? `<div class="spinner"></div> ${msg}` : msg;
-}
-
-function copyOutput() {
-  const text = document.getElementById('output').textContent;
-  navigator.clipboard.writeText(text).then(() => setStatus('success', '📋 Copied to clipboard!'));
-}
-
-function downloadOutput() {
-  const text = document.getElementById('output').textContent;
-  const blob = new Blob([text], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = 'content.json'; a.click();
-  URL.revokeObjectURL(url);
-  setStatus('success', '💾 Downloaded content.json!');
-}
+const canvas = document.getElementById('particles-canvas');
+const ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
+const particles = Array.from({length:40}, () => ({
+  x: Math.random()*canvas.width, y: Math.random()*canvas.height,
+  vx:(Math.random()-.5)*.3, vy:(Math.random()-.5)*.3,
+  size:Math.random()*1.5+.5,
+  color:['#00e5ff','#3b82f6','#a855f7','#22c55e'][Math.floor(Math.random()*4)],
+  alpha:Math.random()*.4+.1
+}));
+function hexToRgba(hex,a){hex=hex.replace('#','');const r=parseInt(hex.substring(0,2),16),g=parseInt(hex.substring(2,4),16),b=parseInt(hex.substring(4,6),16);return `rgba(${r},${g},${b},${a})`}
+(function animate(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  particles.forEach(p=>{
+    p.x+=p.vx; p.y+=p.vy;
+    if(p.x<0||p.x>canvas.width)p.vx*=-1;
+    if(p.y<0||p.y>canvas.height)p.vy*=-1;
+    ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,Math.PI*2);
+    ctx.fillStyle=hexToRgba(p.color,p.alpha);ctx.fill();
+  });
+  requestAnimationFrame(animate);
+})();
 </script>
 </body>
 </html>
