@@ -97,23 +97,23 @@ footer a{color:var(--cyan);text-decoration:none}
   <div class="flow">
     <div class="flow-step s1">
       <div class="step-num">STEP 01</div>
-      <div class="step-title">You describe the topic</div>
-      <div class="step-desc">Type something like "explain how MDE detects ransomware" or paste in a doc from SharePoint.</div>
+      <div class="step-title">You describe the lab</div>
+      <div class="step-desc">Type something like "Walk a new hire through isolating a compromised device in MDE" or paste in a product doc.</div>
     </div>
     <div class="flow-step s2">
       <div class="step-num">STEP 02</div>
-      <div class="step-title">AI Foundry generates the lab</div>
-      <div class="step-desc">Azure OpenAI structures the content into sections, diagrams, comparisons, and quizzes.</div>
+      <div class="step-title">AI builds step-by-step instructions</div>
+      <div class="step-desc">Azure AI Foundry generates numbered steps, real portal navigation paths, copyable KQL queries, expected results, and hints — all based on the actual product.</div>
     </div>
     <div class="flow-step s3">
       <div class="step-num">STEP 03</div>
-      <div class="step-title">Preview &amp; publish</div>
-      <div class="step-desc">Review the generated lab, make edits, and publish it to the portal with one click.</div>
+      <div class="step-title">Employee follows along in their real environment</div>
+      <div class="step-desc">No sandbox needed. Each step has a checkbox — employees check off as they go, with auto-progression and a completion badge when done.</div>
     </div>
     <div class="flow-step s4">
       <div class="step-num">STEP 04</div>
-      <div class="step-title">Team learns instantly</div>
-      <div class="step-desc">The new lab appears on the portal for every employee — personalized, current, and searchable.</div>
+      <div class="step-title">Publish to the portal</div>
+      <div class="step-desc">Review, approve, and publish with one click. The lab appears for every employee — searchable, trackable, and always current.</div>
     </div>
   </div>
 
@@ -126,12 +126,22 @@ footer a{color:var(--cyan);text-decoration:none}
       <div class="mockup-title">AI Lab Generator — Admin Panel</div>
     </div>
     <div class="mockup-fields">
-      <div class="mfield"><label>Lab Topic</label><div class="mval accent">How Microsoft Sentinel detects lateral movement</div></div>
-      <div class="mfield"><label>Product Area</label><div class="mval">Microsoft Sentinel</div></div>
-      <div class="mfield"><label>Audience Level</label><div class="mval">New Hire — 0 to 90 days</div></div>
-      <div class="mfield"><label>Reference Document</label><div class="mval">sentinel-architecture.pdf (optional)</div></div>
+      <div class="mfield"><label>Lab Topic</label><div class="mval accent">Isolate a compromised device and investigate the alert in MDE</div></div>
+      <div class="mfield"><label>Product</label><div class="mval">Microsoft Defender for Endpoint</div></div>
+      <div class="mfield"><label>Audience</label><div class="mval">New Hire — 0 to 90 days</div></div>
+      <div class="mfield"><label>Reference Doc</label><div class="mval">mde-architecture.pdf (optional)</div></div>
     </div>
-    <div class="mockup-btn">🧠 Generate Lab with AI</div>
+    <div class="mockup-btn">🧠 Generate Step-by-Step Lab</div>
+    <div style="margin-top:1.25rem;padding:1rem;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:10px;font-size:.8rem">
+      <div style="color:var(--green);font-weight:700;margin-bottom:.6rem">✓ Generated — 6 steps, ~30 min lab</div>
+      <div style="color:var(--text-dim);display:flex;flex-direction:column;gap:.3rem">
+        <div>📍 Step 1 — Open the Incidents Queue in security.microsoft.com</div>
+        <div>📍 Step 2 — Review the Alert Details and Attack Timeline</div>
+        <div>📍 Step 3 — Run a KQL Hunt for Related Activity</div>
+        <div>📍 Step 4 — Isolate the Device</div>
+        <div style="color:var(--text-dim);opacity:.5">... 2 more steps</div>
+      </div>
+    </div>
     <div class="no-key-note">✓ No API keys needed — powered by the team Azure AI Foundry tenant</div>
   </div>
 

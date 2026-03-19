@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lab: Investigate an MDE Alert — Security Labs</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0e1a;--bg2:#111827;--bg3:#1a2035;--bg4:#0d1220;
+  --cyan:#00e5ff;--blue:#3b82f6;--purple:#a855f7;--green:#22c55e;
+  --orange:#f97316;--red:#ef4444;--yellow:#eab308;--pink:#ec4899;
+  --text:#e2e8f0;--text-dim:#94a3b8;--glass:rgba(255,255,255,.04);--border:rgba(255,255,255,.08)
+}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.6}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:rgba(0,229,255,.3);border-radius:3px}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(10,14,26,.95);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:0 1.5rem;height:52px;display:flex;align-items:center;gap:1rem}
+.nav-back{color:var(--cyan);text-decoration:none;font-size:.82rem;font-weight:600}
+.nav-back:hover{text-decoration:underline}
+.nav-sep{color:var(--border);font-size:.9rem}
+.nav-title{font-size:.82rem;color:var(--text-dim);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nav-progress{font-size:.78rem;color:var(--text-dim)}
+.nav-progress span{color:var(--cyan);font-weight:700}
+
+/* LAYOUT */
+.page{max-width:900px;margin:0 auto;padding:4.5rem 1.5rem 5rem}
+
+/* HERO */
+.lab-hero{background:linear-gradient(135deg,rgba(0,229,255,.06),rgba(59,130,246,.06));border:1px solid rgba(0,229,255,.15);border-radius:16px;padding:2rem;margin-bottom:2rem}
+.lab-tag{display:inline-flex;align-items:center;gap:.4rem;padding:.2rem .7rem;border-radius:99px;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;background:rgba(0,229,255,.1);color:var(--cyan);border:1px solid rgba(0,229,255,.2);margin-bottom:1rem}
+.lab-title{font-size:clamp(1.4rem,3vw,2rem);font-weight:800;margin-bottom:.5rem;line-height:1.3}
+.lab-desc{color:var(--text-dim);font-size:.95rem;margin-bottom:1.25rem;max-width:680px}
+.lab-meta{display:flex;flex-wrap:wrap;gap:1rem}
+.meta-item{display:flex;align-items:center;gap:.4rem;font-size:.8rem;color:var(--text-dim)}
+.meta-item strong{color:var(--text)}
+
+/* PROGRESS BAR */
+.progress-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:1.25rem 1.5rem;margin-bottom:2rem;display:flex;align-items:center;gap:1.25rem}
+.progress-label{font-size:.82rem;font-weight:700;white-space:nowrap}
+.progress-bar-bg{flex:1;height:8px;background:rgba(255,255,255,.06);border-radius:4px}
+.progress-bar-fill{height:8px;border-radius:4px;background:linear-gradient(90deg,var(--cyan),var(--blue));transition:width .5s ease;width:0%}
+.progress-pct{font-size:.82rem;font-weight:700;color:var(--cyan);min-width:2.5rem;text-align:right}
+
+/* PREREQS */
+.prereq-box{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:1.25rem 1.5rem;margin-bottom:2rem}
+.prereq-box h3{font-size:.85rem;font-weight:700;margin-bottom:.75rem;display:flex;align-items:center;gap:.5rem}
+.prereq-list{list-style:none;display:flex;flex-direction:column;gap:.45rem}
+.prereq-list li{font-size:.84rem;color:var(--text-dim);display:flex;align-items:flex-start;gap:.6rem}
+.prereq-list li::before{content:'✓';color:var(--green);font-weight:700;flex-shrink:0;margin-top:.05rem}
+
+/* STEPS */
+.steps{display:flex;flex-direction:column;gap:1.25rem}
+.step{background:var(--bg2);border:1px solid var(--border);border-radius:14px;overflow:hidden;transition:border-color .3s}
+.step.completed{border-color:rgba(34,197,94,.3)}
+.step.active{border-color:rgba(0,229,255,.35);box-shadow:0 0 0 1px rgba(0,229,255,.08)}
+.step-header{padding:1.1rem 1.4rem;display:flex;align-items:flex-start;gap:1rem;cursor:pointer}
+.step-num{width:32px;height:32px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:800;flex-shrink:0;transition:all .3s;margin-top:.1rem}
+.step.completed .step-num{background:var(--green);border-color:var(--green);color:#000}
+.step.active .step-num{background:rgba(0,229,255,.15);border-color:var(--cyan);color:var(--cyan)}
+.step-header-text{flex:1}
+.step-header-text h3{font-size:.95rem;font-weight:700;margin-bottom:.2rem}
+.step-header-text p{font-size:.82rem;color:var(--text-dim)}
+.step-check{width:24px;height:24px;border-radius:6px;border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:.2rem;transition:all .2s;cursor:pointer}
+.step-check:hover{border-color:var(--green)}
+.step.completed .step-check{background:var(--green);border-color:var(--green)}
+.step-check svg{width:13px;height:13px;fill:none;stroke:#000;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;opacity:0;transition:opacity .2s}
+.step.completed .step-check svg{opacity:1}
+
+/* STEP BODY */
+.step-body{padding:0 1.4rem 1.4rem;display:none}
+.step.active .step-body,.step.completed .step-body{display:block}
+
+/* NAV PATH */
+.nav-path{display:flex;align-items:center;flex-wrap:wrap;gap:.25rem;margin-bottom:1rem;font-size:.78rem}
+.nav-path-item{color:var(--text-dim)}
+.nav-path-sep{color:var(--border)}
+.nav-path-item.active{color:var(--cyan);font-weight:600}
+
+/* INSTRUCTION */
+.instruction{font-size:.88rem;color:var(--text);margin-bottom:1rem;line-height:1.65}
+.instruction strong{color:var(--cyan)}
+
+/* ACTION ITEMS */
+.actions{display:flex;flex-direction:column;gap:.5rem;margin-bottom:1rem}
+.action-item{display:flex;align-items:flex-start;gap:.65rem;padding:.65rem .85rem;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:8px;font-size:.84rem}
+.action-item .ai-num{width:20px;height:20px;border-radius:50%;background:rgba(0,229,255,.15);color:var(--cyan);font-size:.68rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:.05rem}
+.action-item .ai-text{flex:1;line-height:1.5}
+.action-item .ai-text strong{color:var(--text)}
+
+/* CODE BLOCK */
+.code-block{background:var(--bg4);border:1px solid var(--border);border-radius:10px;margin-bottom:1rem;overflow:hidden}
+.code-header{padding:.55rem 1rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:rgba(255,255,255,.02)}
+.code-lang{font-size:.7rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em}
+.copy-btn{padding:.2rem .6rem;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-size:.72rem;cursor:pointer;font-family:inherit;transition:all .2s}
+.copy-btn:hover{border-color:var(--cyan);color:var(--cyan)}
+.copy-btn.copied{border-color:var(--green);color:var(--green)}
+.code-body{padding:1rem;font-family:'Cascadia Code','Fira Code',monospace;font-size:.82rem;line-height:1.6;color:#a5f3fc;overflow-x:auto;white-space:pre}
+.code-body .kw{color:#c084fc}
+.code-body .str{color:#86efac}
+.code-body .cm{color:#64748b;font-style:italic}
+.code-body .op{color:#f9a8d4}
+
+/* EXPECTED RESULT */
+.expected{background:rgba(34,197,94,.05);border:1px solid rgba(34,197,94,.2);border-radius:10px;padding:.85rem 1rem;margin-bottom:1rem;font-size:.83rem}
+.expected-label{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--green);margin-bottom:.35rem}
+.expected p{color:var(--text-dim);line-height:1.5}
+.expected p strong{color:var(--text)}
+
+/* HINT */
+.hint{border:1px solid rgba(249,115,22,.2);border-radius:10px;overflow:hidden;margin-bottom:1rem}
+.hint-toggle{width:100%;padding:.65rem 1rem;background:rgba(249,115,22,.05);border:none;color:var(--orange);font-size:.8rem;font-weight:600;font-family:inherit;cursor:pointer;text-align:left;display:flex;align-items:center;gap:.5rem;transition:background .2s}
+.hint-toggle:hover{background:rgba(249,115,22,.1)}
+.hint-toggle::after{content:'▾';margin-left:auto;transition:transform .2s}
+.hint-toggle.open::after{transform:rotate(180deg)}
+.hint-body{display:none;padding:.85rem 1rem;font-size:.83rem;color:var(--text-dim);line-height:1.6;border-top:1px solid rgba(249,115,22,.15)}
+.hint-body strong{color:var(--text)}
+
+/* MARK DONE BTN */
+.mark-done{width:100%;padding:.7rem;border-radius:10px;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);color:var(--green);font-size:.88rem;font-weight:700;font-family:inherit;cursor:pointer;transition:all .2s;margin-top:.25rem}
+.mark-done:hover{background:rgba(34,197,94,.2)}
+.step.completed .mark-done{background:rgba(34,197,94,.15);cursor:default}
+
+/* COMPLETION */
+.completion{display:none;background:linear-gradient(135deg,rgba(34,197,94,.08),rgba(0,229,255,.08));border:1px solid rgba(34,197,94,.25);border-radius:16px;padding:2.5rem;text-align:center;margin-top:2rem}
+.completion h2{font-size:1.75rem;font-weight:800;margin-bottom:.5rem}
+.completion p{color:var(--text-dim);margin-bottom:1.5rem;font-size:.95rem}
+.completion-actions{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap}
+.btn-primary{padding:.7rem 1.75rem;border-radius:10px;background:linear-gradient(135deg,var(--cyan),var(--blue));color:#000;font-size:.9rem;font-weight:700;text-decoration:none;border:none;cursor:pointer;font-family:inherit;transition:all .2s;display:inline-block}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,229,255,.2)}
+.btn-secondary{padding:.7rem 1.75rem;border-radius:10px;background:var(--glass);border:1px solid var(--border);color:var(--text);font-size:.9rem;font-weight:600;text-decoration:none;font-family:inherit;cursor:pointer;display:inline-block;transition:all .2s}
+.btn-secondary:hover{border-color:var(--cyan);color:var(--cyan)}
+
+/* SKILL BADGES */
+.skill-badges{display:flex;gap:.5rem;flex-wrap:wrap;justify-content:center;margin-bottom:1.5rem}
+.skill-badge{padding:.3rem .85rem;border-radius:99px;font-size:.75rem;font-weight:700;background:rgba(0,229,255,.1);color:var(--cyan);border:1px solid rgba(0,229,255,.2)}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.step{animation:fadeUp .4s ease forwards;opacity:0}
+.step:nth-child(1){animation-delay:.05s}
+.step:nth-child(2){animation-delay:.1s}
+.step:nth-child(3){animation-delay:.15s}
+.step:nth-child(4){animation-delay:.2s}
+.step:nth-child(5){animation-delay:.25s}
+.step:nth-child(6){animation-delay:.3s}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="../../index.html" class="nav-back">← Portal</a>
+  <span class="nav-sep">/</span>
+  <span class="nav-title">Investigate an MDE Alert — Step-by-Step Lab</span>
+  <span class="nav-progress"><span id="nav-done">0</span>/6 steps</span>
+</nav>
+
+<div class="page">
+
+  <!-- HERO -->
+  <div class="lab-hero">
+    <div class="lab-tag">🛡️ Microsoft Defender for Endpoint &nbsp;·&nbsp; Hands-On Lab</div>
+    <h1 class="lab-title">Investigate and Respond to a Suspicious Process Alert</h1>
+    <p class="lab-desc">You'll walk through a real alert in Microsoft Defender for Endpoint — from initial triage to device isolation and remediation — using the exact steps you'd follow on the job.</p>
+    <div class="lab-meta">
+      <div class="meta-item">⏱ <strong>~30 minutes</strong></div>
+      <div class="meta-item">📊 <strong>Foundational</strong></div>
+      <div class="meta-item">🌐 <strong>Real Environment Required</strong></div>
+      <div class="meta-item">🔐 <strong>MDE P2 License</strong></div>
+    </div>
+  </div>
+
+  <!-- PROGRESS -->
+  <div class="progress-wrap">
+    <span class="progress-label">Your Progress</span>
+    <div class="progress-bar-bg"><div class="progress-bar-fill" id="progress-fill"></div></div>
+    <span class="progress-pct" id="progress-pct">0%</span>
+  </div>
+
+  <!-- PREREQS -->
+  <div class="prereq-box">
+    <h3>📋 Before You Start</h3>
+    <ul class="prereq-list">
+      <li>You have access to Microsoft Defender XDR portal (<strong>security.microsoft.com</strong>)</li>
+      <li>At least one device is onboarded to Defender for Endpoint in your tenant</li>
+      <li>Your account has the <strong>Security Reader</strong> role or higher in Defender</li>
+      <li>You have a test device you can safely isolate (VM recommended)</li>
+    </ul>
+  </div>
+
+  <!-- STEPS -->
+  <div class="steps" id="steps">
+
+    <!-- STEP 1 -->
+    <div class="step active" id="step-1">
+      <div class="step-header" onclick="toggleStep(1)">
+        <div class="step-num">1</div>
+        <div class="step-header-text">
+          <h3>Open the Incidents Queue</h3>
+          <p>Navigate to the alert that needs investigation</p>
+        </div>
+        <div class="step-check" onclick="markDone(event,1)"><svg viewBox="0 0 12 10"><polyline points="1,5 4,8 11,1"/></svg></div>
+      </div>
+      <div class="step-body">
+        <div class="nav-path">
+          <span class="nav-path-item">security.microsoft.com</span>
+          <span class="nav-path-sep">›</span>
+          <span class="nav-path-item">Incidents &amp; Alerts</span>
+          <span class="nav-path-sep">›</span>
+          <span class="nav-path-item active">Incidents</span>
+        </div>
+        <div class="instruction">Sign into <strong>security.microsoft.com</strong> with your work account. In the left navigation, expand <strong>Incidents &amp; Alerts</strong> and click <strong>Incidents</strong>.</div>
+        <div class="actions">
+          <div class="action-item"><div class="ai-num">1</div><div class="ai-text">In the search/filter bar, set <strong>Status = Active</strong> and <strong>Severity = High or Medium</strong></div></div>
+          <div class="action-item"><div class="ai-num">2</div><div class="ai-text">Find an incident that contains a <strong>Suspicious Process</strong> or <strong>Malware</strong> alert — click its title to open it</div></div>
+          <div class="action-item"><div class="ai-num">3</div><div class="ai-text">Note the <strong>affected device name</strong> and <strong>alert timestamp</strong> — you'll need these in later steps</div></div>
+        </div>
+        <div class="expected">
+          <div class="expected-label">✓ Expected Result</div>
+          <p>You should see the <strong>Incident page</strong> with an Attack story graph, a list of related alerts, and the affected entities (device + user) listed on the right panel.</p>
+        </div>
+        <div class="hint">
+          <button class="hint-toggle" onclick="toggleHint(this)">💡 Hint — Don't see any incidents?</button>
+          <div class="hint-body">If your environment has no active incidents, go to <strong>Alerts</strong> instead (same menu) and filter by <strong>Detection source: Microsoft Defender for Endpoint</strong>. You can also generate a test alert by running the EICAR test file on an onboarded device.</div>
+        </div>
+        <button class="mark-done" onclick="markDone(event,1)">✓ Mark Step Complete</button>
+      </div>
+    </div>
+
+    <!-- STEP 2 -->
+    <div class="step" id="step-2">
+      <div class="step-header" onclick="toggleStep(2)">
+        <div class="step-num">2</div>
+        <div class="step-header-text">
+          <h3>Review the Alert Details and Attack Timeline</h3>
+          <p>Understand what happened, when, and on which device</p>
+        </div>
+        <div class="step-check" onclick="markDone(event,2)"><svg viewBox="0 0 12 10"><polyline points="1,5 4,8 11,1"/></svg></div>
+      </div>
+      <div class="step-body">
+        <div class="nav-path">
+          <span class="nav-path-item">Incident</span>
+          <span class="nav-path-sep">›</span>
+          <span class="nav-path-item active">Attack story</span>
+        </div>
+        <div class="instruction">Inside the incident, click the <strong>Attack story</strong> tab. This shows the full process tree — what ran, what it spawned, and what it touched.</div>
+        <div class="actions">
+          <div class="action-item"><div class="ai-num">1</div><div class="ai-text">Click the <strong>root process</strong> (top of the tree) — check the file name, path, and parent process</div></div>
+          <div class="action-item"><div class="ai-num">2</div><div class="ai-text">Look for <strong>red nodes</strong> (malicious activity) vs <strong>yellow nodes</strong> (suspicious) in the tree</div></div>
+          <div class="action-item"><div class="ai-num">3</div><div class="ai-text">Click any red node → read the <strong>Alert description</strong> and <strong>MITRE ATT&amp;CK technique</strong> shown in the right panel</div></div>
+          <div class="action-item"><div class="ai-num">4</div><div class="ai-text">In the <strong>Evidence</strong> tab, confirm whether files, registry keys, or network connections were involved</div></div>
+        </div>
+        <div class="expected">
+          <div class="expected-label">✓ Expected Result</div>
+          <p>You can identify: <strong>which process triggered the alert</strong>, its parent, the <strong>MITRE technique</strong> (e.g. T1059 Command and Scripting Interpreter), and whether any files were dropped or network connections made.</p>
+        </div>
+        <div class="hint">
+          <button class="hint-toggle" onclick="toggleHint(this)">💡 Hint — Understanding the process tree</button>
+          <div class="hint-body">The process tree reads <strong>top-down</strong> — parent processes are at the top, child processes branch below. A suspicious PowerShell process spawned by <strong>winword.exe</strong> (Word) is a classic sign of a macro-based attack (T1566 Phishing).</div>
+        </div>
+        <button class="mark-done" onclick="markDone(event,2)">✓ Mark Step Complete</button>
+      </div>
+    </div>
+
+    <!-- STEP 3 -->
+    <div class="step" id="step-3">
+      <div class="step-header" onclick="toggleStep(3)">
+        <div class="step-num">3</div>
+        <div class="step-header-text">
+          <h3>Run a KQL Hunt for Related Activity</h3>
+          <p>Use Advanced Hunting to see if other devices were affected</p>
+        </div>
+        <div class="step-check" onclick="markDone(event,3)"><svg viewBox="0 0 12 10"><polyline points="1,5 4,8 11,1"/></svg></div>
+      </div>
+      <div class="step-body">
+        <div class="nav-path">
+          <span class="nav-path-item">security.microsoft.com</span>
+          <span class="nav-path-sep">›</span>
+          <span class="nav-path-item active">Hunting › Advanced Hunting</span>
+        </div>
+        <div class="instruction">Navigate to <strong>Hunting → Advanced Hunting</strong> in the left nav. Run the query below — replace <strong>DeviceName</strong> with the device from Step 1. This looks for similar process behavior across your environment in the last 7 days.</div>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">KQL — Advanced Hunting</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+          <div class="code-body" id="kql-1"><span class="cm">// Hunt for suspicious PowerShell spawned by Office apps</span>
+<span class="kw">DeviceProcessEvents</span>
+<span class="op">|</span> <span class="kw">where</span> Timestamp <span class="op">&gt;</span> ago(<span class="str">7d</span>)
+<span class="op">|</span> <span class="kw">where</span> InitiatingProcessFileName <span class="kw">in~</span> (
+    <span class="str">"winword.exe"</span>, <span class="str">"excel.exe"</span>,
+    <span class="str">"powerpnt.exe"</span>, <span class="str">"outlook.exe"</span>)
+<span class="op">|</span> <span class="kw">where</span> FileName <span class="kw">in~</span> (<span class="str">"powershell.exe"</span>, <span class="str">"cmd.exe"</span>, <span class="str">"wscript.exe"</span>)
+<span class="op">|</span> <span class="kw">project</span> Timestamp, DeviceName,
+    InitiatingProcessFileName,
+    FileName, ProcessCommandLine
+<span class="op">|</span> <span class="kw">order by</span> Timestamp <span class="kw">desc</span></div>
+        </div>
+        <div class="actions">
+          <div class="action-item"><div class="ai-num">1</div><div class="ai-text">Paste the query → click <strong>Run query</strong> (Shift + Enter)</div></div>
+          <div class="action-item"><div class="ai-num">2</div><div class="ai-text">If results appear — check the <strong>DeviceName</strong> column. Multiple devices = wider spread, escalate immediately</div></div>
+          <div class="action-item"><div class="ai-num">3</div><div class="ai-text">Click <strong>Create detection rule</strong> (top right) to turn this into a recurring scheduled alert</div></div>
+        </div>
+        <div class="expected">
+          <div class="expected-label">✓ Expected Result</div>
+          <p>Query returns results showing <strong>which devices, when, and what command line</strong> was executed. If only your test device shows up — blast radius is contained. Multiple devices = active spread.</p>
+        </div>
+        <div class="hint">
+          <button class="hint-toggle" onclick="toggleHint(this)">💡 Hint — Query returns no results?</button>
+          <div class="hint-body">That's actually good news — it means the activity is isolated to one device. Try widening the time window: change <strong>ago(7d)</strong> to <strong>ago(30d)</strong>. You can also search for the specific filename from the alert in Step 2 using: <code style="color:var(--cyan)">| where FileName =~ "suspicious_file.exe"</code></div>
+        </div>
+        <button class="mark-done" onclick="markDone(event,3)">✓ Mark Step Complete</button>
+      </div>
+    </div>
+
+    <!-- STEP 4 -->
+    <div class="step" id="step-4">
+      <div class="step-header" onclick="toggleStep(4)">
+        <div class="step-num">4</div>
+        <div class="step-header-text">
+          <h3>Isolate the Device</h3>
+          <p>Cut off the affected device from the network while keeping Defender communication open</p>
+        </div>
+        <div class="step-check" onclick="markDone(event,4)"><svg viewBox="0 0 12 10"><polyline points="1,5 4,8 11,1"/></svg></div>
+      </div>
+      <div class="step-body">
+        <div class="nav-path">
+          <span class="nav-path-item">Incident</span>
+          <span class="nav-path-sep">›</span>
+          <span class="nav-path-item">Affected assets</span>
+          <span class="nav-path-sep">›</span>
+          <span class="nav-path-item active">Device page › Actions</span>
+        </div>
+        <div class="instruction">Go back to the incident. Under <strong>Affected assets → Devices</strong>, click the device name. On the device page, click the <strong>… Actions menu</strong> (top right) and select <strong>Isolate device</strong>.</div>
+        <div class="actions">
+          <div class="action-item"><div class="ai-num">1</div><div class="ai-text">Click <strong>Isolate device</strong> → in the dialog, type a comment: <em>"Isolating due to suspicious process alert — [your name]"</em></div></div>
+          <div class="action-item"><div class="ai-num">2</div><div class="ai-text">Select isolation type: <strong>Full isolation</strong> (blocks all network traffic except Defender telemetry)</div></div>
+          <div class="action-item"><div class="ai-num">3</div><div class="ai-text">Click <strong>Confirm</strong> — the action is queued and will execute within seconds if device is online</div></div>
+          <div class="action-item"><div class="ai-num">4</div><div class="ai-text">Check the <strong>Action center</strong> (left nav → Action center) to confirm the isolation was successful</div></div>
+        </div>
+        <div class="expected">
+          <div class="expected-label">✓ Expected Result</div>
+          <p>Device status changes to <strong>"Isolated"</strong> on its page. Action center shows <strong>Status: Succeeded</strong>. The device is now cut off from the network but still sending telemetry to Defender — you can still run live response on it.</p>
+        </div>
+        <div class="hint">
+          <button class="hint-toggle" onclick="toggleHint(this)">💡 Hint — What if isolation is pending?</button>
+          <div class="hint-body"><strong>Pending</strong> means the device hasn't checked in yet. This happens if the device is offline or asleep. The action will execute the next time it connects. You can leave it pending — Defender will isolate it automatically when it comes back online.</div>
+        </div>
+        <button class="mark-done" onclick="markDone(event,4)">✓ Mark Step Complete</button>
+      </div>
+    </div>
+
+    <!-- STEP 5 -->
+    <div class="step" id="step-5">
+      <div class="step-header" onclick="toggleStep(5)">
+        <div class="step-num">5</div>
+        <div class="step-header-text">
+          <h3>Run Antivirus Scan and Collect Investigation Package</h3>
+          <p>Remediate the threat and capture forensic evidence</p>
+        </div>
+        <div class="step-check" onclick="markDone(event,5)"><svg viewBox="0 0 12 10"><polyline points="1,5 4,8 11,1"/></svg></div>
+      </div>
+      <div class="step-body">
+        <div class="nav-path">
+          <span class="nav-path-item">Device page</span>
+          <span class="nav-path-sep">›</span>
+          <span class="nav-path-item active">Actions</span>
+        </div>
+        <div class="instruction">Still on the device page, use the <strong>Actions menu</strong> to run two actions in sequence.</div>
+        <div class="actions">
+          <div class="action-item"><div class="ai-num">1</div><div class="ai-text">Actions → <strong>Run antivirus scan</strong> → select <strong>Full scan</strong> → confirm. This triggers Microsoft Defender Antivirus on the device to scan and quarantine threats</div></div>
+          <div class="action-item"><div class="ai-num">2</div><div class="ai-text">Actions → <strong>Collect investigation package</strong> → confirm. This collects running processes, network connections, scheduled tasks, and prefetch files as a downloadable zip</div></div>
+          <div class="action-item"><div class="ai-num">3</div><div class="ai-text">Monitor both actions in <strong>Action center</strong> — the investigation package takes 5–10 minutes to collect</div></div>
+          <div class="action-item"><div class="ai-num">4</div><div class="ai-text">Once collected, download the package and examine <strong>processes.json</strong> and <strong>network_connections.json</strong> for IOCs</div></div>
+        </div>
+        <div class="expected">
+          <div class="expected-label">✓ Expected Result</div>
+          <p>Action center shows both actions as <strong>Succeeded</strong>. The investigation package is available for download. Any quarantined items appear in the <strong>Threat &amp; vulnerability management → Remediation</strong> view.</p>
+        </div>
+        <button class="mark-done" onclick="markDone(event,5)">✓ Mark Step Complete</button>
+      </div>
+    </div>
+
+    <!-- STEP 6 -->
+    <div class="step" id="step-6">
+      <div class="step-header" onclick="toggleStep(6)">
+        <div class="step-num">6</div>
+        <div class="step-header-text">
+          <h3>Classify the Incident and Release the Device</h3>
+          <p>Close the loop — document your findings and restore the device</p>
+        </div>
+        <div class="step-check" onclick="markDone(event,6)"><svg viewBox="0 0 12 10"><polyline points="1,5 4,8 11,1"/></svg></div>
+      </div>
+      <div class="step-body">
+        <div class="nav-path">
+          <span class="nav-path-item">Incident</span>
+          <span class="nav-path-sep">›</span>
+          <span class="nav-path-item active">Manage incident</span>
+        </div>
+        <div class="instruction">Go back to the <strong>Incident page</strong>. Click <strong>Manage incident</strong> (top right panel) to classify and close it properly.</div>
+        <div class="actions">
+          <div class="action-item"><div class="ai-num">1</div><div class="ai-text">Set <strong>Classification</strong> → <em>True positive</em> (if actual threat) or <em>False positive</em> (if benign)</div></div>
+          <div class="action-item"><div class="ai-num">2</div><div class="ai-text">Set <strong>Determination</strong> → e.g. <em>Malware</em>, <em>Security testing</em>, or <em>Unwanted software</em></div></div>
+          <div class="action-item"><div class="ai-num">3</div><div class="ai-text">Add an <strong>Incident comment</strong> summarizing what you found and what actions you took</div></div>
+          <div class="action-item"><div class="ai-num">4</div><div class="ai-text">Set <strong>Status → Resolved</strong> → click Save</div></div>
+          <div class="action-item"><div class="ai-num">5</div><div class="ai-text">Return to the <strong>Device page → Actions → Release from isolation</strong> once you've confirmed the threat is remediated</div></div>
+        </div>
+        <div class="expected">
+          <div class="expected-label">✓ Expected Result</div>
+          <p>Incident status changes to <strong>Resolved</strong>. Device is released from isolation and shows <strong>Active</strong> status. Your classification feeds into Microsoft's threat intelligence to improve future detections.</p>
+        </div>
+        <div class="hint">
+          <button class="hint-toggle" onclick="toggleHint(this)">💡 Why proper classification matters</button>
+          <div class="hint-body">Microsoft uses your <strong>true/false positive</strong> classifications to tune detection models across all tenants. Accurate classification = better alerts for the whole ecosystem. It also creates a <strong>paper trail</strong> for compliance audits.</div>
+        </div>
+        <button class="mark-done" onclick="markDone(event,6)">✓ Mark Step Complete</button>
+      </div>
+    </div>
+
+  </div><!-- /steps -->
+
+  <!-- COMPLETION -->
+  <div class="completion" id="completion">
+    <div style="font-size:3rem;margin-bottom:.75rem">🎉</div>
+    <h2>Lab Complete!</h2>
+    <p>You investigated a real MDE alert from detection to resolution — the same workflow used by security analysts every day.</p>
+    <div class="skill-badges">
+      <span class="skill-badge">Alert Triage</span>
+      <span class="skill-badge">Advanced Hunting</span>
+      <span class="skill-badge">Device Isolation</span>
+      <span class="skill-badge">Incident Management</span>
+      <span class="skill-badge">KQL</span>
+    </div>
+    <div class="completion-actions">
+      <a href="../../index.html" class="btn-primary">← Back to Portal</a>
+      <a href="../lab-mde-investigate/index.html" class="btn-secondary" onclick="resetLab(event)">↺ Repeat Lab</a>
+    </div>
+  </div>
+
+</div><!-- /page -->
+
+<script>
+const TOTAL = 6;
+let completed = new Set();
+
+function toggleStep(n){
+  // Just expand — don't collapse active steps
+  const step = document.getElementById(`step-${n}`);
+  if(!completed.has(n)) setActive(n);
+}
+
+function setActive(n){
+  document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+  const step = document.getElementById(`step-${n}`);
+  if(step) step.classList.add('active');
+}
+
+function markDone(e, n){
+  e.stopPropagation();
+  if(completed.has(n)) return;
+  completed.add(n);
+  const step = document.getElementById(`step-${n}`);
+  step.classList.remove('active');
+  step.classList.add('completed');
+
+  updateProgress();
+
+  // Auto-open next step
+  const next = n + 1;
+  if(next <= TOTAL){
+    setTimeout(() => {
+      setActive(next);
+      document.getElementById(`step-${next}`).scrollIntoView({ behavior:'smooth', block:'center' });
+    }, 300);
+  } else {
+    setTimeout(() => {
+      document.getElementById('completion').style.display = 'block';
+      document.getElementById('completion').scrollIntoView({ behavior:'smooth', block:'center' });
+    }, 400);
+  }
+}
+
+function updateProgress(){
+  const pct = Math.round((completed.size / TOTAL) * 100);
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-pct').textContent = pct + '%';
+  document.getElementById('nav-done').textContent = completed.size;
+}
+
+function toggleHint(btn){
+  btn.classList.toggle('open');
+  const body = btn.nextElementSibling;
+  body.style.display = body.style.display === 'block' ? 'none' : 'block';
+}
+
+function copyCode(btn){
+  const block = btn.closest('.code-block').querySelector('.code-body');
+  const text = block.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+function resetLab(e){
+  e.preventDefault();
+  completed.clear();
+  updateProgress();
+  document.querySelectorAll('.step').forEach((s,i) => {
+    s.classList.remove('completed','active');
+    if(i===0) s.classList.add('active');
+  });
+  document.getElementById('completion').style.display = 'none';
+  window.scrollTo({ top:0, behavior:'smooth' });
+}
+</script>
+</body>
+</html>
