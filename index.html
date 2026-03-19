@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Security Labs Platform</title>
+<title>Your Security Learning Hub</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{--bg:#0a0e1a;--bg2:#111827;--cyan:#00e5ff;--blue:#3b82f6;--purple:#a855f7;--green:#22c55e;--red:#ef4444;--orange:#f97316;--pink:#ec4899;--teal:#14b8a6;--yellow:#eab308;--text:#e2e8f0;--text-dim:#94a3b8;--glass:rgba(255,255,255,.04);--border:rgba(255,255,255,.08)}
@@ -73,16 +73,16 @@ footer a{color:var(--cyan);text-decoration:none}
 
 <nav>
 <div class="nav-inner">
-  <div class="logo">🔐 Security Labs</div>
+  <div class="logo">🔐 Security Learning Hub</div>
   <div class="nav-right">
-    <a href="admin/index.html" class="nav-btn">✨ AI Generator — Coming Soon</a>
+    <a href="admin/index.html" class="nav-btn">🔬 Create a Lab with AI</a>
   </div>
 </div>
 </nav>
 
 <div class="hero">
-  <h1>Your <span class="accent">Security Labs</span></h1>
-  <p>Interactive architecture deep-dives, training modules, and comparison guides for the Microsoft security ecosystem.</p>
+  <h1>Your <span class="accent">Security Learning Hub</span></h1>
+  <p>Hands-on labs, architecture deep-dives, practice simulations, and certification prep — everything you need to master the Microsoft Security portfolio.</p>
   <div class="hero-stats">
     <div class="hero-stat"><div class="val" id="stat-total">—</div><div class="lbl">Total Labs</div></div>
     <div class="hero-stat"><div class="val" id="stat-ready">—</div><div class="lbl">Live Now</div></div>
@@ -102,7 +102,7 @@ footer a{color:var(--cyan);text-decoration:none}
 </div>
 
 <footer>
-  <p>Security Labs Platform &nbsp;|&nbsp; <a href="https://learn.microsoft.com" target="_blank">Microsoft Learn</a> &nbsp;|&nbsp; Add new labs via JSON or the <a href="admin/index.html">AI Generator</a></p>
+  <p>Your Security Learning Hub &nbsp;|&nbsp; <a href="https://learn.microsoft.com" target="_blank">Microsoft Learn</a> &nbsp;|&nbsp; <a href="admin/index.html">Create a Lab with AI</a></p>
 </footer>
 
 <script>
@@ -114,7 +114,8 @@ const categoryColors = {
 };
 const categoryIcons = {
   endpoint: '🖥️', cloud: '☁️', identity: '🔑', siem: '📊',
-  ai: '🧠', networking: '🌐', comparison: '⚖️', certification: '📝'
+  ai: '🧠', networking: '🌐', comparison: '⚖️', certification: '📝',
+  practice: '🎙️', 'hands-on': '🔬'
 };
 
 let allLabs = [];
@@ -207,7 +208,8 @@ function renderLabs(category, search) {
         'ai-security': 'labs/ai-security/index.html',
         'az500-simulator': 'labs/az500-simulator/index.html',
         'azure-networking': 'labs/azure-networking/index.html',
-        'meeting-sim': 'labs/meeting-sim/index.html'
+        'meeting-sim': 'labs/meeting-sim/index.html',
+        'lab-mde-investigate': 'labs/lab-mde-investigate/index.html'
       };
       href = folderMap[lab.id] || '#';
     }
