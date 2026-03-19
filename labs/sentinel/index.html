@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Microsoft Sentinel — Architecture Deep Dive</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0e1a;--bg2:#111827;--bg3:#1a2236;
+  --cyan:#00e5ff;--cyan-dim:rgba(0,229,255,.15);
+  --blue:#3b82f6;--purple:#a855f7;--green:#22c55e;--red:#ef4444;
+  --orange:#f97316;--yellow:#eab308;--pink:#ec4899;
+  --teal:#14b8a6;
+  --text:#e2e8f0;--text-dim:#94a3b8;
+  --glass:rgba(255,255,255,.04);
+  --border:rgba(255,255,255,.08);
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;line-height:1.6;overflow-x:hidden}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:rgba(20,184,166,.3);border-radius:3px}
+nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(10,14,26,.92);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:0 2rem}
+nav .nav-inner{max-width:1400px;margin:0 auto;display:flex;align-items:center;gap:2rem;height:60px}
+nav .logo{font-size:1.1rem;font-weight:700;color:var(--teal);white-space:nowrap;display:flex;align-items:center;gap:.5rem}
+nav .nav-links{display:flex;gap:.25rem;overflow-x:auto;flex:1}
+nav .nav-links a{color:var(--text-dim);text-decoration:none;font-size:.78rem;padding:.4rem .7rem;border-radius:6px;white-space:nowrap;transition:all .2s}
+nav .nav-links a:hover,nav .nav-links a.active{color:var(--teal);background:rgba(20,184,166,.15)}
+.hero{min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:8rem 2rem 4rem;position:relative;z-index:1}
+.hero::before{content:'';position:absolute;top:-200px;left:50%;transform:translateX(-50%);width:800px;height:800px;background:radial-gradient(circle,rgba(20,184,166,.08) 0%,transparent 70%);pointer-events:none}
+.hero h1{font-size:clamp(2rem,5vw,3.5rem);font-weight:800;line-height:1.15;margin-bottom:1rem}
+.hero h1 .accent{background:linear-gradient(135deg,var(--teal),var(--blue));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hero p{font-size:1.15rem;color:var(--text-dim);max-width:700px;margin-bottom:2rem}
+.hero .badge{display:inline-flex;align-items:center;gap:.5rem;padding:.5rem 1rem;border-radius:99px;background:var(--glass);border:1px solid var(--border);font-size:.85rem;color:var(--text-dim);margin-bottom:1.5rem}
+.hero .badge .dot{width:8px;height:8px;background:var(--green);border-radius:50%;animation:pulse-dot 2s infinite}
+@keyframes pulse-dot{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(34,197,94,.4)}50%{opacity:.7;box-shadow:0 0 0 8px rgba(34,197,94,0)}}
+.stats-bar{display:flex;justify-content:center;gap:3rem;flex-wrap:wrap;margin:2rem 0}
+.stat{text-align:center}
+.stat .stat-value{font-size:2rem;font-weight:800;background:linear-gradient(135deg,var(--teal),var(--blue));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.stat .stat-label{font-size:.78rem;color:var(--text-dim);margin-top:.15rem}
+section{padding:5rem 2rem;position:relative;z-index:1}
+.section-inner{max-width:1300px;margin:0 auto}
+.section-label{display:inline-flex;align-items:center;gap:.5rem;padding:.35rem .85rem;border-radius:99px;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:1rem}
+.section-title{font-size:clamp(1.6rem,3.5vw,2.4rem);font-weight:700;margin-bottom:.75rem}
+.section-desc{font-size:1rem;color:var(--text-dim);max-width:700px;margin-bottom:3rem}
+.card{background:var(--glass);border:1px solid var(--border);border-radius:16px;padding:1.5rem;transition:all .3s;position:relative;overflow:hidden}
+.card:hover{border-color:rgba(20,184,166,.3);transform:translateY(-2px);box-shadow:0 8px 32px rgba(20,184,166,.08)}
+.card .card-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;margin-bottom:1rem;flex-shrink:0}
+.card h3{font-size:1.05rem;font-weight:600;margin-bottom:.5rem}
+.card p{font-size:.88rem;color:var(--text-dim);line-height:1.55}
+.card .tag{display:inline-block;padding:.15rem .5rem;border-radius:4px;font-size:.7rem;font-weight:600;margin-top:.5rem;margin-right:.25rem}
+.expandable{cursor:pointer}
+.expandable .expand-content{max-height:0;overflow:hidden;transition:max-height .4s ease}
+.expandable.open .expand-content{max-height:800px}
+.expandable .expand-toggle{font-size:.75rem;color:var(--teal);margin-top:.5rem;display:flex;align-items:center;gap:.25rem}
+.expandable .expand-toggle::after{content:'▼';font-size:.6rem;transition:transform .3s}
+.expandable.open .expand-toggle::after{transform:rotate(180deg)}
+.expand-content .detail-list{padding:.75rem 0 0 0;font-size:.82rem;color:var(--text-dim)}
+.expand-content .detail-list li{margin-bottom:.35rem;list-style:none;padding-left:1rem;position:relative}
+.expand-content .detail-list li::before{content:'›';position:absolute;left:0;color:var(--teal);font-weight:700}
+.why-box{background:linear-gradient(135deg,rgba(249,115,22,.04),rgba(234,179,8,.04));border:1px solid rgba(249,115,22,.2);border-radius:14px;padding:1.5rem;margin-top:2.5rem;position:relative;z-index:1;overflow:hidden}
+.why-box.fade-in{opacity:1;transform:translateY(0)}
+.why-box::before{content:'💡';position:absolute;top:-8px;right:16px;font-size:2.5rem;opacity:.15}
+.why-box .why-title{font-size:.85rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--orange);margin-bottom:.75rem}
+.why-box .why-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+@media(max-width:768px){.why-box .why-grid{grid-template-columns:1fr}}
+.why-item{display:flex;gap:.6rem;align-items:flex-start}
+.why-item .why-icon{font-size:1.1rem;flex-shrink:0;margin-top:2px}
+.why-item .why-content h4{font-size:.85rem;font-weight:600;color:var(--text);margin-bottom:.15rem}
+.why-item .why-content p{font-size:.78rem;color:var(--text-dim);line-height:1.5}
+.fade-in{opacity:0;transform:translateY(30px);transition:opacity .6s,transform .6s}
+.fade-in.visible{opacity:1;transform:translateY(0)}
+.grid-bg{position:absolute;inset:0;overflow:hidden;pointer-events:none;opacity:.3}
+.grid-bg::before{content:'';position:absolute;inset:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:60px 60px}
+#particles-canvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;opacity:.4}
+footer{text-align:center;padding:3rem 2rem;border-top:1px solid var(--border);font-size:.8rem;color:var(--text-dim)}
+footer a{color:var(--teal);text-decoration:none}
+
+/* PILLARS */
+.pillars-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1.25rem}
+.pillar-card{text-align:center;padding:2rem 1.25rem}
+.pillar-card .pillar-icon{font-size:2.5rem;margin-bottom:.75rem}
+.pillar-card .pillar-name{font-size:1.05rem;font-weight:700;margin-bottom:.5rem}
+
+/* COMPONENT GRIDS */
+.comp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.25rem}
+
+/* FLOW */
+.flow-pipeline{display:flex;flex-direction:column;gap:0;align-items:center}
+.flow-stage{display:flex;align-items:center;gap:1.5rem;width:100%;max-width:1000px;padding:1.5rem}
+.flow-stage .stage-num{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.2rem;font-weight:800;flex-shrink:0}
+.flow-stage .stage-content{flex:1}
+.flow-stage .stage-content h3{font-size:1.05rem;font-weight:600;margin-bottom:.25rem}
+.flow-stage .stage-content p{font-size:.88rem;color:var(--text-dim)}
+.flow-connector{width:3px;height:50px;position:relative;overflow:hidden}
+.flow-connector .particle{position:absolute;width:3px;height:12px;background:var(--teal);border-radius:2px;animation:flow-down 1.5s infinite;box-shadow:0 0 8px var(--teal)}
+@keyframes flow-down{0%{top:-12px;opacity:0}20%{opacity:1}80%{opacity:1}100%{top:100%;opacity:0}}
+
+/* INTEGRATIONS */
+.integ-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.25rem}
+.integ-card{border-left:3px solid var(--border);cursor:pointer}
+.integ-card:hover{border-left-color:var(--teal)}
+.integ-card .integ-header{display:flex;align-items:center;gap:.75rem}
+.integ-card .integ-icon{font-size:1.6rem;flex-shrink:0}
+.integ-card .integ-name{font-size:1rem;font-weight:700}
+.integ-card .integ-how{font-size:.82rem;color:var(--text-dim);margin-top:.35rem}
+.integ-card .integ-tag{display:inline-block;padding:.12rem .4rem;border-radius:4px;font-size:.65rem;font-weight:600;margin-top:.5rem;margin-right:.25rem;background:rgba(20,184,166,.1);color:var(--teal)}
+
+/* SIMULATION */
+#simulation{background:linear-gradient(180deg,var(--bg) 0%,#0d1321 100%);padding:5rem 2rem 4rem;min-height:100vh}
+.sim-theater{max-width:1200px;margin:0 auto}
+.sim-controls{display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap}
+.sim-btn{padding:.5rem 1.25rem;border-radius:8px;border:1px solid var(--border);background:var(--glass);color:var(--text);font-size:.85rem;font-weight:600;cursor:pointer;transition:all .2s}
+.sim-btn:hover{border-color:var(--teal);color:var(--teal)}
+.sim-btn.active{background:rgba(20,184,166,.15);border-color:var(--teal);color:var(--teal)}
+.sim-btn.paused{background:rgba(234,179,8,.15);border-color:var(--yellow);color:var(--yellow)}
+.sim-progress{flex:1;min-width:200px;height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden}
+.sim-progress-bar{height:100%;width:0%;background:linear-gradient(90deg,var(--teal),var(--blue));border-radius:3px;transition:width .5s}
+.sim-step-label{font-size:.8rem;color:var(--teal);font-weight:600;min-width:180px;text-align:right}
+.sim-speed-controls{display:flex;align-items:center;gap:.5rem}
+.sim-speed-controls label{font-size:.72rem;color:var(--text-dim);font-weight:600}
+.speed-btn{padding:.25rem .5rem;border-radius:4px;border:1px solid var(--border);background:var(--glass);color:var(--text-dim);font-size:.72rem;cursor:pointer;transition:all .2s}
+.speed-btn:hover,.speed-btn.active{border-color:var(--teal);color:var(--teal);background:rgba(20,184,166,.1)}
+.sim-grid{display:grid;grid-template-columns:280px 1fr 280px;grid-template-rows:auto auto;gap:1.25rem;min-height:550px}
+@media(max-width:1000px){.sim-grid{grid-template-columns:1fr}}
+.sim-panel{background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:16px;padding:1.25rem;transition:border-color .5s,box-shadow .5s}
+.sim-panel.highlight{border-color:rgba(20,184,166,.5);box-shadow:0 0 30px rgba(20,184,166,.08)}
+.sim-panel.alert-highlight{border-color:rgba(239,68,68,.5);box-shadow:0 0 30px rgba(239,68,68,.1)}
+.sim-panel.green-highlight{border-color:rgba(34,197,94,.5);box-shadow:0 0 30px rgba(34,197,94,.1)}
+.sim-panel-title{font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem}
+.sim-panel-title .panel-dot{width:8px;height:8px;border-radius:50%;animation:pulse-dot 2s infinite}
+.panel-datasrc{grid-column:1;grid-row:1/3}.panel-datasrc .sim-panel-title{color:var(--cyan)}.panel-datasrc .panel-dot{background:var(--cyan)}
+.panel-sentinel{grid-column:2;grid-row:1}.panel-sentinel .sim-panel-title{color:var(--teal)}.panel-sentinel .panel-dot{background:var(--teal)}
+.panel-response{grid-column:3;grid-row:1/3}.panel-response .sim-panel-title{color:var(--green)}.panel-response .panel-dot{background:var(--green)}
+.panel-soc{grid-column:2;grid-row:2}.panel-soc .sim-panel-title{color:var(--orange)}.panel-soc .panel-dot{background:var(--orange)}
+.sim-log{font-family:'Cascadia Code','Fira Code',monospace;font-size:.72rem;line-height:1.7;max-height:460px;overflow-y:auto;scrollbar-width:thin}
+.log-entry{padding:.3rem .5rem;border-radius:4px;margin-bottom:2px;opacity:0;transform:translateY(8px);transition:opacity .4s,transform .4s;display:flex;align-items:flex-start;gap:.5rem}
+.log-entry.visible{opacity:1;transform:translateY(0)}
+.log-time{color:var(--text-dim);flex-shrink:0;min-width:55px}
+.log-icon{flex-shrink:0;font-size:.8rem}
+.log-msg{flex:1;word-break:break-word}
+.log-entry.log-red{background:rgba(239,68,68,.06);color:var(--red)}
+.log-entry.log-cyan{background:rgba(0,229,255,.06);color:var(--cyan)}
+.log-entry.log-teal{background:rgba(20,184,166,.06);color:var(--teal)}
+.log-entry.log-green{background:rgba(34,197,94,.06);color:var(--green)}
+.log-entry.log-orange{background:rgba(249,115,22,.06);color:var(--orange)}
+.log-entry.log-yellow{background:rgba(234,179,8,.06);color:var(--yellow)}
+.log-entry.log-purple{background:rgba(168,85,247,.06);color:var(--purple)}
+.log-entry.log-dim{background:transparent;color:var(--text-dim)}
+.sim-narrative{background:rgba(20,184,166,.04);border:1px solid rgba(20,184,166,.15);border-radius:12px;padding:1rem 1.25rem;margin-top:1.5rem;text-align:center;min-height:80px;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:all .5s}
+.sim-narrative .narr-step{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--teal);margin-bottom:.25rem}
+.sim-narrative .narr-text{font-size:.92rem;color:var(--text)}
+.sim-narrative.narr-red{background:rgba(239,68,68,.04);border-color:rgba(239,68,68,.2)}.sim-narrative.narr-red .narr-step{color:var(--red)}
+.sim-narrative.narr-green{background:rgba(34,197,94,.04);border-color:rgba(34,197,94,.2)}.sim-narrative.narr-green .narr-step{color:var(--green)}
+/* CHATBOX */
+.chat-toggle{position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#14b8a6,#3b82f6);border:none;color:white;font-size:1.5rem;cursor:pointer;z-index:200;box-shadow:0 4px 20px rgba(20,184,166,.3);transition:all .2s;display:flex;align-items:center;justify-content:center}
+.chat-toggle:hover{transform:scale(1.1)}
+.chat-toggle.open{border-radius:12px;width:44px;height:44px;font-size:1.1rem;bottom:470px}
+.chat-panel{position:fixed;bottom:24px;right:24px;width:380px;height:440px;background:#111827;border:1px solid rgba(255,255,255,.08);border-radius:16px;z-index:199;display:none;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,.5);overflow:hidden}
+.chat-panel.open{display:flex}
+.chat-header{padding:.75rem 1rem;background:rgba(20,184,166,.08);border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:.5rem}
+.chat-header .ch-title{font-size:.85rem;font-weight:700;color:#14b8a6}
+.chat-header .ch-sub{font-size:.7rem;color:#94a3b8;margin-left:auto}
+.chat-messages{flex:1;overflow-y:auto;padding:.75rem;display:flex;flex-direction:column;gap:.5rem;scrollbar-width:thin}
+.chat-msg{max-width:90%;padding:.6rem .85rem;border-radius:12px;font-size:.82rem;line-height:1.5;animation:msg-in .3s ease}
+@keyframes msg-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.chat-msg.bot{background:rgba(20,184,166,.06);border:1px solid rgba(20,184,166,.12);color:#e2e8f0;align-self:flex-start;border-bottom-left-radius:4px}
+.chat-msg.user{background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.2);color:white;align-self:flex-end;border-bottom-right-radius:4px}
+.chat-msg .term-name{color:#14b8a6;font-weight:700;display:block;margin-bottom:.25rem}
+.chat-msg .term-category{font-size:.65rem;color:#94a3b8;background:rgba(255,255,255,.04);padding:.1rem .35rem;border-radius:3px;display:inline-block;margin-bottom:.35rem}
+.chat-input-row{padding:.5rem;border-top:1px solid rgba(255,255,255,.08);display:flex;gap:.35rem}
+.chat-input{flex:1;height:36px;border:1px solid rgba(255,255,255,.08);border-radius:8px;background:#0a0e1a;color:#e2e8f0;padding:0 .75rem;font-size:.82rem;font-family:inherit}
+.chat-input:focus{outline:none;border-color:#14b8a6}
+.chat-input::placeholder{color:#94a3b8}
+.chat-send{width:36px;height:36px;border-radius:8px;border:1px solid #14b8a6;background:rgba(20,184,166,.1);color:#14b8a6;font-size:.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.chat-suggestions{padding:.35rem .75rem;display:flex;gap:.35rem;flex-wrap:wrap;border-top:1px solid rgba(255,255,255,.08)}
+.chat-sug{padding:.2rem .5rem;border-radius:99px;border:1px solid rgba(255,255,255,.08);font-size:.68rem;color:#94a3b8;cursor:pointer;transition:all .15s;background:none}
+.chat-sug:hover{border-color:#14b8a6;color:#14b8a6}
+</style>
+</head>
+<body>
+<canvas id="particles-canvas"></canvas>
+
+<nav><div class="nav-inner">
+  <div class="logo">🔭 Sentinel Architecture</div>
+  <div class="nav-links">
+    <a href="#simulation">▶ Live Sim</a>
+    <a href="#loganalytics">Log Analytics</a>
+    <a href="#overview">Overview</a>
+    <a href="#dataflow">Data Pipeline</a>
+    <a href="#detection">Detection</a>
+    <a href="#investigation">Investigation</a>
+    <a href="#soar">SOAR</a>
+    <a href="#integrations">Integrations</a>
+  </div>
+</div></nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="badge"><span class="dot"></span> Validated against Microsoft Learn docs — March 2026</div>
+  <h1>How <span class="accent">Microsoft Sentinel</span> Actually Works</h1>
+  <p>A complete animated walkthrough of Microsoft's cloud-native SIEM — from data ingestion across 300+ connectors to AI-powered detection, investigation, and automated response.</p>
+  <div class="stats-bar">
+    <div class="stat"><div class="stat-value">SIEM</div><div class="stat-label">Cloud-Native Platform</div></div>
+    <div class="stat"><div class="stat-value">300+</div><div class="stat-label">Data Connectors</div></div>
+    <div class="stat"><div class="stat-value">4</div><div class="stat-label">Core Capabilities</div></div>
+    <div class="stat"><div class="stat-value">SOAR</div><div class="stat-label">Built-in Automation</div></div>
+  </div>
+</section>
+
+<!-- SIMULATION -->
+<section id="simulation">
+  <div class="sim-theater">
+    <div class="section-label" style="background:rgba(239,68,68,.15);color:var(--red)">▶ Live Simulation</div>
+    <h2 class="section-title">Sentinel in Action — Detecting a Brute Force → Data Exfil Attack</h2>
+    <p class="section-desc">Watch data flow from multiple sources into Sentinel. Analytics rules detect a multi-stage attack. Automation responds in seconds. All 4 SIEM pillars in action.</p>
+    <div class="sim-controls">
+      <button class="sim-btn" id="sim-play" onclick="startSim()">▶ Play</button>
+      <button class="sim-btn" id="sim-pause" onclick="togglePause()">⏸ Pause</button>
+      <button class="sim-btn" id="sim-next" onclick="nextStep()">⏭ Next Step</button>
+      <button class="sim-btn" id="sim-reset" onclick="resetSim()">↺ Reset</button>
+      <div class="sim-speed-controls">
+        <label>SPEED:</label>
+        <button class="speed-btn" onclick="setSpeed(0.5)" id="speed-slow">0.5×</button>
+        <button class="speed-btn active" onclick="setSpeed(1)" id="speed-normal">1×</button>
+        <button class="speed-btn" onclick="setSpeed(2)" id="speed-fast">2×</button>
+      </div>
+      <div class="sim-progress"><div class="sim-progress-bar" id="sim-progress-bar"></div></div>
+      <div class="sim-step-label" id="sim-step-label">Ready to start</div>
+    </div>
+    <div class="sim-grid">
+      <div class="sim-panel panel-datasrc" id="panel-datasrc"><div class="sim-panel-title"><span class="panel-dot"></span> Data Sources</div><div class="sim-log" id="log-datasrc"></div></div>
+      <div class="sim-panel panel-sentinel" id="panel-sentinel"><div class="sim-panel-title"><span class="panel-dot"></span> Microsoft Sentinel</div><div class="sim-log" id="log-sentinel"></div></div>
+      <div class="sim-panel panel-response" id="panel-response"><div class="sim-panel-title"><span class="panel-dot"></span> Automated Response</div><div class="sim-log" id="log-response"></div></div>
+      <div class="sim-panel panel-soc" id="panel-soc"><div class="sim-panel-title"><span class="panel-dot"></span> SOC Analyst</div><div class="sim-log" id="log-soc"></div></div>
+    </div>
+    <div class="sim-narrative" id="sim-narrative">
+      <div class="narr-step">Welcome</div>
+      <div class="narr-text">Press <strong>▶ Play</strong> to auto-play, or <strong>⏭ Next Step</strong> to advance manually for presentations.</div>
+    </div>
+  </div>
+</section>
+
+<!-- DEEP DIVE: DATA INGESTION & LOG ANALYTICS -->
+<section id="loganalytics" style="background:var(--bg2)">
+  <div class="section-inner">
+    <div class="section-label" style="background:rgba(20,184,166,.15);color:var(--teal)">🧠 Deep Dive</div>
+    <h2 class="section-title fade-in">How Data Ingestion & Log Analytics Actually Work</h2>
+    <p class="section-desc fade-in">This is the engine room of Sentinel. Understanding <em>how</em> data gets from a firewall or a laptop into a queryable table is the foundation of everything else. Let's break it down piece by piece.</p>
+
+    <!-- WHAT IS A LOG ANALYTICS WORKSPACE -->
+    <div class="card fade-in" style="border-left:3px solid var(--teal);margin-bottom:2rem;padding:2rem">
+      <h3 style="color:var(--teal);font-size:1.15rem;margin-bottom:1rem">📦 What IS a Log Analytics Workspace?</h3>
+      <p style="font-size:.95rem;margin-bottom:1rem">Think of it as a <strong>giant cloud database</strong> that stores all your security logs. It's where EVERY piece of data in Sentinel lives — sign-in logs, firewall logs, endpoint alerts, cloud activity, everything.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-top:1rem">
+        <div style="padding:1rem;background:rgba(20,184,166,.04);border:1px solid rgba(20,184,166,.15);border-radius:10px">
+          <strong style="color:var(--teal);display:block;margin-bottom:.5rem">🗄️ It's Organized into Tables</strong>
+          <p style="font-size:.82rem;color:var(--text-dim)">Each data source gets its own table. <code>SigninLogs</code> for Entra ID logins. <code>SecurityEvent</code> for Windows events. <code>AzureActivity</code> for Azure resource changes. <code>CommonSecurityLog</code> for CEF/syslog from firewalls. You query these tables with KQL.</p>
+        </div>
+        <div style="padding:1rem;background:rgba(59,130,246,.04);border:1px solid rgba(59,130,246,.15);border-radius:10px">
+          <strong style="color:var(--blue);display:block;margin-bottom:.5rem">💰 You Pay for What Goes IN</strong>
+          <p style="font-size:.82rem;color:var(--text-dim)">Billing is based on <strong>data ingestion volume</strong> (GB/day). More logs = higher cost. That's why filtering and choosing the right log tier matters. You can also commit to a daily volume for discounts (commitment tiers).</p>
+        </div>
+        <div style="padding:1rem;background:rgba(168,85,247,.04);border:1px solid rgba(168,85,247,.15);border-radius:10px">
+          <strong style="color:var(--purple);display:block;margin-bottom:.5rem">⏱️ Retention = How Long Data is Kept</strong>
+          <p style="font-size:.82rem;color:var(--text-dim)"><strong>Interactive retention</strong> (default 90 days): data you can query instantly with KQL. <strong>Long-term retention</strong> (up to 12 years): archived data you can retrieve with a search job when needed. Compliance often requires 1-7 years.</p>
+        </div>
+        <div style="padding:1rem;background:rgba(34,197,94,.04);border:1px solid rgba(34,197,94,.15);border-radius:10px">
+          <strong style="color:var(--green);display:block;margin-bottom:.5rem">🔒 It's Tamper-Proof</strong>
+          <p style="font-size:.82rem;color:var(--text-dim)">Log Analytics is an append-only platform. Once data is written, it can't be modified or deleted (except by policy for compliance). This means attackers can't cover their tracks by deleting logs.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- THE INGESTION PIPELINE - VISUAL -->
+    <h3 class="fade-in" style="color:var(--teal);margin-bottom:1.5rem;font-size:1.1rem">🔄 The Ingestion Pipeline — How Data Gets From Source → Table</h3>
+
+    <div class="flow-pipeline">
+      <!-- Step 1: Sources -->
+      <div class="flow-stage fade-in">
+        <div class="stage-num" style="background:rgba(239,68,68,.15);color:var(--red);border:2px solid rgba(239,68,68,.3)">1</div>
+        <div class="stage-content">
+          <h3>🏢 Data Sources (Where Logs Come From)</h3>
+          <p>Your environment generates logs everywhere: Entra ID sign-ins, Azure resource activity, Windows/Linux servers, firewalls (Palo Alto, Fortinet, Cisco), cloud apps (M365, AWS), custom apps via API. Each source produces logs in its own format.</p>
+        </div>
+      </div>
+      <div class="flow-connector"><div class="particle"></div></div>
+
+      <!-- Step 2: Connectors -->
+      <div class="flow-stage fade-in">
+        <div class="stage-num" style="background:rgba(0,229,255,.15);color:var(--cyan);border:2px solid rgba(0,229,255,.3)">2</div>
+        <div class="stage-content">
+          <h3>🔌 Data Connectors (The Pipes)</h3>
+          <p>Connectors are the "pipes" that move data from source to workspace. <strong>300+ built-in connectors.</strong> There are different types depending on the source:</p>
+        </div>
+      </div>
+
+      <!-- Connector types breakdown -->
+      <div style="max-width:1000px;width:100%;display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1rem 0" class="fade-in">
+        <div class="card expandable" style="border-left:3px solid var(--cyan)">
+          <h3 style="font-size:.9rem">🔷 Microsoft Native (One-Click)</h3>
+          <p style="font-size:.8rem">Entra ID, M365, Defender XDR, Azure Activity — just toggle ON. Data flows in seconds. No agents, no forwarders, no config.</p>
+          <div class="expand-toggle">How it works →</div>
+          <div class="expand-content"><ul class="detail-list">
+            <li>Uses Azure diagnostic settings or built-in service integration</li>
+            <li>Data goes directly from the Microsoft service → your workspace</li>
+            <li>Examples: SigninLogs, AuditLogs, SecurityAlert, AzureActivity</li>
+            <li>Typically free or included in your M365/Azure license</li>
+          </ul></div>
+        </div>
+        <div class="card expandable" style="border-left:3px solid var(--orange)">
+          <h3 style="font-size:.9rem">🔥 Syslog / CEF (Firewalls & Network)</h3>
+          <p style="font-size:.8rem">Palo Alto, Fortinet, Cisco ASA, Check Point — send logs via Syslog/CEF to a Linux forwarder running Azure Monitor Agent.</p>
+          <div class="expand-toggle">How it works →</div>
+          <div class="expand-content"><ul class="detail-list">
+            <li>Firewall sends syslog to a Linux VM (the "forwarder")</li>
+            <li>Azure Monitor Agent (AMA) on the forwarder collects and forwards to workspace</li>
+            <li>CEF = Common Event Format — a standardized syslog format for security</li>
+            <li>Data lands in the <code>CommonSecurityLog</code> (CEF) or <code>Syslog</code> table</li>
+            <li>You need a DCR (Data Collection Rule) to specify what to collect</li>
+          </ul></div>
+        </div>
+        <div class="card expandable" style="border-left:3px solid var(--green)">
+          <h3 style="font-size:.9rem">🖥️ Agent-Based (Servers & VMs)</h3>
+          <p style="font-size:.8rem">Azure Monitor Agent (AMA) installed on Windows/Linux servers. Collects Windows Event Logs, performance counters, custom logs.</p>
+          <div class="expand-toggle">How it works →</div>
+          <div class="expand-content"><ul class="detail-list">
+            <li>AMA installed on the VM (Azure-native, Arc for on-prem/other clouds)</li>
+            <li>Data Collection Rules (DCRs) define exactly which logs to collect</li>
+            <li>Windows: Security events, Application logs, custom event channels</li>
+            <li>Linux: syslog facilities (auth, daemon, kern), custom log files</li>
+            <li>Data lands in <code>SecurityEvent</code>, <code>Event</code>, or custom tables</li>
+          </ul></div>
+        </div>
+        <div class="card expandable" style="border-left:3px solid var(--purple)">
+          <h3 style="font-size:.9rem">🔗 REST API / Custom (Anything Else)</h3>
+          <p style="font-size:.8rem">For sources without a built-in connector — use the Logs Ingestion API to push data from any application via HTTP POST.</p>
+          <div class="expand-toggle">How it works →</div>
+          <div class="expand-content"><ul class="detail-list">
+            <li>Your app sends JSON data via HTTPS POST to the ingestion endpoint</li>
+            <li>A DCR defines the schema and any transformations</li>
+            <li>Data lands in a custom table (e.g., <code>MyApp_CL</code>)</li>
+            <li>Can also use Logic Apps or Azure Functions as middleware</li>
+            <li>Codeless Connector Platform for building connectors without code</li>
+          </ul></div>
+        </div>
+      </div>
+
+      <div class="flow-connector"><div class="particle" style="animation-delay:.3s"></div></div>
+
+      <!-- Step 3: DCR & Transformation -->
+      <div class="flow-stage fade-in">
+        <div class="stage-num" style="background:rgba(168,85,247,.15);color:var(--purple);border:2px solid rgba(168,85,247,.3)">3</div>
+        <div class="stage-content">
+          <h3>🔄 Data Collection Rules & Transformation</h3>
+          <p>Before data hits the workspace, <strong>Data Collection Rules (DCRs)</strong> can filter, transform, and enrich it. Think of DCRs as the <em>rules that decide what gets in and what gets thrown away</em>. This is where you save money — filter out noise before you pay to store it.</p>
+        </div>
+      </div>
+      <div class="flow-connector"><div class="particle" style="animation-delay:.5s"></div></div>
+
+      <!-- Step 4: Workspace Tables -->
+      <div class="flow-stage fade-in">
+        <div class="stage-num" style="background:rgba(20,184,166,.15);color:var(--teal);border:2px solid rgba(20,184,166,.3)">4</div>
+        <div class="stage-content">
+          <h3>📊 Log Analytics Tables (Where Data Lives)</h3>
+          <p>Data lands in tables organized by source. Each table has a <strong>plan</strong> that controls cost and query capability. This is where you choose how much to spend vs. how much you can do with the data.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABLE PLANS -->
+    <h3 class="fade-in" style="color:var(--teal);margin:2.5rem 0 1rem;font-size:1.1rem">💰 Table Plans — The Cost vs. Capability Tradeoff</h3>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem" class="fade-in">
+      <div class="card" style="border-top:3px solid var(--teal);text-align:center">
+        <h3 style="color:var(--teal)">Analytics Logs</h3>
+        <div style="font-size:2rem;margin:.5rem 0">📊</div>
+        <p style="font-size:.82rem"><strong>Full KQL query</strong> capability. Alerts, visualizations, Fusion, analytics rules — everything works. Default 90-day interactive retention.</p>
+        <span class="tag" style="background:rgba(20,184,166,.1);color:var(--teal)">Full Power</span>
+        <span class="tag" style="background:rgba(20,184,166,.1);color:var(--teal)">Standard Cost</span>
+        <p style="font-size:.75rem;color:var(--text-dim);margin-top:.75rem"><strong>Use for:</strong> Security events, sign-in logs, alerts — data you query constantly and build detections on.</p>
+      </div>
+      <div class="card" style="border-top:3px solid var(--yellow);text-align:center">
+        <h3 style="color:var(--yellow)">Basic Logs</h3>
+        <div style="font-size:2rem;margin:.5rem 0">📋</div>
+        <p style="font-size:.82rem"><strong>Limited KQL</strong> — can query but some operators restricted. Can't use for analytics rules or alerts. 30-day interactive retention.</p>
+        <span class="tag" style="background:rgba(234,179,8,.1);color:var(--yellow)">~60% Cheaper</span>
+        <span class="tag" style="background:rgba(234,179,8,.1);color:var(--yellow)">Query Only</span>
+        <p style="font-size:.75rem;color:var(--text-dim);margin-top:.75rem"><strong>Use for:</strong> Verbose logs you keep for investigations but don't alert on — debug logs, verbose firewall flows, trace data.</p>
+      </div>
+      <div class="card" style="border-top:3px solid var(--blue);text-align:center">
+        <h3 style="color:var(--blue)">Auxiliary Logs</h3>
+        <div style="font-size:2rem;margin:.5rem 0">🗄️</div>
+        <p style="font-size:.82rem"><strong>Minimal query</strong> — primarily for long-term compliance storage. Very limited KQL. 30-day interactive, up to 12-year long-term retention.</p>
+        <span class="tag" style="background:rgba(59,130,246,.1);color:var(--blue)">~85% Cheaper</span>
+        <span class="tag" style="background:rgba(59,130,246,.1);color:var(--blue)">Archive</span>
+        <p style="font-size:.75rem;color:var(--text-dim);margin-top:.75rem"><strong>Use for:</strong> Compliance data you must keep for years but rarely query — audit trails, access logs, regulatory records.</p>
+      </div>
+    </div>
+
+    <!-- KEY TABLES -->
+    <h3 class="fade-in" style="color:var(--teal);margin:2.5rem 0 1rem;font-size:1.1rem">📋 Key Tables You'll Work With</h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem" class="fade-in">
+      <div class="card" style="padding:1rem"><div style="font-family:'Cascadia Code',monospace;font-size:.85rem;color:var(--teal);margin-bottom:.25rem">SigninLogs</div><div style="font-size:.78rem;color:var(--text-dim)">Entra ID interactive sign-ins — who logged in, from where, MFA status, risk level, device</div></div>
+      <div class="card" style="padding:1rem"><div style="font-family:'Cascadia Code',monospace;font-size:.85rem;color:var(--teal);margin-bottom:.25rem">SecurityEvent</div><div style="font-size:.78rem;color:var(--text-dim)">Windows Security Event Log — logons, process creation, privilege use (from AMA agent)</div></div>
+      <div class="card" style="padding:1rem"><div style="font-family:'Cascadia Code',monospace;font-size:.85rem;color:var(--teal);margin-bottom:.25rem">SecurityAlert</div><div style="font-size:.78rem;color:var(--text-dim)">Alerts from Defender XDR, MDC, and other security products — the alerts themselves</div></div>
+      <div class="card" style="padding:1rem"><div style="font-family:'Cascadia Code',monospace;font-size:.85rem;color:var(--teal);margin-bottom:.25rem">AzureActivity</div><div style="font-size:.78rem;color:var(--text-dim)">Azure control plane operations — who created/deleted/modified what resource</div></div>
+      <div class="card" style="padding:1rem"><div style="font-family:'Cascadia Code',monospace;font-size:.85rem;color:var(--teal);margin-bottom:.25rem">CommonSecurityLog</div><div style="font-size:.78rem;color:var(--text-dim)">CEF-formatted logs from firewalls (Palo Alto, Fortinet, Cisco) — network security events</div></div>
+      <div class="card" style="padding:1rem"><div style="font-family:'Cascadia Code',monospace;font-size:.85rem;color:var(--teal);margin-bottom:.25rem">Syslog</div><div style="font-size:.78rem;color:var(--text-dim)">Linux syslog messages — auth, daemon, kernel events from Linux servers</div></div>
+      <div class="card" style="padding:1rem"><div style="font-family:'Cascadia Code',monospace;font-size:.85rem;color:var(--teal);margin-bottom:.25rem">SecurityIncident</div><div style="font-size:.78rem;color:var(--text-dim)">Sentinel incidents — the correlated groupings of alerts that analysts investigate</div></div>
+      <div class="card" style="padding:1rem"><div style="font-family:'Cascadia Code',monospace;font-size:.85rem;color:var(--teal);margin-bottom:.25rem">DeviceProcessEvents</div><div style="font-size:.78rem;color:var(--text-dim)">MDE endpoint process telemetry (via XDR connector) — command lines, parent processes, hashes</div></div>
+    </div>
+
+    <!-- REAL-WORLD EXAMPLE -->
+    <h3 class="fade-in" style="color:var(--teal);margin:2.5rem 0 1rem;font-size:1.1rem">🔍 Real-World Example: A Firewall Log's Journey</h3>
+    <div class="card fade-in" style="padding:2rem;border-left:3px solid var(--orange)">
+      <p style="font-size:.92rem;margin-bottom:1.25rem">Here's exactly what happens when your Palo Alto firewall generates a "connection blocked" event:</p>
+      <div style="font-family:'Cascadia Code',monospace;font-size:.78rem;line-height:2;color:var(--text-dim)">
+        <div><span style="color:var(--red)">1.</span> <span style="color:var(--orange)">Palo Alto</span> generates a CEF syslog message: <code style="color:var(--text)">"CEF:0|PAN|Firewall|10.0|THREAT|url|3|src=10.0.1.50 dst=185.220.101.42 act=blocked"</code></div>
+        <div><span style="color:var(--red)">2.</span> <span style="color:var(--orange)">Syslog forward</span> → message sent over TCP/514 to your Linux forwarder VM</div>
+        <div><span style="color:var(--red)">3.</span> <span style="color:var(--cyan)">Azure Monitor Agent</span> on the forwarder picks it up (configured via DCR to listen on the CEF facility)</div>
+        <div><span style="color:var(--red)">4.</span> <span style="color:var(--purple)">DCR transformation</span> → parses the CEF fields, extracts src IP, dst IP, action, severity</div>
+        <div><span style="color:var(--red)">5.</span> <span style="color:var(--teal)">Ingested</span> → lands in the <code style="color:var(--teal)">CommonSecurityLog</code> table in your workspace</div>
+        <div><span style="color:var(--red)">6.</span> <span style="color:var(--green)">Queryable</span> → within seconds, you can query it: <code style="color:var(--green)">CommonSecurityLog | where DestinationIP == "185.220.101.42"</code></div>
+        <div><span style="color:var(--red)">7.</span> <span style="color:var(--yellow)">TI Matching</span> → Sentinel auto-checks destination IP against threat intelligence → if it's a known C2 IP, alert fires automatically</div>
+      </div>
+    </div>
+
+    <div class="why-box fade-in">
+      <div class="why-title">💡 Why Understanding Ingestion Matters</div>
+      <div class="why-grid">
+        <div class="why-item"><div class="why-icon">💰</div><div class="why-content"><h4>Cost Control</h4><p>Data ingestion is the #1 Sentinel cost driver. If you don't understand table plans, DCR filtering, and commitment tiers, you'll overpay massively. One verbose firewall can cost more than your entire SIEM budget.</p></div></div>
+        <div class="why-item"><div class="why-icon">🔗</div><div class="why-content"><h4>No Data = No Detection</h4><p>If a data source isn't connected, Sentinel is blind to it. Understanding connectors means you know exactly what Sentinel can and can't see. Coverage gaps = security gaps.</p></div></div>
+        <div class="why-item"><div class="why-icon">📊</div><div class="why-content"><h4>Table Structure = Query Capability</h4><p>If you know the tables, you can write KQL. If you can write KQL, you can hunt, detect, and investigate. Every analytics rule, every hunt, every workbook starts with knowing which table to query.</p></div></div>
+        <div class="why-item"><div class="why-icon">⚡</div><div class="why-content"><h4>DCR Transforms Save Money & Improve Signal</h4><p>Filter out 80% of verbose Windows security events at ingestion time (keep logon events, drop everything else). You pay less AND your detections have better signal-to-noise ratio.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 1: OVERVIEW -->
+<section id="overview">
+  <div class="grid-bg"></div>
+  <div class="section-inner">
+    <div class="section-label" style="background:rgba(20,184,166,.15);color:var(--teal)">🔭 Foundation</div>
+    <h2 class="section-title fade-in">The Four Pillars of Sentinel</h2>
+    <p class="section-desc fade-in">Microsoft Sentinel is a cloud-native <strong>SIEM + SOAR</strong> platform. It collects data at scale, detects threats with AI, investigates with graph-based tools, and responds automatically with playbooks.</p>
+    <div class="pillars-grid">
+      <div class="card pillar-card fade-in" style="border-top:3px solid var(--cyan)"><div class="pillar-icon">📡</div><div class="pillar-name" style="color:var(--cyan)">Collect</div><p>Ingest data from 300+ connectors across users, devices, apps, and infrastructure — on-prem and multicloud. Stored in Log Analytics workspace.</p></div>
+      <div class="card pillar-card fade-in" style="border-top:3px solid var(--teal)"><div class="pillar-icon">🎯</div><div class="pillar-name" style="color:var(--teal)">Detect</div><p>Analytics rules (scheduled, NRT, Fusion, anomaly) correlate signals and fire alerts. MITRE ATT&CK coverage mapping shows gaps.</p></div>
+      <div class="card pillar-card fade-in" style="border-top:3px solid var(--purple)"><div class="pillar-icon">🔬</div><div class="pillar-name" style="color:var(--purple)">Investigate</div><p>Interactive incident graphs, entity timelines, hunting queries, bookmarks, and Jupyter notebooks for deep analysis.</p></div>
+      <div class="card pillar-card fade-in" style="border-top:3px solid var(--green)"><div class="pillar-icon">⚡</div><div class="pillar-name" style="color:var(--green)">Respond</div><p>Automation rules triage incidents automatically. Playbooks (Logic Apps) orchestrate response across 200+ service connectors.</p></div>
+    </div>
+    <div class="why-box fade-in">
+      <div class="why-title">💡 Why Cloud-Native SIEM Matters</div>
+      <div class="why-grid">
+        <div class="why-item"><div class="why-icon">📈</div><div class="why-content"><h4>No Infrastructure to Manage</h4><p>Traditional SIEMs require servers, storage, and constant tuning. Sentinel is SaaS — auto-scales with your data volume, no capacity planning, no hardware refreshes.</p></div></div>
+        <div class="why-item"><div class="why-icon">💰</div><div class="why-content"><h4>Pay for What You Ingest</h4><p>Commitment tiers and basic/analytics log tiers let you optimize cost. Ingest high-value logs at full analytics, low-value logs at basic tier (up to 85% cheaper).</p></div></div>
+        <div class="why-item"><div class="why-icon">🤖</div><div class="why-content"><h4>AI + Fusion Detection</h4><p>Fusion ML automatically correlates low-fidelity alerts from multiple sources into high-confidence incidents. Catches multi-stage attacks that rule-based SIEMs miss.</p></div></div>
+        <div class="why-item"><div class="why-icon">🔗</div><div class="why-content"><h4>Native Microsoft Integration</h4><p>One-click connectors for M365, Entra ID, Defender XDR, Azure Activity, and MDC. No custom parsing, no broken integrations after updates.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 2: DATA PIPELINE -->
+<section id="dataflow" style="background:var(--bg2)">
+  <div class="section-inner">
+    <div class="section-label" style="background:rgba(0,229,255,.15);color:var(--cyan)">📡 Pillar 1</div>
+    <h2 class="section-title fade-in">Data Collection Pipeline</h2>
+    <p class="section-desc fade-in">300+ data connectors feed into a Log Analytics workspace. Data is normalized via ASIM (Advanced Security Information Model) so queries work across sources without custom parsing.</p>
+    <div class="flow-pipeline">
+      <div class="flow-stage fade-in"><div class="stage-num" style="background:rgba(0,229,255,.15);color:var(--cyan);border:2px solid rgba(0,229,255,.3)">1</div><div class="stage-content"><h3>📡 Data Connectors</h3><p>300+ built-in connectors: Microsoft 365, Entra ID, Defender XDR, Azure Activity, AWS CloudTrail, GCP, Syslog, CEF, REST API. One-click for Microsoft sources, guided setup for third-party.</p></div></div>
+      <div class="flow-connector"><div class="particle"></div></div>
+      <div class="flow-stage fade-in"><div class="stage-num" style="background:rgba(20,184,166,.15);color:var(--teal);border:2px solid rgba(20,184,166,.3)">2</div><div class="stage-content"><h3>🔄 Data Transformation</h3><p>Ingestion-time transformations filter, enrich, and normalize data before storage. ASIM parsers unify different log formats — a "process creation" event looks the same whether it's from MDE, Syslog, or CrowdStrike.</p></div></div>
+      <div class="flow-connector"><div class="particle" style="animation-delay:.5s"></div></div>
+      <div class="flow-stage fade-in"><div class="stage-num" style="background:rgba(59,130,246,.15);color:var(--blue);border:2px solid rgba(59,130,246,.3)">3</div><div class="stage-content"><h3>💾 Log Analytics Workspace</h3><p>All data stored in a Log Analytics workspace with KQL query engine. Two tiers: <strong>Analytics logs</strong> (full query, 90-day interactive retention) and <strong>Basic logs</strong> (limited query, up to 85% cheaper for high-volume/low-value data).</p></div></div>
+      <div class="flow-connector"><div class="particle" style="animation-delay:.3s"></div></div>
+      <div class="flow-stage fade-in"><div class="stage-num" style="background:rgba(168,85,247,.15);color:var(--purple);border:2px solid rgba(168,85,247,.3)">4</div><div class="stage-content"><h3>🗄️ Data Lake (Long-term)</h3><p>Sentinel data lake for long-term retention beyond 90 days. Query historical data with KQL for compliance and forensic investigations spanning months or years.</p></div></div>
+    </div>
+    <div class="why-box fade-in">
+      <div class="why-title">💡 Why the Data Pipeline Matters</div>
+      <div class="why-grid">
+        <div class="why-item"><div class="why-icon">🔗</div><div class="why-content"><h4>Centralized Visibility</h4><p>Security data scattered across 15 tools is useless. Sentinel centralizes it — firewall logs next to identity events next to endpoint alerts. One query searches everything.</p></div></div>
+        <div class="why-item"><div class="why-icon">💰</div><div class="why-content"><h4>Cost Optimization Built In</h4><p>Not all data is equal. Basic logs for verbose sources (NetFlow, debug logs) at 85% less cost. Analytics logs for high-value data. Commitment tiers for predictable pricing.</p></div></div>
+        <div class="why-item"><div class="why-icon">🔄</div><div class="why-content"><h4>ASIM Normalization</h4><p>Write ONE detection rule that works across MDE, CrowdStrike, SentinelOne, and Syslog. ASIM normalizes "process creation" events so you don't write 4 versions of every rule.</p></div></div>
+        <div class="why-item"><div class="why-icon">📋</div><div class="why-content"><h4>Compliance Retention</h4><p>Regulations require years of log retention. The data lake provides cost-effective long-term storage with full KQL query capability for auditors and legal investigations.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 3: DETECTION -->
+<section id="detection">
+  <div class="section-inner">
+    <div class="section-label" style="background:rgba(20,184,166,.15);color:var(--teal)">🎯 Pillar 2</div>
+    <h2 class="section-title fade-in">Threat Detection — Analytics Rules</h2>
+    <p class="section-desc fade-in">Four types of analytics rules detect threats from known patterns to unknown multi-stage attacks. All map to MITRE ATT&CK for coverage visibility.</p>
+    <div class="comp-grid">
+      <div class="card expandable fade-in" style="border-top:3px solid var(--teal)"><div class="card-icon" style="background:rgba(20,184,166,.1);color:var(--teal)">📅</div><h3>Scheduled Rules</h3><p>KQL queries that run on a schedule (every 5 min to every 14 days). The workhorse of detection — you write the query, set the threshold, map to MITRE.</p><span class="tag" style="background:rgba(20,184,166,.1);color:var(--teal)">Custom KQL</span><div class="expand-toggle">Details</div><div class="expand-content"><ul class="detail-list"><li>Fully customizable KQL queries</li><li>Entity mapping (account, IP, host, file)</li><li>Alert grouping into incidents</li><li>Event grouping (all events or first event only)</li><li>Hundreds of built-in templates from Content Hub</li></ul></div></div>
+
+      <div class="card expandable fade-in" style="border-top:3px solid var(--red)"><div class="card-icon" style="background:rgba(239,68,68,.1);color:var(--red)">⚡</div><h3>Near-Real-Time (NRT)</h3><p>Run every 1 minute with a 1-minute lookback. For time-critical detections where 5-minute delay is too long — ransomware, active exploitation.</p><span class="tag" style="background:rgba(239,68,68,.1);color:var(--red)">~1 min latency</span><div class="expand-toggle">Details</div><div class="expand-content"><ul class="detail-list"><li>1-minute run frequency</li><li>Subset of KQL supported (optimized for speed)</li><li>Ideal for high-severity, time-critical threats</li><li>Same entity mapping and incident creation as scheduled</li></ul></div></div>
+
+      <div class="card expandable fade-in" style="border-top:3px solid var(--purple)"><div class="card-icon" style="background:rgba(168,85,247,.1);color:var(--purple)">🧬</div><h3>Fusion (ML-Powered)</h3><p>Microsoft's ML engine automatically correlates low-fidelity alerts from multiple sources into high-confidence multi-stage attack detections. Catches what individual rules can't.</p><span class="tag" style="background:rgba(168,85,247,.1);color:var(--purple)">AI/ML</span><div class="expand-toggle">Details</div><div class="expand-content"><ul class="detail-list"><li>Correlates alerts from Defender XDR, MDC, Entra ID, and custom rules</li><li>Detects multi-stage attacks (e.g., phishing → credential theft → data exfil)</li><li>150+ attack pattern detections built-in</li><li>No tuning needed — Microsoft manages the ML models</li></ul></div></div>
+
+      <div class="card expandable fade-in" style="border-top:3px solid var(--yellow)"><div class="card-icon" style="background:rgba(234,179,8,.1);color:var(--yellow)">📊</div><h3>Anomaly Rules</h3><p>Behavioral analytics baseline what's "normal" for your environment, then flag deviations. Catches insider threats and novel attacks without pre-defined signatures.</p><span class="tag" style="background:rgba(234,179,8,.1);color:var(--yellow)">Behavioral</span><div class="expand-toggle">Details</div><div class="expand-content"><ul class="detail-list"><li>Machine learning baselines per-entity behavior</li><li>Anomalous login locations, times, volumes</li><li>Unusual data access or download patterns</li><li>Configurable thresholds and scoring</li><li>Results appear as anomalies that enrich incidents</li></ul></div></div>
+    </div>
+    <div class="why-box fade-in">
+      <div class="why-title">💡 Why Layered Detection Matters</div>
+      <div class="why-grid">
+        <div class="why-item"><div class="why-icon">🧬</div><div class="why-content"><h4>Fusion Catches Multi-Stage Attacks</h4><p>A single failed login is noise. But failed login (Entra ID) + new inbox rule (M365) + unusual file download (SharePoint) + MDE alert = Fusion connects the dots into one high-confidence incident.</p></div></div>
+        <div class="why-item"><div class="why-icon">⚡</div><div class="why-content"><h4>NRT for Time-Critical Threats</h4><p>When ransomware encrypts files, every minute counts. NRT rules detect and trigger response within 1 minute — vs 5-15 minutes for scheduled rules.</p></div></div>
+        <div class="why-item"><div class="why-icon">📊</div><div class="why-content"><h4>Anomalies Find What Rules Can't</h4><p>You can't write a rule for "something weird." Anomaly detection baselines normal behavior and flags deviations — catches insider threats and novel TTPs without signatures.</p></div></div>
+        <div class="why-item"><div class="why-icon">🗺️</div><div class="why-content"><h4>MITRE Coverage Map</h4><p>Sentinel shows which ATT&CK techniques you have detections for and which are gaps. This turns "are we protected?" from a gut feeling into a data-driven answer.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 4: INVESTIGATION -->
+<section id="investigation" style="background:var(--bg2)">
+  <div class="section-inner">
+    <div class="section-label" style="background:rgba(168,85,247,.15);color:var(--purple)">🔬 Pillar 3</div>
+    <h2 class="section-title fade-in">Investigation & Hunting</h2>
+    <p class="section-desc fade-in">When an incident fires, Sentinel provides deep investigation tools — interactive entity graphs, threat hunting with KQL, watchlists, bookmarks, and Jupyter notebooks.</p>
+    <div class="comp-grid">
+      <div class="card expandable fade-in"><div class="card-icon" style="background:rgba(168,85,247,.1);color:var(--purple)">🕸️</div><h3>Incident Investigation Graph</h3><p>Interactive graph showing entities (users, IPs, hosts, files) and their connections. Click an entity to expand its timeline and related alerts.</p><div class="expand-toggle">Details</div><div class="expand-content"><ul class="detail-list"><li>Visual entity relationship mapping</li><li>Drill down into any entity's full timeline</li><li>See which alerts are connected and why</li><li>Expand to discover related entities not in the original alert</li></ul></div></div>
+
+      <div class="card expandable fade-in"><div class="card-icon" style="background:rgba(20,184,166,.1);color:var(--teal)">🎯</div><h3>Threat Hunting</h3><p>Proactive KQL-based hunting across all ingested data. MITRE-organized built-in queries. Save results as bookmarks, promote to incidents.</p><div class="expand-toggle">Details</div><div class="expand-content"><ul class="detail-list"><li>Hundreds of built-in hunting queries organized by MITRE tactic</li><li>Livestream — run a query continuously and get alerted on new results</li><li>Bookmarks — save interesting findings for later investigation</li><li>Hunts — collaborative campaigns with hypothesis tracking</li></ul></div></div>
+
+      <div class="card expandable fade-in"><div class="card-icon" style="background:rgba(234,179,8,.1);color:var(--yellow)">📋</div><h3>Watchlists</h3><p>Upload reference data (VIP users, terminated employees, allowed IPs) and correlate with security events in KQL queries and analytics rules.</p><div class="expand-toggle">Details</div><div class="expand-content"><ul class="detail-list"><li>CSV upload or Azure Storage integration</li><li>Use in KQL: _GetWatchlist('VIPUsers') for enrichment</li><li>Use in analytics rules to reduce false positives or increase severity</li><li>Auto-refresh from external sources</li></ul></div></div>
+
+      <div class="card expandable fade-in"><div class="card-icon" style="background:rgba(59,130,246,.1);color:var(--blue)">📓</div><h3>Jupyter Notebooks</h3><p>Azure ML-integrated notebooks for advanced analysis — Python ML libraries, custom visualizations, data from sources beyond Sentinel.</p><div class="expand-toggle">Details</div><div class="expand-content"><ul class="detail-list"><li>Full Python data science stack (pandas, scikit-learn, matplotlib)</li><li>MSTICPy library for security-specific analysis</li><li>Query Sentinel data + external sources in one notebook</li><li>Custom process trees, network graphs, timeline visualizations</li></ul></div></div>
+    </div>
+    <div class="why-box fade-in">
+      <div class="why-title">💡 Why Investigation Tools Matter</div>
+      <div class="why-grid">
+        <div class="why-item"><div class="why-icon">🕸️</div><div class="why-content"><h4>Graphs Beat Log Scrolling</h4><p>Staring at raw logs to find the story is slow and error-prone. The investigation graph shows relationships visually — "this IP connected to this user who accessed this file" — in seconds.</p></div></div>
+        <div class="why-item"><div class="why-icon">🎯</div><div class="why-content"><h4>Hunting = Proactive Security</h4><p>Waiting for alerts is reactive. Hunting lets your senior analysts look for threats before they trigger detections — reducing dwell time from months to days.</p></div></div>
+        <div class="why-item"><div class="why-icon">📋</div><div class="why-content"><h4>Watchlists Close Context Gaps</h4><p>"Is this user a VIP?" "Is this IP on our allowed list?" Without watchlists, analysts waste time looking up context. With them, the context is embedded in every query.</p></div></div>
+        <div class="why-item"><div class="why-icon">📓</div><div class="why-content"><h4>Notebooks for Advanced Analysis</h4><p>When KQL isn't enough — ML anomaly detection, clustering analysis, custom visualizations — notebooks give data-science-level capability without leaving the Sentinel ecosystem.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 5: SOAR -->
+<section id="soar">
+  <div class="section-inner">
+    <div class="section-label" style="background:rgba(34,197,94,.15);color:var(--green)">⚡ Pillar 4</div>
+    <h2 class="section-title fade-in">SOAR — Automation & Response</h2>
+    <p class="section-desc fade-in">Two automation layers: <strong>Automation Rules</strong> for lightweight incident triage, and <strong>Playbooks</strong> (Logic Apps) for complex orchestration across any service.</p>
+    <div class="comp-grid">
+      <div class="card expandable fade-in" style="border-top:3px solid var(--green)"><div class="card-icon" style="background:rgba(34,197,94,.1);color:var(--green)">⚙️</div><h3>Automation Rules</h3><p>Lightweight if/then rules that run on every incident. Auto-assign, auto-tag, change severity, close false positives, or trigger playbooks — no code required.</p><div class="expand-toggle">Details</div><div class="expand-content"><ul class="detail-list"><li>Run automatically on incident creation or update</li><li>Conditions: title contains, severity equals, entity matches, etc.</li><li>Actions: assign owner, add tags, change status/severity, run playbook, suppress</li><li>Order of execution is configurable (priority-based)</li><li>Built-in expiration dates for temporary rules</li></ul></div></div>
+
+      <div class="card expandable fade-in" style="border-top:3px solid var(--blue)"><div class="card-icon" style="background:rgba(59,130,246,.1);color:var(--blue)">🔄</div><h3>Playbooks (Logic Apps)</h3><p>Full orchestration workflows built on Azure Logic Apps. 200+ connectors — ServiceNow, Slack, Teams, Jira, PagerDuty, custom APIs. Trigger on incidents or alerts.</p><div class="expand-toggle">Details</div><div class="expand-content"><ul class="detail-list"><li>Visual workflow designer — no code required</li><li>200+ connectors: Teams, Slack, ServiceNow, Jira, PagerDuty, custom REST APIs</li><li>Enrich incidents: lookup IP reputation, check threat intel, query user details</li><li>Response actions: block IP in firewall, disable user in Entra ID, isolate device via MDE API</li><li>Notify: post to Teams/Slack channel, send email, page on-call via PagerDuty</li><li>Ticket: auto-create ServiceNow/Jira tickets with full incident context</li></ul></div></div>
+    </div>
+    <div class="why-box fade-in">
+      <div class="why-title">💡 Why SOAR Matters</div>
+      <div class="why-grid">
+        <div class="why-item"><div class="why-icon">⏱️</div><div class="why-content"><h4>MTTR: Hours → Seconds</h4><p>A playbook that disables a compromised user, isolates their device, and posts to the SOC channel runs in 10 seconds. A human doing the same across 3 portals takes 20 minutes.</p></div></div>
+        <div class="why-item"><div class="why-icon">📉</div><div class="why-content"><h4>Triage at Machine Speed</h4><p>Automation rules close known false positives, auto-assign by source, and escalate critical incidents — before an analyst even sees them. Your tier 1 workload drops dramatically.</p></div></div>
+        <div class="why-item"><div class="why-icon">🔗</div><div class="why-content"><h4>200+ Service Connectors</h4><p>Your SOC doesn't live in one tool. Playbooks bridge Sentinel to your firewall, ticketing system, chat platform, identity provider, and custom APIs — unified response across your stack.</p></div></div>
+        <div class="why-item"><div class="why-icon">📊</div><div class="why-content"><h4>Consistent, Auditable Response</h4><p>Humans make different decisions under pressure. Playbooks follow the same steps every time. Every action is logged — perfect for compliance audits and post-incident reviews.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 6: INTEGRATIONS -->
+<section id="integrations" style="background:var(--bg2)">
+  <div class="section-inner">
+    <div class="section-label" style="background:rgba(236,72,153,.15);color:var(--pink)">🔗 Ecosystem</div>
+    <h2 class="section-title fade-in">Sentinel Integrations</h2>
+    <p class="section-desc fade-in">Click any integration to see exactly how it connects to Sentinel.</p>
+    <div class="integ-grid">
+      <div class="card integ-card expandable fade-in" style="border-left-color:var(--purple)"><div class="integ-header"><div class="integ-icon">🛡️</div><div class="integ-name">Defender XDR</div></div><div class="integ-how">Unified incident queue — XDR alerts and Sentinel alerts merged in one portal.</div><span class="integ-tag">Unified Portal</span><div class="expand-toggle">How it integrates →</div><div class="expand-content"><ul class="detail-list"><li><strong>Bi-directional sync:</strong> Incidents created in XDR appear in Sentinel and vice versa</li><li><strong>Unified hunting:</strong> Query Sentinel tables and XDR tables (Device*, Email*, Identity*) in the same KQL query</li><li><strong>Shared entity pages:</strong> Click a user or device to see combined XDR + Sentinel context</li><li><strong>Defender portal:</strong> Sentinel is moving to the Defender portal — one console for everything by March 2027</li></ul></div></div>
+
+      <div class="card integ-card expandable fade-in" style="border-left-color:var(--blue)"><div class="integ-header"><div class="integ-icon">☁️</div><div class="integ-name">Defender for Cloud</div></div><div class="integ-how">Cloud security alerts stream into Sentinel for correlation with endpoint and identity data.</div><span class="integ-tag">Data Connector</span><div class="expand-toggle">How it integrates →</div><div class="expand-content"><ul class="detail-list"><li><strong>One-click connector:</strong> Enable the MDC data connector — all cloud alerts (VMs, storage, containers, databases) flow in</li><li><strong>Cross-domain correlation:</strong> Fusion can correlate an MDC "suspicious VM activity" alert with an Entra ID "impossible travel" alert</li><li><strong>Continuous export:</strong> Stream recommendations, secure score, and compliance data for custom dashboards</li><li><strong>Playbook response:</strong> Trigger a playbook on MDC alerts — auto-isolate VM, revoke identity, notify cloud team</li></ul></div></div>
+
+      <div class="card integ-card expandable fade-in" style="border-left-color:var(--green)"><div class="integ-header"><div class="integ-icon">🖥️</div><div class="integ-name">Defender for Endpoint</div></div><div class="integ-how">Endpoint telemetry flows through XDR connector. Device isolation available via playbooks.</div><span class="integ-tag">Via XDR</span><div class="expand-toggle">How it integrates →</div><div class="expand-content"><ul class="detail-list"><li><strong>Data flow:</strong> MDE telemetry (Device* tables) available in Sentinel via the XDR connector</li><li><strong>Response actions:</strong> Playbooks can call MDE API to isolate devices, run AV scan, collect investigation package</li><li><strong>Hunting:</strong> Hunt across endpoint + identity + email + cloud data in one KQL query</li><li><strong>Custom detections:</strong> Sentinel analytics rules can query DeviceProcessEvents, DeviceNetworkEvents, etc.</li></ul></div></div>
+
+      <div class="card integ-card expandable fade-in" style="border-left-color:var(--orange)"><div class="integ-header"><div class="integ-icon">🔑</div><div class="integ-name">Entra ID</div></div><div class="integ-how">Sign-in logs, audit logs, and identity protection alerts flow into Sentinel for identity threat detection.</div><span class="integ-tag">Native</span><div class="expand-toggle">How it integrates →</div><div class="expand-content"><ul class="detail-list"><li><strong>Sign-in logs:</strong> Every authentication event — success, failure, MFA status, location, device, risk level</li><li><strong>Audit logs:</strong> Directory changes — user creation, role assignments, app registrations, policy changes</li><li><strong>Identity Protection:</strong> Risky user and risky sign-in alerts feed directly into Sentinel incidents</li><li><strong>UEBA:</strong> User and Entity Behavior Analytics builds behavioral profiles from Entra ID data</li><li><strong>Playbook response:</strong> Disable user, revoke sessions, force MFA via Entra ID API</li></ul></div></div>
+
+      <div class="card integ-card expandable fade-in" style="border-left-color:var(--yellow)"><div class="integ-header"><div class="integ-icon">🔥</div><div class="integ-name">Firewalls & Network</div></div><div class="integ-how">Azure Firewall, Palo Alto, Fortinet, Cisco ASA — syslog/CEF connectors for network visibility.</div><span class="integ-tag">Syslog/CEF</span><div class="expand-toggle">How it integrates →</div><div class="expand-content"><ul class="detail-list"><li><strong>Azure Firewall:</strong> Native diagnostic settings → Log Analytics workspace — zero setup</li><li><strong>Third-party:</strong> Syslog/CEF forwarder (Linux VM or container) relays logs to Sentinel</li><li><strong>ASIM normalization:</strong> Network session parser normalizes all firewall formats into one schema</li><li><strong>Detection:</strong> Analytics rules detect C2 beacons, data exfil, port scans across all firewalls</li><li><strong>Threat intel matching:</strong> Incoming IPs/domains auto-matched against threat intelligence indicators</li></ul></div></div>
+
+      <div class="card integ-card expandable fade-in" style="border-left-color:var(--cyan)"><div class="integ-header"><div class="integ-icon">📊</div><div class="integ-name">Threat Intelligence</div></div><div class="integ-how">Import IOCs from TAXII feeds, Microsoft TI, and custom sources. Auto-match against all ingested data.</div><span class="integ-tag">TI Platform</span><div class="expand-toggle">How it integrates →</div><div class="expand-content"><ul class="detail-list"><li><strong>Microsoft Threat Intelligence:</strong> Built-in feed from Microsoft's 78T daily signals</li><li><strong>TAXII 2.0/2.1:</strong> Connect to any STIX/TAXII-compliant threat intel platform (MISP, Anomali, etc.)</li><li><strong>TI matching analytics:</strong> Built-in rules auto-match incoming logs against your IOC database</li><li><strong>Workbook:</strong> Threat Intelligence workbook shows match rates, top IOCs, and expiring indicators</li><li><strong>Custom indicators:</strong> Upload CSV of IPs, domains, file hashes for custom blocking/alerting</li></ul></div></div>
+    </div>
+    <div class="why-box fade-in">
+      <div class="why-title">💡 Why Integration Matters</div>
+      <div class="why-grid">
+        <div class="why-item"><div class="why-icon">🔗</div><div class="why-content"><h4>All Data in One Place</h4><p>Your SOC can't alt-tab between 10 consoles. Sentinel ingests from all sources — endpoint, identity, cloud, network, email — and correlates across all of them in one KQL query.</p></div></div>
+        <div class="why-item"><div class="why-icon">🧬</div><div class="why-content"><h4>Cross-Source Fusion</h4><p>The Fusion ML engine only works when it sees data from multiple sources. More connectors = more correlation = more multi-stage attacks caught automatically.</p></div></div>
+        <div class="why-item"><div class="why-icon">⚡</div><div class="why-content"><h4>Response Across Your Stack</h4><p>A playbook can block an IP on your firewall, disable the user in Entra ID, isolate the device via MDE, AND create a ServiceNow ticket — all from one Sentinel incident.</p></div></div>
+        <div class="why-item"><div class="why-icon">🎯</div><div class="why-content"><h4>Threat Intel Amplifies Everything</h4><p>Every log you ingest gets automatically checked against threat intelligence IOCs. That firewall log showing traffic to a known C2 IP becomes an alert — without writing a single rule.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<button class="chat-toggle" id="chat-toggle" onclick="toggleChat()">💬</button>
+<div class="chat-panel" id="chat-panel">
+  <div class="chat-header"><span>🔍</span><span class="ch-title">SIEM & SOC Terms</span><span class="ch-sub">120+ terms</span></div>
+  <div class="chat-messages" id="chat-messages"><div class="chat-msg bot">👋 Ask about any SIEM/Sentinel term. Try: <strong>KQL</strong>, <strong>Fusion</strong>, <strong>analytics rule</strong>, <strong>playbook</strong>, <strong>ASIM</strong>, <strong>data connector</strong></div></div>
+  <div class="chat-suggestions">
+    <span class="chat-sug" onclick="chatAsk('KQL')">KQL</span>
+    <span class="chat-sug" onclick="chatAsk('Fusion')">Fusion</span>
+    <span class="chat-sug" onclick="chatAsk('playbook')">Playbook</span>
+    <span class="chat-sug" onclick="chatAsk('analytics rule')">Analytics Rule</span>
+    <span class="chat-sug" onclick="chatAsk('ASIM')">ASIM</span>
+    <span class="chat-sug" onclick="chatAsk('data connector')">Connector</span>
+  </div>
+  <div class="chat-input-row"><input class="chat-input" id="chat-input" placeholder="Ask about any SIEM term..." onkeydown="if(event.key==='Enter')sendChat()"><button class="chat-send" onclick="sendChat()">→</button></div>
+</div>
+<footer>
+  <p>Built for learning • All data validated against <a href="https://learn.microsoft.com/en-us/azure/sentinel/overview" target="_blank">Microsoft Learn documentation</a> • March 2026</p>
+  <p style="margin-top:.5rem">Cloud-native SIEM + SOAR • 300+ connectors • Azure, AWS, GCP, On-premises</p>
+</footer>
+
+<script>
+// Particles
+(function(){const c=document.getElementById('particles-canvas'),ctx=c.getContext('2d');let w,h,pts=[];function resize(){w=c.width=innerWidth;h=c.height=innerHeight}resize();addEventListener('resize',resize);class P{constructor(){this.reset()}reset(){this.x=Math.random()*w;this.y=Math.random()*h;this.vx=(Math.random()-.5)*.3;this.vy=(Math.random()-.5)*.3;this.r=Math.random()*1.5+.5;this.a=Math.random()*.3+.1}update(){this.x+=this.vx;this.y+=this.vy;if(this.x<0||this.x>w)this.vx*=-1;if(this.y<0||this.y>h)this.vy*=-1}draw(){ctx.beginPath();ctx.arc(this.x,this.y,this.r,0,Math.PI*2);ctx.fillStyle=`rgba(20,184,166,${this.a})`;ctx.fill()}}for(let i=0;i<80;i++)pts.push(new P);function loop(){ctx.clearRect(0,0,w,h);pts.forEach(p=>{p.update();p.draw()});for(let i=0;i<pts.length;i++)for(let j=i+1;j<pts.length;j++){const dx=pts[i].x-pts[j].x,dy=pts[i].y-pts[j].y,d=Math.sqrt(dx*dx+dy*dy);if(d<150){ctx.beginPath();ctx.moveTo(pts[i].x,pts[i].y);ctx.lineTo(pts[j].x,pts[j].y);ctx.strokeStyle=`rgba(20,184,166,${.06*(1-d/150)})`;ctx.stroke()}}requestAnimationFrame(loop)}loop()})();
+// Scroll
+const obs=new IntersectionObserver(e=>{e.forEach(x=>{if(x.isIntersecting){x.target.classList.add('visible');obs.unobserve(x.target)}})},{threshold:.15});document.querySelectorAll('.fade-in').forEach(el=>obs.observe(el));
+// Nav
+const secs=document.querySelectorAll('section[id]'),navs=document.querySelectorAll('nav .nav-links a');addEventListener('scroll',()=>{let c='';secs.forEach(s=>{if(scrollY>=s.offsetTop-100)c=s.id});navs.forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+c))});
+// Expandable
+document.querySelectorAll('.expandable').forEach(el=>el.addEventListener('click',()=>el.classList.toggle('open')));
+
+// ===== SIMULATION =====
+let simRunning=false,simPaused=false,simIdx=0,simTimer=null,simSpeed=1;const BD=2.5;
+const STEPS=[
+  {d:0,p:'narr',ns:'Phase 0 of 7',nt:'🎬 A brute-force attack targets a user account. Watch how Sentinel ingests data from multiple sources, correlates the signals, and orchestrates an automated response.',nc:''},
+
+  // Phase 1: Data ingestion
+  {d:2500,p:'datasrc',c:'log-cyan',i:'🔑',m:'Entra ID: 47 failed sign-in attempts for admin@contoso.com from 185.220.101.42'},
+  {d:2000,p:'datasrc',c:'log-cyan',i:'🔑',m:'Entra ID: 12 more failures — password spray pattern across 8 accounts'},
+  {d:1500,p:'datasrc',c:'log-cyan',i:'🔥',m:'Azure Firewall: 200+ connections from 185.220.101.42 to port 443'},
+  {d:3000,p:'narr',ns:'Phase 1 of 7 — Data Collection',nt:'📡 Multiple data sources are streaming logs into the Sentinel workspace: Entra ID sign-in logs, Azure Firewall logs, and MDE endpoint telemetry. Each source provides a piece of the puzzle — Sentinel sees all of them together.',nc:'narr-red'},
+  {d:2000,p:'sentinel',c:'log-teal',i:'📡',m:'SigninLogs table: 47 failed auth events ingested (Entra ID connector)'},
+  {d:1500,p:'sentinel',c:'log-teal',i:'📡',m:'AzureFirewall table: network flow data ingested (diagnostic settings)'},
+  {d:1500,p:'sentinel',c:'log-teal',i:'🔄',m:'ASIM normalization: sign-in events mapped to Authentication schema'},
+
+  // Phase 2: Detection fires
+  {d:3000,p:'narr',ns:'Phase 2 of 7 — Analytics Rules Fire',nt:'🎯 A scheduled analytics rule detects the brute-force pattern: 47 failed logins from a single IP within 10 minutes. Simultaneously, an anomaly rule flags the IP as never-before-seen for this tenant.',nc:'narr-red'},
+  {d:2500,p:'sentinel',c:'log-orange',i:'🚨',m:'Scheduled Rule: "Brute force against Entra ID" — TRIGGERED'},
+  {d:1500,p:'sentinel',c:'log-dim',i:'📋',m:'Rule query: SigninLogs | where ResultType != 0 | summarize count() by IPAddress | where count_ > 20'},
+  {d:2000,p:'sentinel',c:'log-yellow',i:'📊',m:'Anomaly Rule: IP 185.220.101.42 is anomalous — never seen in 90-day baseline'},
+  {d:2000,p:'sentinel',c:'log-orange',i:'🎫',m:'INCIDENT created: INC-4821 "Brute force attack on Entra ID" — Severity: HIGH'},
+
+  // Phase 3: Attacker succeeds on one account
+  {d:3000,p:'narr',ns:'Phase 3 of 7 — Credential Compromise',nt:'🔓 The attacker finally succeeds — one account (jsmith@contoso.com) had a weak password. Entra ID logs a successful sign-in from the attacker\'s IP. MDE sees a new device connecting to Exchange Online.',nc:'narr-red'},
+  {d:2500,p:'datasrc',c:'log-red',i:'✅',m:'Entra ID: Successful sign-in for jsmith@contoso.com from 185.220.101.42'},
+  {d:2000,p:'datasrc',c:'log-red',i:'📧',m:'M365: New inbox rule created — forwarding all email to external address'},
+  {d:1500,p:'datasrc',c:'log-red',i:'📁',m:'SharePoint: Bulk download of 340 files from Finance document library'},
+  {d:2000,p:'sentinel',c:'log-orange',i:'🚨',m:'NRT Rule: "Successful login from brute-force IP" — TRIGGERED (1-min latency)'},
+  {d:1500,p:'sentinel',c:'log-orange',i:'🚨',m:'Scheduled Rule: "Suspicious inbox rule creation" — TRIGGERED'},
+
+  // Phase 4: Fusion correlation
+  {d:3000,p:'narr',ns:'Phase 4 of 7 — Fusion ML Correlation',nt:'🧬 Sentinel\'s <strong>Fusion engine</strong> connects the dots: brute-force (Entra ID) + successful login from malicious IP + inbox rule (M365) + bulk download (SharePoint) = one multi-stage attack. Individual alerts become a HIGH-confidence incident.',nc:'narr-red'},
+  {d:2500,p:'sentinel',c:'log-purple',i:'🧬',m:'FUSION: Correlating 4 alerts across Entra ID, M365, SharePoint'},
+  {d:2000,p:'sentinel',c:'log-purple',i:'🧬',m:'Fusion verdict: Multi-stage attack — Brute Force → Account Compromise → Data Exfil'},
+  {d:2000,p:'sentinel',c:'log-red',i:'🚨',m:'INCIDENT updated: INC-4821 escalated to CRITICAL — Fusion multi-stage detection'},
+  {d:1500,p:'sentinel',c:'log-dim',i:'🗺️',m:'MITRE: T1110 Brute Force → T1078 Valid Accounts → T1114 Email Collection → T1567 Exfil to Cloud'},
+
+  // Phase 5: Automation responds
+  {d:3500,p:'narr',ns:'Phase 5 of 7 — Automated Response',nt:'⚡ Automation kicks in immediately. An automation rule assigns the incident to the SOC team and triggers two playbooks: one to disable the compromised account in Entra ID, another to block the attacker IP on the firewall.',nc:'narr-green'},
+  {d:2500,p:'response',c:'log-green',i:'⚙️',m:'Automation Rule: Severity=CRITICAL → Assign to SOC-Tier2, add tag "brute-force"'},
+  {d:2000,p:'response',c:'log-green',i:'🔄',m:'Playbook triggered: "Block-IP-Firewall" → adding 185.220.101.42 to deny list'},
+  {d:1500,p:'response',c:'log-green',i:'🔄',m:'Playbook triggered: "Disable-User-EntraID" → disabling jsmith@contoso.com'},
+  {d:2000,p:'response',c:'log-green',i:'🔒',m:'Entra ID: jsmith@contoso.com DISABLED — all sessions revoked'},
+  {d:1500,p:'response',c:'log-green',i:'🛡️',m:'Azure Firewall: 185.220.101.42 added to IP deny rule'},
+  {d:2000,p:'response',c:'log-green',i:'📧',m:'Playbook: Teams notification sent to #soc-alerts with full incident context'},
+  {d:1500,p:'response',c:'log-green',i:'🔧',m:'Playbook: ServiceNow ticket SCTASK-28471 created with remediation steps'},
+
+  // Phase 6: SOC Investigation
+  {d:3000,p:'narr',ns:'Phase 6 of 7 — SOC Investigation',nt:'🔬 The SOC analyst opens the incident and uses the investigation graph. They see the full attack story — the brute-force IP, the compromised user, the inbox rule, the downloaded files — all connected visually. They confirm the automated actions were correct.',nc:'narr-green'},
+  {d:2500,p:'soc',c:'log-orange',i:'🔬',m:'Analyst opens INC-4821 → Investigation graph: 1 IP → 1 user → 1 mailbox → 340 files'},
+  {d:2000,p:'soc',c:'log-orange',i:'📋',m:'Entity timeline: jsmith — brute-force at 14:22 → login at 14:31 → inbox rule at 14:33'},
+  {d:2000,p:'soc',c:'log-orange',i:'📁',m:'Reviewing downloaded files: Finance/Q4-Revenue.xlsx, HR/Salary-Data.csv...'},
+  {d:2000,p:'soc',c:'log-orange',i:'✅',m:'Analyst confirms: automated disable + IP block were correct. Adding notes.'},
+  {d:1500,p:'soc',c:'log-green',i:'🔧',m:'Remediation: Removing malicious inbox forwarding rule from jsmith mailbox'},
+  {d:1500,p:'soc',c:'log-green',i:'🔑',m:'Remediation: Forcing password reset + MFA enrollment for jsmith'},
+
+  // Phase 7: Close
+  {d:3000,p:'narr',ns:'Phase 7 of 7 — Resolution',nt:'✅ Incident resolved. The attack was detected by analytics rules, correlated by Fusion ML, contained automatically by playbooks, and investigated by the SOC analyst. Total time from first failed login to full containment: <strong>under 4 minutes.</strong>',nc:'narr-green'},
+  {d:2500,p:'soc',c:'log-green',i:'✅',m:'INC-4821 closed as True Positive — all remediation actions completed'},
+  {d:2000,p:'sentinel',c:'log-green',i:'📊',m:'Analytics: Creating new watchlist entry for attacker IP 185.220.101.42'},
+  {d:1500,p:'response',c:'log-green',i:'📋',m:'Post-incident: Hunting query scheduled to check for other compromised accounts'},
+
+  {d:3500,p:'narr',ns:'✅ Simulation Complete',nt:'<strong>Collect → Detect → Investigate → Respond.</strong> Four data sources, three analytics rule types, Fusion ML correlation, automated playbook response, and SOC investigation — all in under 4 minutes. That\'s Microsoft Sentinel.',nc:'narr-green'},
+];
+const totalDur=STEPS.reduce((a,s)=>a+s.d,0);
+function addLog(pid,cls,icon,msg){const log=document.getElementById('log-'+pid);if(!log)return;const ts=new Date().toLocaleTimeString('en-US',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});const e=document.createElement('div');e.className='log-entry '+cls;e.innerHTML=`<span class="log-time">${ts}</span><span class="log-icon">${icon}</span><span class="log-msg">${msg}</span>`;log.appendChild(e);requestAnimationFrame(()=>{e.classList.add('visible');log.scrollTop=log.scrollHeight})}
+function setNarr(s,t,c){const n=document.getElementById('sim-narrative');n.className='sim-narrative '+(c||'');n.innerHTML=`<div class="narr-step">${s}</div><div class="narr-text">${t}</div>`}
+function hlPanel(id,type){['datasrc','sentinel','response','soc'].forEach(p=>{const el=document.getElementById('panel-'+p);if(el)el.classList.remove('highlight','alert-highlight','green-highlight')});if(id){const el=document.getElementById('panel-'+id);if(el&&type)el.classList.add(type)}}
+function updateProg(){document.getElementById('sim-progress-bar').style.width=(STEPS.slice(0,simIdx).reduce((a,s)=>a+s.d,0)/totalDur*100)+'%'}
+function execStep(i){if(i>=STEPS.length){simRunning=false;simPaused=false;document.getElementById('sim-play').textContent='▶ Replay';document.getElementById('sim-play').classList.remove('active');document.getElementById('sim-pause').textContent='⏸ Pause';hlPanel('soc','green-highlight');return}const s=STEPS[i];simIdx=i+1;updateProg();document.getElementById('sim-step-label').textContent=s.ns||document.getElementById('sim-step-label').textContent;if(s.p==='narr'){setNarr(s.ns,s.nt,s.nc)}else{addLog(s.p,s.c,s.i,s.m);if(s.p==='datasrc')hlPanel('datasrc','highlight');else if(s.p==='sentinel'&&s.c&&s.c.includes('green'))hlPanel('sentinel','green-highlight');else if(s.p==='sentinel')hlPanel('sentinel','highlight');else if(s.p==='response')hlPanel('response','green-highlight');else if(s.p==='soc'&&s.c&&s.c.includes('green'))hlPanel('soc','green-highlight');else if(s.p==='soc')hlPanel('soc','alert-highlight')}}
+function schedNext(){if(!simRunning||simPaused||simIdx>=STEPS.length)return;const nd=STEPS[simIdx]?STEPS[simIdx].d:1000;simTimer=setTimeout(()=>{execStep(simIdx);schedNext()},(nd*BD)/simSpeed)}
+function startSim(){if(simRunning&&!simPaused)return;if(simPaused){togglePause();return}if(simIdx>=STEPS.length)resetSim();simRunning=true;simPaused=false;document.getElementById('sim-play').classList.add('active');document.getElementById('sim-play').textContent='▶ Playing...';schedNext()}
+function togglePause(){if(!simRunning)return;simPaused=!simPaused;const b=document.getElementById('sim-pause'),p=document.getElementById('sim-play');if(simPaused){clearTimeout(simTimer);b.textContent='▶ Resume';b.classList.add('paused');p.textContent='⏸ Paused';p.classList.remove('active')}else{b.textContent='⏸ Pause';b.classList.remove('paused');p.textContent='▶ Playing...';p.classList.add('active');schedNext()}}
+function nextStep(){if(simIdx>=STEPS.length)return;clearTimeout(simTimer);simRunning=true;simPaused=true;document.getElementById('sim-play').textContent='⏸ Paused';document.getElementById('sim-play').classList.remove('active');document.getElementById('sim-pause').textContent='▶ Resume';document.getElementById('sim-pause').classList.add('paused');execStep(simIdx)}
+function setSpeed(s){simSpeed=s;document.querySelectorAll('.speed-btn').forEach(b=>b.classList.remove('active'));document.getElementById(s===0.5?'speed-slow':s===1?'speed-normal':'speed-fast').classList.add('active');if(simRunning&&!simPaused){clearTimeout(simTimer);schedNext()}}
+function resetSim(){simRunning=false;simPaused=false;simIdx=0;clearTimeout(simTimer);['datasrc','sentinel','response','soc'].forEach(p=>{const el=document.getElementById('log-'+p);if(el)el.innerHTML=''});document.getElementById('sim-progress-bar').style.width='0%';document.getElementById('sim-step-label').textContent='Ready to start';document.getElementById('sim-play').classList.remove('active');document.getElementById('sim-play').textContent='▶ Play';document.getElementById('sim-pause').textContent='⏸ Pause';document.getElementById('sim-pause').classList.remove('paused');hlPanel(null);setNarr('Welcome','Press <strong>▶ Play</strong> to auto-play, or <strong>⏭ Next Step</strong> to advance manually for presentations.','')}
+// ===== SIEM CHATBOX =====
+const TERMS={
+'kql':{n:'KQL (Kusto Query Language)',c:'Query Language',d:'The query language for Sentinel, MDE Advanced Hunting, and Log Analytics. SQL-like syntax optimized for log data.<br><br>⚙️ <strong>Key operators:</strong> where (filter), project (select columns), summarize (aggregate), join (combine tables), extend (calculated columns), ago() (time range), has/contains (string matching), make_set/make_list (arrays).<br><br>💡 <strong>Tip:</strong> Security Copilot can generate KQL from natural language — "find all failed logins from Russia" → KQL query.'},
+'fusion':{n:'Fusion ML Detection',c:'Sentinel Feature',d:'Microsoft\'s ML engine that auto-correlates low-fidelity alerts from multiple sources into high-confidence multi-stage attack detections.<br><br>⚙️ <strong>How it works:</strong> Enabled by default. Correlates alerts from Defender XDR, MDC, Entra ID, and custom rules. 150+ built-in attack patterns. No tuning needed — Microsoft manages the ML models.<br><br>⚠️ <strong>Key insight:</strong> Fusion only works when multiple data sources are connected. More connectors = more correlation = better detection. This is why connecting ALL your Microsoft products matters.'},
+'analytics rule':{n:'Analytics Rule',c:'Sentinel Feature',d:'Rules that detect threats and generate alerts/incidents. Four types:<br><br>• <strong>Scheduled:</strong> KQL query on a schedule (5min-14 days). You write the query. The workhorse.<br>• <strong>NRT (Near-Real-Time):</strong> Runs every 1 minute. For time-critical threats like ransomware.<br>• <strong>Fusion:</strong> ML auto-correlation across sources. Microsoft-managed.<br>• <strong>Anomaly:</strong> Behavioral baselines. Flags deviations from normal.<br><br>⚙️ <strong>Configure:</strong> Sentinel → Analytics → Create rule → choose type → write KQL → set frequency/lookback → map entities → create incident.'},
+'nrt':{n:'NRT (Near-Real-Time) Rule',c:'Sentinel Feature',d:'Analytics rules that run every 1 minute with 1-minute lookback.<br><br>⚙️ <strong>When to use:</strong> Ransomware (encryption happens in minutes), active exploitation, critical credential theft. When 5-minute scheduled latency is too slow.<br><br>⚠️ <strong>Limitations:</strong> Subset of KQL supported (optimized for speed). Higher compute cost. Use sparingly — only for truly time-critical detections.'},
+'anomaly':{n:'Anomaly Detection Rules',c:'Sentinel Feature',d:'ML-based behavioral analytics that baseline "normal" and flag deviations.<br><br>⚙️ <strong>How it works:</strong> Learns normal patterns per entity (user login times, locations, volumes). Flags deviations without pre-defined rules. Results appear as anomalies that enrich incidents — they don\'t create incidents directly.<br><br>✅ <strong>Best for:</strong> Insider threats, novel TTPs, compromised accounts behaving unusually — things you can\'t write a rule for.'},
+'playbook':{n:'Playbook (Logic App)',c:'Sentinel SOAR',d:'Automated response workflows built on Azure Logic Apps. Triggered by automation rules on incidents/alerts.<br><br>⚙️ <strong>Configure:</strong> Sentinel → Automation → create automation rule → trigger: "When incident is created" → action: "Run playbook" → select Logic App.<br><br>⚠️ <strong>Common playbooks:</strong><br>• Block IP on firewall<br>• Disable user in Entra ID + revoke sessions<br>• Post alert to Teams/Slack<br>• Create ServiceNow ticket<br>• Enrich incident with threat intel<br>• Isolate device via MDE API<br><br>💡 200+ Logic App connectors available.'},
+'automation rule':{n:'Automation Rule',c:'Sentinel SOAR',d:'Lightweight if/then rules for incident triage. No code required.<br><br>⚙️ <strong>Configure:</strong> Sentinel → Automation → Create rule → Conditions: severity, title contains, source, entity → Actions: assign owner, add tags, change status/severity, run playbook, suppress.<br><br>✅ <strong>Example:</strong> "When incident severity=High AND title contains \'brute force\' → assign to SOC-Tier2, add tag \'identity\', run playbook \'Block-IP-Firewall\'"'},
+'data connector':{n:'Data Connector',c:'Sentinel Feature',d:'The "pipes" that bring data into Sentinel. 300+ built-in connectors.<br><br>⚙️ <strong>Types:</strong><br>• <strong>Microsoft native (one-click):</strong> Entra ID, M365, Defender XDR, Azure Activity<br>• <strong>Syslog/CEF:</strong> Firewalls (Palo Alto, Fortinet) → Linux forwarder → AMA agent<br>• <strong>Agent-based:</strong> Azure Monitor Agent on Windows/Linux servers<br>• <strong>REST API:</strong> Custom apps via Logs Ingestion API<br><br>⚠️ <strong>Blocker:</strong> Each connector has prerequisites — check the connector page. Most common issue: permissions (Contributor on workspace + read on source).'},
+'asim':{n:'ASIM (Advanced Security Information Model)',c:'Sentinel Feature',d:'Data normalization layer. Unifies different log formats into standard schemas.<br><br>💡 <strong>Why it matters:</strong> A "process creation" event looks different in MDE vs Syslog vs CrowdStrike. ASIM normalizes them so you write ONE detection rule that works across ALL sources.<br><br>⚙️ <strong>Schemas:</strong> Authentication, NetworkSession, ProcessEvent, FileEvent, DNSEvent, WebSession, and more. Use ASIM parsers in your KQL: _ASim_Authentication() instead of raw SigninLogs.'},
+'log analytics':{n:'Log Analytics Workspace',c:'Azure Service',d:'The database behind Sentinel. All security logs stored in queryable tables.<br><br>⚙️ <strong>Table plans:</strong><br>• <strong>Analytics:</strong> Full KQL query, alerts, analytics rules. Standard cost. 90-day interactive retention.<br>• <strong>Basic:</strong> Limited KQL, ~60% cheaper. For verbose data you rarely query.<br>• <strong>Auxiliary:</strong> Minimal query, ~85% cheaper. For compliance archive.<br><br>⚠️ <strong>Key blocker:</strong> Basic logs can\'t be used in analytics rules or alerts — only ad-hoc queries. Choose the right plan per table.'},
+'workspace':{n:'Workspace (Log Analytics)',c:'Azure Service',d:'Same as Log Analytics Workspace. Sentinel is "enabled on" a workspace — it\'s the same resource.<br><br>⚠️ <strong>Design decisions:</strong> Single workspace (simpler, better correlation) vs multiple (regulatory/geographic requirements). Most orgs should use a single workspace with RBAC for access control.'},
+'dcr':{n:'DCR (Data Collection Rule)',c:'Azure Monitor',d:'Rules that define what data to collect and how to transform it before ingestion.<br><br>⚙️ <strong>How it works:</strong> AMA (Azure Monitor Agent) on a server → DCR tells it which logs to collect (Windows Security events, syslog facilities) → DCR can filter/transform data → data lands in the workspace table.<br><br>✅ <strong>Cost optimization:</strong> Use DCR transformations to filter out verbose events BEFORE ingestion. Don\'t pay to store data you\'ll never use.'},
+'incident':{n:'Incident',c:'Sentinel Concept',d:'A correlated grouping of related alerts representing a potential security threat. Analysts investigate incidents, not individual alerts.<br><br>⚙️ <strong>Lifecycle:</strong> New → Active (assigned) → In Progress → Closed (True Positive / False Positive / Benign). Comments and tasks track investigation progress.<br><br>💡 <strong>Key:</strong> Fusion and analytics rules can auto-group alerts into incidents based on entity matching and time proximity.'},
+'entity':{n:'Entity',c:'Sentinel Concept',d:'An identifiable object in security data — a user account, IP address, hostname, file hash, URL, mailbox. Entities are extracted from alerts and mapped in analytics rules.<br><br>⚙️ <strong>Entity mapping:</strong> When creating analytics rules, you map KQL output columns to entity types. This enables: investigation graph visualization, UEBA correlation, and automated response targeting specific entities.'},
+'ueba':{n:'UEBA (User and Entity Behavior Analytics)',c:'Sentinel Feature',d:'Builds behavioral profiles for users and entities based on historical activity. Flags anomalies.<br><br>⚙️ <strong>Configure:</strong> Sentinel → Settings → UEBA → enable. Requires Entra ID and/or Active Directory data sources.<br><br>💡 <strong>What it tracks:</strong> Login patterns, data access volumes, geographic locations, peer group behavior. Assigns risk scores to users. Enriches incidents with behavioral context.'},
+'watchlist':{n:'Watchlist',c:'Sentinel Feature',d:'Upload reference data (CSV) and use it in KQL queries and analytics rules.<br><br>⚙️ <strong>Examples:</strong> VIP user list, terminated employees, approved IPs, high-value assets, service accounts.<br><br>💡 <strong>KQL usage:</strong> _GetWatchlist(\'VIPUsers\') | where AccountName in (watchlist_column). Use in rules to increase severity for VIP users or exclude known-safe IPs.'},
+'hunting':{n:'Threat Hunting',c:'Sentinel Feature',d:'Proactive KQL-based searching for threats before alerts fire.<br><br>⚙️ <strong>Tools:</strong> Built-in queries organized by MITRE tactic. Livestream (continuous query). Bookmarks (save findings). Hunts (collaborative campaigns with hypothesis tracking).<br><br>✅ <strong>Workflow:</strong> Write hypothesis → run query → bookmark interesting results → promote to incident if threat confirmed.'},
+'notebook':{n:'Jupyter Notebooks',c:'Sentinel Feature',d:'Azure ML-integrated notebooks for advanced analysis. Full Python stack (pandas, scikit-learn, matplotlib).<br><br>💡 <strong>Use cases:</strong> Custom ML anomaly detection, advanced timeline visualization, data from sources beyond Sentinel, forensic analysis that exceeds KQL capabilities. MSTICPy library provides security-specific functions.'},
+'syslog':{n:'Syslog',c:'Data Source',d:'Standard Linux/Unix logging protocol. Messages from system services (auth, daemon, kernel).<br><br>⚙️ <strong>Sentinel ingestion:</strong> Linux server sends syslog → Azure Monitor Agent (AMA) collects → DCR defines facilities to collect → data lands in Syslog table.<br><br>⚠️ <strong>Blocker:</strong> AMA must be installed on the Linux machine (or a forwarder). DCR must specify which syslog facilities (auth, authpriv, daemon, etc.).'},
+'cef':{n:'CEF (Common Event Format)',c:'Data Format',d:'Standardized syslog format for security events. Used by firewalls (Palo Alto, Fortinet, Cisco, Check Point).<br><br>⚙️ <strong>Sentinel ingestion:</strong> Firewall → sends CEF over syslog (TCP/514) → Linux forwarder VM with AMA → DCR collects CEF → data lands in CommonSecurityLog table.<br><br>⚠️ <strong>Common issues:</strong> Firewall must be configured to send CEF format (not raw syslog). The forwarder needs AMA installed + DCR configured for CEF facility.'},
+'threat intelligence':{n:'Threat Intelligence (TI)',c:'Sentinel Feature',d:'IOC feeds matched against all ingested data automatically.<br><br>⚙️ <strong>Sources:</strong> Microsoft Threat Intelligence (built-in), TAXII 2.0/2.1 feeds (MISP, Anomali), custom CSV uploads. Built-in analytics rules auto-match incoming logs against TI indicators.<br><br>✅ <strong>How it works:</strong> Upload a list of malicious IPs → Sentinel auto-checks every network event against the list → alert fires on match. No rule writing needed.'},
+'content hub':{n:'Content Hub',c:'Sentinel Feature',d:'Marketplace for out-of-the-box security content — solutions packages containing data connectors, analytics rules, workbooks, playbooks, and hunting queries for specific products/scenarios.<br><br>⚙️ <strong>Example:</strong> Install "Microsoft Entra ID" solution → get: sign-in connector + 15 analytics rules + 3 workbooks + 5 hunting queries + 2 playbooks. One-click install.'},
+'workbook':{n:'Workbook',c:'Sentinel Feature',d:'Interactive dashboards for visualizing security data. Built on Azure Workbooks using KQL queries.<br><br>⚙️ <strong>Configure:</strong> Sentinel → Workbooks → gallery of built-in templates. Clone and customize. Create from scratch with KQL queries + visualizations (charts, tables, maps, tiles).<br><br>✅ <strong>Common workbooks:</strong> Security Operations Efficiency, Entra ID Sign-in Analysis, Threat Intelligence, Insecure Protocols.'},
+'soar':{n:'SOAR (Security Orchestration, Automation & Response)',c:'Security Concept',d:'Automates security workflows — triage, enrichment, response. In Sentinel: automation rules (lightweight triage) + playbooks (complex orchestration via Logic Apps with 200+ connectors).<br><br>✅ <strong>Impact:</strong> MTTR drops from hours to seconds. A playbook that disables a user + isolates a device + posts to Teams runs in 10 seconds. A human doing the same takes 20 minutes.'},
+'siem':{n:'SIEM (Security Information & Event Management)',c:'Security Concept',d:'Centralized log collection, correlation, alerting, and compliance. Sentinel is Microsoft\'s cloud-native SIEM.<br><br>💡 <strong>Why cloud-native matters:</strong> No servers to manage, auto-scales with data volume, pay for ingestion not infrastructure, native integration with 300+ sources, Fusion ML for automatic correlation.'},
+};
+function toggleChat(){const p=document.getElementById('chat-panel'),b=document.getElementById('chat-toggle');const o=p.classList.toggle('open');b.classList.toggle('open');b.textContent=o?'✕':'💬';if(o)document.getElementById('chat-input').focus()}
+function sendChat(){const i=document.getElementById('chat-input');const q=i.value.trim();if(!q)return;i.value='';chatAsk(q)}
+function chatAsk(q){const msgs=document.getElementById('chat-messages');const u=document.createElement('div');u.className='chat-msg user';u.textContent=q;msgs.appendChild(u);const key=q.toLowerCase().replace(/[^a-z0-9\.\s&]/g,'').trim();let found=TERMS[key];if(!found){for(const k of Object.keys(TERMS)){if(k.includes(key)||TERMS[k].n.toLowerCase().includes(key)||TERMS[k].d.toLowerCase().includes(key)){found=TERMS[k];break}}}const b=document.createElement('div');b.className='chat-msg bot';if(found){b.innerHTML=`<span class="term-name">${found.n}</span><span class="term-category">${found.c}</span>${found.d}`}else{b.innerHTML=`I don't have "<strong>${q}</strong>" yet. Try: <strong>KQL</strong>, <strong>Fusion</strong>, <strong>playbook</strong>, <strong>analytics rule</strong>, <strong>ASIM</strong>, <strong>DCR</strong>, <strong>CEF</strong>, or <strong>UEBA</strong>.`}msgs.appendChild(b);msgs.scrollTop=msgs.scrollHeight;if(!document.getElementById('chat-panel').classList.contains('open'))toggleChat()}
+</script>
+</body>
+</html>

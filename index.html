@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Security Labs Platform</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0a0e1a;--bg2:#111827;--cyan:#00e5ff;--blue:#3b82f6;--purple:#a855f7;--green:#22c55e;--red:#ef4444;--orange:#f97316;--pink:#ec4899;--teal:#14b8a6;--yellow:#eab308;--text:#e2e8f0;--text-dim:#94a3b8;--glass:rgba(255,255,255,.04);--border:rgba(255,255,255,.08)}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.6;min-height:100vh}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:rgba(0,229,255,.3);border-radius:3px}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(10,14,26,.92);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:0 2rem}
+.nav-inner{max-width:1400px;margin:0 auto;display:flex;align-items:center;gap:2rem;height:60px}
+.logo{font-size:1.15rem;font-weight:700;color:var(--cyan);display:flex;align-items:center;gap:.5rem}
+.nav-right{display:flex;gap:.5rem;margin-left:auto}
+.nav-btn{padding:.4rem 1rem;border-radius:8px;border:1px solid var(--border);background:var(--glass);color:var(--text-dim);font-size:.82rem;cursor:pointer;transition:all .2s;font-family:inherit;text-decoration:none}
+.nav-btn:hover{border-color:var(--cyan);color:var(--cyan)}
+
+/* HERO */
+.hero{padding:10rem 2rem 4rem;text-align:center}
+.hero h1{font-size:clamp(2rem,5vw,3.5rem);font-weight:800;margin-bottom:1rem}
+.hero h1 .accent{background:linear-gradient(135deg,var(--cyan),var(--blue));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hero p{font-size:1.1rem;color:var(--text-dim);max-width:600px;margin:0 auto 2rem}
+.hero-stats{display:flex;justify-content:center;gap:3rem;flex-wrap:wrap}
+.hero-stat{text-align:center}
+.hero-stat .val{font-size:2rem;font-weight:800;background:linear-gradient(135deg,var(--cyan),var(--blue));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hero-stat .lbl{font-size:.78rem;color:var(--text-dim)}
+
+/* SEARCH & FILTER */
+.toolbar{max-width:1300px;margin:0 auto 2rem;padding:0 2rem;display:flex;gap:1rem;flex-wrap:wrap;align-items:center}
+.search-box{flex:1;min-width:200px;padding:.6rem 1rem;border-radius:10px;border:1px solid var(--border);background:var(--glass);color:var(--text);font-size:.9rem;font-family:inherit;outline:none;transition:border-color .2s}
+.search-box:focus{border-color:var(--cyan)}
+.search-box::placeholder{color:var(--text-dim)}
+.filter-btn{padding:.45rem .9rem;border-radius:99px;border:1px solid var(--border);background:var(--glass);color:var(--text-dim);font-size:.78rem;cursor:pointer;transition:all .2s;font-family:inherit}
+.filter-btn:hover,.filter-btn.active{border-color:var(--cyan);color:var(--cyan);background:rgba(0,229,255,.08)}
+
+/* LAB CARDS */
+.labs-grid{max-width:1300px;margin:0 auto;padding:0 2rem 4rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1.5rem}
+.lab-card{background:var(--glass);border:1px solid var(--border);border-radius:16px;padding:1.75rem;transition:all .3s;cursor:pointer;position:relative;overflow:hidden;text-decoration:none;color:var(--text);display:block}
+.lab-card:hover{transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,229,255,.06)}
+.lab-card .lc-icon{font-size:2rem;margin-bottom:.75rem}
+.lab-card .lc-title{font-size:1.1rem;font-weight:700;margin-bottom:.35rem}
+.lab-card .lc-desc{font-size:.85rem;color:var(--text-dim);margin-bottom:1rem;line-height:1.5}
+.lab-card .lc-tags{display:flex;gap:.35rem;flex-wrap:wrap}
+.lab-card .lc-tag{padding:.15rem .45rem;border-radius:4px;font-size:.68rem;font-weight:600}
+.lab-card .lc-status{position:absolute;top:1rem;right:1rem;padding:.2rem .5rem;border-radius:4px;font-size:.65rem;font-weight:700;text-transform:uppercase}
+.lab-card .lc-status.ready{background:rgba(34,197,94,.15);color:var(--green)}
+.lab-card .lc-status.migrate{background:rgba(249,115,22,.15);color:var(--orange)}
+.lab-card .lc-status.draft{background:rgba(148,163,184,.15);color:var(--text-dim)}
+.lab-card .lc-border{position:absolute;bottom:0;left:0;right:0;height:3px}
+
+/* EMPTY STATE */
+.empty-state{text-align:center;padding:4rem 2rem;color:var(--text-dim)}
+.empty-state .emoji{font-size:3rem;margin-bottom:1rem}
+
+/* PARTICLES */
+#particles-canvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;opacity:.25}
+
+footer{text-align:center;padding:3rem 2rem;border-top:1px solid var(--border);font-size:.8rem;color:var(--text-dim);position:relative;z-index:1}
+footer a{color:var(--cyan);text-decoration:none}
+
+/* ANIMATIONS */
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.lab-card{animation:fadeUp .5s ease forwards;opacity:0}
+</style>
+</head>
+<body>
+
+<canvas id="particles-canvas"></canvas>
+
+<nav>
+<div class="nav-inner">
+  <div class="logo">🔐 Security Labs</div>
+  <div class="nav-right">
+    <a href="admin/index.html" class="nav-btn">🧠 AI Lab Generator</a>
+  </div>
+</div>
+</nav>
+
+<div class="hero">
+  <h1>Your <span class="accent">Security Labs</span></h1>
+  <p>Interactive architecture deep-dives, training modules, and comparison guides for the Microsoft security ecosystem.</p>
+  <div class="hero-stats">
+    <div class="hero-stat"><div class="val" id="stat-total">—</div><div class="lbl">Total Labs</div></div>
+    <div class="hero-stat"><div class="val" id="stat-ready">—</div><div class="lbl">Ready</div></div>
+    <div class="hero-stat"><div class="val" id="stat-categories">—</div><div class="lbl">Categories</div></div>
+  </div>
+</div>
+
+<div class="toolbar" id="toolbar">
+  <input type="text" class="search-box" id="search" placeholder="🔍  Search labs by name, tag, or description...">
+</div>
+
+<div class="labs-grid" id="labs-grid"></div>
+
+<div class="empty-state" id="empty-state" style="display:none">
+  <div class="emoji">🔍</div>
+  <p>No labs match your search. Try a different keyword.</p>
+</div>
+
+<footer>
+  <p>Security Labs Platform &nbsp;|&nbsp; <a href="https://learn.microsoft.com" target="_blank">Microsoft Learn</a> &nbsp;|&nbsp; Add new labs via JSON or the <a href="admin/index.html">AI Generator</a></p>
+</footer>
+
+<script>
+const categoryColors = {
+  endpoint: '#00e5ff', cloud: '#3b82f6', identity: '#eab308',
+  siem: '#a855f7', ai: '#ec4899', networking: '#14b8a6',
+  comparison: '#00e5ff', certification: '#f97316'
+};
+const categoryIcons = {
+  endpoint: '🖥️', cloud: '☁️', identity: '🔑', siem: '📊',
+  ai: '🧠', networking: '🌐', comparison: '⚖️', certification: '📝'
+};
+
+let allLabs = [];
+
+async function init() {
+  try {
+    const resp = await fetch('manifest.json');
+    const data = await resp.json();
+    allLabs = data.labs || [];
+  } catch(e) {
+    console.error('Failed to load manifest:', e);
+    allLabs = [];
+  }
+
+  // Stats
+  document.getElementById('stat-total').textContent = allLabs.length;
+  document.getElementById('stat-ready').textContent = allLabs.filter(l => l.status === 'ready').length;
+  const cats = new Set(allLabs.map(l => l.category));
+  document.getElementById('stat-categories').textContent = cats.size;
+
+  // Filter buttons
+  const toolbar = document.getElementById('toolbar');
+  const allBtn = document.createElement('button');
+  allBtn.className = 'filter-btn active';
+  allBtn.textContent = 'All';
+  allBtn.dataset.cat = 'all';
+  toolbar.appendChild(allBtn);
+
+  cats.forEach(cat => {
+    const btn = document.createElement('button');
+    btn.className = 'filter-btn';
+    btn.textContent = `${categoryIcons[cat] || '📄'} ${cat.charAt(0).toUpperCase() + cat.slice(1)}`;
+    btn.dataset.cat = cat;
+    toolbar.appendChild(btn);
+  });
+
+  // Events
+  toolbar.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      toolbar.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderLabs(btn.dataset.cat, document.getElementById('search').value);
+    });
+  });
+
+  document.getElementById('search').addEventListener('input', e => {
+    const activeCat = toolbar.querySelector('.filter-btn.active')?.dataset.cat || 'all';
+    renderLabs(activeCat, e.target.value);
+  });
+
+  renderLabs('all', '');
+}
+
+function renderLabs(category, search) {
+  const grid = document.getElementById('labs-grid');
+  const empty = document.getElementById('empty-state');
+  const query = search.toLowerCase().trim();
+
+  let filtered = allLabs;
+  if (category !== 'all') filtered = filtered.filter(l => l.category === category);
+  if (query) filtered = filtered.filter(l =>
+    l.title.toLowerCase().includes(query) ||
+    l.description.toLowerCase().includes(query) ||
+    (l.tags || []).some(t => t.includes(query))
+  );
+
+  if (filtered.length === 0) {
+    grid.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+
+  empty.style.display = 'none';
+  grid.innerHTML = filtered.map((lab, i) => {
+    const color = lab.color || categoryColors[lab.category] || '#00e5ff';
+    const statusClass = lab.status || 'draft';
+    const statusLabel = { ready: 'Ready', migrate: 'Needs Migration', draft: 'Draft' }[statusClass] || statusClass;
+
+    // Determine link — ready labs go to template engine, migrate labs go to original HTML
+    let href;
+    if (statusClass === 'ready') {
+      href = `engine/template.html?lab=${lab.id}`;
+    } else {
+      // Link to original standalone HTML if it exists
+      const folderMap = {
+        mde: 'labs/mde/index.html',
+        mdc: 'labs/mdc/index.html',
+        sentinel: 'labs/sentinel/index.html',
+        'unified-security': 'labs/unified-security/index.html',
+        'ai-security': 'labs/ai-security/index.html',
+        'az500-simulator': 'labs/az500-simulator/index.html',
+        'azure-networking': 'labs/azure-networking/index.html'
+      };
+      href = folderMap[lab.id] || '#';
+    }
+
+    const tagsHtml = (lab.tags || []).slice(0, 4).map(t =>
+      `<span class="lc-tag" style="background:${hexToRgba(color, 0.1)};color:${color}">${t}</span>`
+    ).join('');
+
+    return `
+    <a href="${href}" class="lab-card" style="animation-delay:${i * 0.08}s;border-top:3px solid ${hexToRgba(color, 0.4)}">
+      <div class="lc-status ${statusClass}">${statusLabel}</div>
+      <div class="lc-icon">${lab.icon || '📄'}</div>
+      <div class="lc-title">${lab.title}</div>
+      <div class="lc-desc">${lab.description}</div>
+      <div class="lc-tags">${tagsHtml}</div>
+      <div class="lc-border" style="background:linear-gradient(90deg,${color},transparent)"></div>
+    </a>`;
+  }).join('');
+}
+
+function hexToRgba(hex, alpha) {
+  hex = hex.replace('#', '');
+  if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+// Particles
+const canvas = document.getElementById('particles-canvas');
+const ctx = canvas.getContext('2d');
+let particles = [];
+function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+window.addEventListener('resize', resize); resize();
+class P {
+  constructor() { this.reset(); }
+  reset() {
+    this.x = Math.random() * canvas.width; this.y = Math.random() * canvas.height;
+    this.vx = (Math.random() - .5) * .3; this.vy = (Math.random() - .5) * .3;
+    this.size = Math.random() * 1.5 + .5;
+    this.color = ['#00e5ff', '#3b82f6', '#a855f7', '#22c55e'][Math.floor(Math.random() * 4)];
+    this.alpha = Math.random() * .4 + .1;
+  }
+  update() { this.x += this.vx; this.y += this.vy; if (this.x < 0 || this.x > canvas.width) this.vx *= -1; if (this.y < 0 || this.y > canvas.height) this.vy *= -1; }
+  draw() { ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fillStyle = hexToRgba(this.color, this.alpha); ctx.fill(); }
+}
+for (let i = 0; i < 50; i++) particles.push(new P());
+(function animate() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  particles.forEach(p => { p.update(); p.draw(); });
+  for (let i = 0; i < particles.length; i++) for (let j = i + 1; j < particles.length; j++) {
+    const dx = particles[i].x - particles[j].x, dy = particles[i].y - particles[j].y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < 100) { ctx.beginPath(); ctx.moveTo(particles[i].x, particles[i].y); ctx.lineTo(particles[j].x, particles[j].y); ctx.strokeStyle = hexToRgba('#00e5ff', (1 - dist / 100) * .06); ctx.stroke(); }
+  }
+  requestAnimationFrame(animate);
+})();
+
+init();
+</script>
+</body>
+</html>

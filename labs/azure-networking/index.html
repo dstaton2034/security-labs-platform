@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Azure Networking & Security — Prototype</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0a0e1a;--bg2:#111827;--bg3:#1a2236;--orange:#f97316;--orange-dim:rgba(249,115,22,.15);--cyan:#00e5ff;--blue:#3b82f6;--purple:#a855f7;--green:#22c55e;--red:#ef4444;--yellow:#eab308;--text:#e2e8f0;--text-dim:#94a3b8;--glass:rgba(255,255,255,.04);--border:rgba(255,255,255,.08)}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.6;overflow-x:hidden}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--orange-dim);border-radius:3px}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(10,14,26,.92);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:0 2rem}
+nav .nav-inner{max-width:1400px;margin:0 auto;display:flex;align-items:center;gap:2rem;height:56px}
+nav .logo{font-size:1.1rem;font-weight:700;color:var(--orange);white-space:nowrap}
+nav a.back{color:var(--text-dim);text-decoration:none;font-size:.82rem;margin-left:auto;padding:.35rem .75rem;border-radius:6px;border:1px solid var(--border)}
+nav a.back:hover{border-color:var(--orange);color:var(--orange)}
+nav .nav-links{display:flex;gap:.25rem;flex:1}
+nav .nav-links a{color:var(--text-dim);text-decoration:none;font-size:.78rem;padding:.35rem .65rem;border-radius:6px;white-space:nowrap;transition:all .2s}
+nav .nav-links a:hover,nav .nav-links a.active{color:var(--orange);background:var(--orange-dim)}
+
+/* HERO */
+.hero{min-height:80vh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:7rem 2rem 4rem;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;top:-200px;left:50%;transform:translateX(-50%);width:800px;height:800px;background:radial-gradient(circle,rgba(249,115,22,.08) 0%,transparent 70%);pointer-events:none}
+.hero .badge{display:inline-flex;align-items:center;gap:.5rem;padding:.5rem 1rem;border-radius:99px;background:var(--glass);border:1px solid var(--border);font-size:.85rem;color:var(--text-dim);margin-bottom:1.5rem}
+.hero .badge .dot{width:8px;height:8px;background:var(--green);border-radius:50%;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(34,197,94,.4)}50%{opacity:.7;box-shadow:0 0 0 8px rgba(34,197,94,0)}}
+.hero h1{font-size:clamp(2rem,5vw,3.2rem);font-weight:800;line-height:1.15;margin-bottom:1rem}
+.hero h1 .accent{background:linear-gradient(135deg,var(--orange),#fb923c);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hero p{font-size:1.1rem;color:var(--text-dim);max-width:700px;margin-bottom:1rem}
+
+/* SECTIONS */
+section{padding:4rem 2rem;position:relative}
+.section-inner{max-width:1200px;margin:0 auto}
+.section-label{display:inline-flex;align-items:center;gap:.5rem;padding:.3rem .75rem;border-radius:99px;font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.75rem;background:var(--orange-dim);color:var(--orange)}
+.section-title{font-size:clamp(1.5rem,3vw,2.2rem);font-weight:700;margin-bottom:.5rem}
+.section-desc{font-size:.95rem;color:var(--text-dim);max-width:650px;margin-bottom:2.5rem}
+
+/* CARDS */
+.card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1.25rem}
+.card{background:var(--glass);border:1px solid var(--border);border-radius:14px;padding:1.5rem;transition:all .3s;position:relative;overflow:hidden}
+.card:hover{border-color:rgba(249,115,22,.3);transform:translateY(-2px);box-shadow:0 8px 30px rgba(249,115,22,.08)}
+.card .icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;margin-bottom:.75rem;background:var(--orange-dim)}
+.card h3{font-size:1rem;font-weight:600;margin-bottom:.4rem;color:var(--orange)}
+.card p{font-size:.85rem;color:var(--text-dim);line-height:1.55}
+.card .tag{display:inline-block;padding:.12rem .4rem;border-radius:4px;font-size:.65rem;font-weight:600;margin-top:.5rem;margin-right:.2rem;background:var(--orange-dim);color:var(--orange)}
+
+/* WHY IT MATTERS */
+.wim{background:rgba(249,115,22,.05);border:1px solid rgba(249,115,22,.15);border-radius:10px;padding:1rem 1.25rem;margin-top:1.5rem}
+.wim h4{font-size:.8rem;font-weight:700;color:var(--orange);margin-bottom:.3rem;text-transform:uppercase;letter-spacing:.05em}
+.wim p{font-size:.85rem;color:var(--text-dim)}
+
+/* SIMULATION */
+#simulation{background:var(--bg2)}
+.sim-wrapper{position:relative}
+.sim-controls{display:flex;align-items:center;gap:.75rem;margin-bottom:1.5rem;flex-wrap:wrap}
+.sim-btn{background:var(--glass);border:1px solid var(--border);color:var(--text);padding:.5rem 1rem;border-radius:8px;font-size:.82rem;cursor:pointer;transition:all .2s;font-family:inherit}
+.sim-btn:hover{border-color:var(--orange);color:var(--orange)}
+.sim-btn.active{background:var(--orange-dim);border-color:var(--orange);color:var(--orange)}
+.sim-step-label{font-size:.82rem;color:var(--text-dim);margin-left:auto}
+
+/* SIMULATION DIAGRAM */
+.sim-diagram{position:relative;width:100%;height:420px;background:rgba(0,0,0,.2);border-radius:14px;border:1px solid var(--border);overflow:hidden;margin-bottom:1.5rem}
+.sim-node{position:absolute;padding:.6rem 1rem;border-radius:10px;font-size:.72rem;font-weight:600;text-align:center;border:2px solid var(--border);background:var(--glass);transition:all .5s;min-width:90px}
+.sim-node.active{box-shadow:0 0 20px rgba(249,115,22,.4);border-color:var(--orange);transform:scale(1.08)}
+.sim-node.passed{border-color:var(--green);opacity:.7}
+.sim-node.waiting{opacity:.35}
+.sim-node .node-icon{font-size:1.4rem;display:block;margin-bottom:.25rem}
+.sim-arrow{position:absolute;height:3px;background:var(--border);transition:all .5s;transform-origin:left center}
+.sim-arrow.active{background:var(--orange);box-shadow:0 0 10px rgba(249,115,22,.5)}
+.sim-arrow.passed{background:var(--green);opacity:.5}
+
+/* STEP DETAIL */
+.sim-detail{background:var(--glass);border:1px solid var(--border);border-radius:14px;padding:1.5rem;min-height:140px}
+.sim-detail h3{font-size:1.05rem;font-weight:700;color:var(--orange);margin-bottom:.5rem}
+.sim-detail p{font-size:.88rem;color:var(--text-dim);line-height:1.6}
+.sim-detail .detail-checks{margin-top:.75rem;display:flex;flex-wrap:wrap;gap:.5rem}
+.sim-detail .check{padding:.2rem .55rem;border-radius:4px;font-size:.7rem;font-weight:600;background:rgba(34,197,94,.1);color:var(--green);border:1px solid rgba(34,197,94,.2)}
+.sim-detail .check.fail{background:rgba(239,68,68,.1);color:var(--red);border-color:rgba(239,68,68,.2)}
+
+/* SECURITY LAYERS */
+#layers{background:linear-gradient(180deg,var(--bg2),var(--bg))}
+.layer-stack{display:flex;flex-direction:column;gap:0;max-width:900px;margin:0 auto}
+.layer-item{display:flex;align-items:center;gap:1.25rem;padding:1.25rem;border-left:3px solid var(--border);position:relative;transition:all .3s}
+.layer-item:hover{border-left-color:var(--orange);background:rgba(249,115,22,.03)}
+.layer-num{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:800;flex-shrink:0;border:2px solid}
+.layer-content{flex:1}
+.layer-content h3{font-size:1rem;font-weight:600;margin-bottom:.25rem}
+.layer-content p{font-size:.85rem;color:var(--text-dim)}
+.layer-content .ltag{display:inline-block;padding:.1rem .4rem;border-radius:4px;font-size:.65rem;font-weight:600;margin-top:.4rem;margin-right:.2rem}
+
+/* CHATBOX */
+.chatbox-toggle{position:fixed;bottom:1.5rem;right:1.5rem;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--orange),#fb923c);border:none;color:#fff;font-size:1.5rem;cursor:pointer;z-index:200;box-shadow:0 4px 20px rgba(249,115,22,.4);transition:transform .2s}
+.chatbox-toggle:hover{transform:scale(1.1)}
+.chatbox{position:fixed;bottom:5rem;right:1.5rem;width:380px;max-height:500px;background:var(--bg2);border:1px solid var(--border);border-radius:16px;z-index:200;display:none;flex-direction:column;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.5)}
+.chatbox.open{display:flex}
+.chatbox-header{padding:1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.5rem}
+.chatbox-header h3{font-size:.95rem;font-weight:700;color:var(--orange);flex:1}
+.chatbox-header button{background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:1.1rem}
+.chatbox-search{padding:.75rem 1rem;border-bottom:1px solid var(--border)}
+.chatbox-search input{width:100%;background:var(--glass);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-size:.85rem;outline:none;font-family:inherit}
+.chatbox-search input:focus{border-color:var(--orange)}
+.chatbox-results{flex:1;overflow-y:auto;padding:.75rem 1rem}
+.chatbox-item{padding:.75rem;border-radius:8px;margin-bottom:.5rem;background:var(--glass);border:1px solid var(--border);cursor:default}
+.chatbox-item h4{font-size:.85rem;font-weight:600;color:var(--orange);margin-bottom:.25rem}
+.chatbox-item p{font-size:.8rem;color:var(--text-dim);line-height:1.5}
+.chatbox-item .wim-mini{font-size:.75rem;color:var(--green);margin-top:.3rem;font-style:italic}
+.chatbox-empty{text-align:center;padding:2rem;color:var(--text-dim);font-size:.85rem}
+
+@media(max-width:768px){
+  .sim-diagram{height:350px}
+  .sim-node{font-size:.65rem;min-width:70px;padding:.4rem .6rem}
+  .chatbox{width:calc(100vw - 2rem);right:1rem}
+  .psim-row{grid-template-columns:52px 1fr;grid-template-rows:auto auto}
+  .psim-actor{grid-column:2}
+  .psim-msg{grid-column:1/-1;padding-left:.25rem}
+}
+/* Product Live Sim */
+.psim-feed{display:flex;flex-direction:column;font-family:'Courier New',monospace;background:rgba(0,0,0,.22);border-radius:10px;border:1px solid var(--border);overflow:hidden;max-height:480px;overflow-y:auto}
+.psim-row{display:grid;grid-template-columns:58px 155px 1fr;gap:.75rem;padding:.55rem .85rem;align-items:baseline;animation:psIn .35s ease forwards;opacity:0}
+.psim-row+.psim-row{border-top:1px solid rgba(255,255,255,.03)}
+.psim-time{color:rgba(255,255,255,.28);font-size:.7rem;white-space:nowrap}
+.psim-actor{font-size:.74rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.psim-msg{font-size:.79rem;color:var(--text-dim);line-height:1.5;font-family:inherit}
+.psim-attack .psim-actor{color:var(--red)}.psim-attack{background:rgba(239,68,68,.04)}
+.psim-detect .psim-actor{color:#fb923c}.psim-detect{background:rgba(251,146,60,.04)}
+.psim-block .psim-actor{color:var(--green)}.psim-block{background:rgba(34,197,94,.04)}
+.psim-correlate .psim-actor{color:#a78bfa}.psim-correlate{background:rgba(167,139,250,.04)}
+.psim-info .psim-actor{color:rgba(255,255,255,.4)}
+.psim-result{background:rgba(0,229,255,.06);border-top:1px solid rgba(0,229,255,.12)!important}
+.psim-result .psim-actor{color:var(--cyan)}.psim-result .psim-msg{color:var(--text);font-weight:500}
+@keyframes psIn{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:translateX(0)}}
+.psim-scenario-bar{font-size:.82rem;color:var(--text-dim);line-height:1.65;margin-bottom:.85rem;padding:.75rem 1rem;background:rgba(249,115,22,.06);border-left:3px solid var(--orange);border-radius:0 6px 6px 0}
+</style>
+</head>
+<body>
+
+<nav><div class="nav-inner">
+  <div class="logo">🌐 Azure Networking & Security</div>
+  <div class="nav-links">
+    <a href="#topology">Hub-Spoke</a>
+    <a href="#layers">Security Layers</a>
+    <a href="#simulation">Attack Sim</a>
+    <a href="#overlay">Security Stack</a>
+    <a href="#explorer">Product Explorer</a>
+    <a href="#connectivity">Connectivity</a>
+  </div>
+  <a class="back" href="../index.html">← Back to Hub</a>
+</div></nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="badge"><span class="dot"></span> Interactive Simulation • 7 Security Layers • Chatbox</div>
+  <h1><span class="accent">Azure Networking</span><br>& Security Architecture</h1>
+  <p>Hub-spoke topology, defense-in-depth networking, and where every security layer protects your workloads — explained through an interactive traffic simulation.</p>
+</div>
+
+<!-- HUB-SPOKE TOPOLOGY -->
+<section id="topology">
+<div class="section-inner">
+  <div class="section-label">🏗️ Foundation</div>
+  <div class="section-title">Hub-Spoke Topology</div>
+  <div class="section-desc">The recommended enterprise Azure network architecture — centralized security services in a hub, isolated workloads in spokes.</div>
+  <div class="card-grid">
+    <div class="card"><div class="icon">🏢</div><h3>Hub VNet</h3><p>Central networking services — Azure Firewall for egress control, VPN/ExpressRoute Gateway for cross-premises connectivity, Azure Bastion for secure VM access, shared DNS. All inter-spoke and outbound traffic routes through here.</p><span class="tag">Firewall</span><span class="tag">Gateway</span><span class="tag">Bastion</span><span class="tag">DNS</span></div>
+    <div class="card"><div class="icon">📦</div><h3>Spoke VNets</h3><p>Workload isolation — each spoke hosts a separate workload or environment (prod, dev, staging). Subnets divide tiers: web, app, data. Spokes peer to the hub only, not to each other (non-transitive by default).</p><span class="tag">Isolation</span><span class="tag">Multi-tier</span><span class="tag">Subscription-level</span></div>
+    <div class="card"><div class="icon">🔗</div><h3>VNet Peering & UDRs</h3><p>Peering connects hub to each spoke (low-latency Azure backbone). User Defined Routes (0.0.0.0/0 → Azure Firewall) force ALL spoke traffic through the hub firewall — no workload bypasses inspection.</p><span class="tag">Non-transitive</span><span class="tag">Forced tunneling</span><span class="tag">Gateway transit</span></div>
+    <div class="card"><div class="icon">🧩</div><h3>Subnet Segmentation</h3><p>Specialized subnets: AzureFirewallSubnet (requires /26), GatewaySubnet (VPN/ER), AzureBastionSubnet (requires /26+), workload subnets per tier. Each subnet can have its own NSG and route table.</p><span class="tag">AzureFirewallSubnet</span><span class="tag">GatewaySubnet</span><span class="tag">AzureBastionSubnet</span></div>
+  </div>
+  <div class="wim"><h4>🔒 Why It Matters</h4><p>Hub-spoke is the Cloud Adoption Framework's recommended topology because it centralizes security control. Every packet between spokes or heading to the internet passes through the hub's firewall — giving you a single pane for network policy, logging, and threat detection. Without it, each workload manages its own egress and you lose visibility.</p></div>
+</div>
+</section>
+
+<!-- SECURITY LAYERS -->
+<section id="layers">
+<div class="section-inner">
+  <div class="section-label">🛡️ Defense in Depth</div>
+  <div class="section-title">7 Network Security Layers</div>
+  <div class="section-desc">From the Azure edge to the workload — each layer adds inspection, filtering, or isolation. An attacker must beat ALL of them.</div>
+  <div class="layer-stack">
+    <div class="layer-item"><div class="layer-num" style="background:rgba(239,68,68,.15);color:var(--red);border-color:rgba(239,68,68,.3)">1</div><div class="layer-content"><h3>Azure DDoS Protection</h3><p>Always-on volumetric attack mitigation at the Azure edge. Standard plan adds adaptive tuning (learns your traffic baseline), real-time telemetry, attack analytics, and cost protection guarantee.</p><span class="ltag" style="background:rgba(239,68,68,.1);color:var(--red)">Edge Layer</span><span class="ltag" style="background:rgba(239,68,68,.1);color:var(--red)">L3/L4</span></div></div>
+    <div class="layer-item"><div class="layer-num" style="background:rgba(59,130,246,.15);color:var(--blue);border-color:rgba(59,130,246,.3)">2</div><div class="layer-content"><h3>Azure Front Door + WAF</h3><p>Global HTTP load balancing with integrated Web Application Firewall. OWASP Core Rule Set 3.2, custom rules, bot protection, rate limiting, geo-filtering. TLS terminated at edge POP closest to user.</p><span class="ltag" style="background:rgba(59,130,246,.1);color:var(--blue)">Global Edge</span><span class="ltag" style="background:rgba(59,130,246,.1);color:var(--blue)">L7</span></div></div>
+    <div class="layer-item"><div class="layer-num" style="background:rgba(249,115,22,.15);color:var(--orange);border-color:rgba(249,115,22,.3)">3</div><div class="layer-content"><h3>Azure Firewall (Premium)</h3><p>Centralized stateful L3–L7 firewall in the hub VNet. Network rules, application rules (FQDN filtering), DNAT/SNAT, TLS inspection (decrypt/re-encrypt), IDPS with 67,000+ signatures, URL filtering, web categories, threat intel feed.</p><span class="ltag" style="background:rgba(249,115,22,.1);color:var(--orange)">Hub VNet</span><span class="ltag" style="background:rgba(249,115,22,.1);color:var(--orange)">L3–L7</span></div></div>
+    <div class="layer-item"><div class="layer-num" style="background:rgba(168,85,247,.15);color:var(--purple);border-color:rgba(168,85,247,.3)">4</div><div class="layer-content"><h3>Application Gateway + WAF v2</h3><p>Regional L7 load balancer with WAF. SSL offload, cookie-based affinity, URL path-based routing, auto-scaling. WAF v2 with per-site and per-URI policies for granular protection.</p><span class="ltag" style="background:rgba(168,85,247,.1);color:var(--purple)">Spoke Entry</span><span class="ltag" style="background:rgba(168,85,247,.1);color:var(--purple)">L7</span></div></div>
+    <div class="layer-item"><div class="layer-num" style="background:rgba(0,229,255,.15);color:var(--cyan);border-color:rgba(0,229,255,.3)">5</div><div class="layer-content"><h3>Network Security Groups (NSGs)</h3><p>Stateful L3/L4 packet filtering at subnet or NIC level. 5-tuple rules (src IP, dst IP, src port, dst port, protocol). Priority-based (lowest number = first evaluated). Default: allow VNet, allow LB, deny all inbound.</p><span class="ltag" style="background:rgba(0,229,255,.1);color:var(--cyan)">Every Subnet</span><span class="ltag" style="background:rgba(0,229,255,.1);color:var(--cyan)">L3/L4</span></div></div>
+    <div class="layer-item"><div class="layer-num" style="background:rgba(34,197,94,.15);color:var(--green);border-color:rgba(34,197,94,.3)">6</div><div class="layer-content"><h3>Application Security Groups (ASGs)</h3><p>Logical grouping of VMs by function (web servers, app servers, DB servers). Use in NSG rules instead of IP addresses — when you add a VM to the ASG, rules apply automatically. No rule updates needed.</p><span class="ltag" style="background:rgba(34,197,94,.1);color:var(--green)">Logical</span><span class="ltag" style="background:rgba(34,197,94,.1);color:var(--green)">Zero-touch scaling</span></div></div>
+    <div class="layer-item"><div class="layer-num" style="background:rgba(234,179,8,.15);color:var(--yellow);border-color:rgba(234,179,8,.3)">7</div><div class="layer-content"><h3>Private Endpoints</h3><p>Private IP address in your VNet for PaaS services (Azure SQL, Storage, Key Vault). Traffic stays on Microsoft backbone — never traverses public internet. DNS resolution via Azure Private DNS zones.</p><span class="ltag" style="background:rgba(234,179,8,.1);color:var(--yellow)">PaaS Boundary</span><span class="ltag" style="background:rgba(234,179,8,.1);color:var(--yellow)">Data Layer</span></div></div>
+  </div>
+</div>
+</section>
+
+<!-- ATTACK SIMULATION -->
+<section id="simulation">
+<div class="section-inner">
+  <div class="section-label">▶ Interactive</div>
+  <div class="section-title">Attack Simulation — Defense in Depth in Action</div>
+  <div class="section-desc">Pick an attack scenario. Watch it hit your Azure network. See which security product catches it — and at which layer.</div>
+  
+  <!-- Scenario Selector -->
+  <div id="scenarioSelector" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.75rem;margin-bottom:2rem">
+    <button class="sim-btn scenario-pick active" onclick="pickScenario(0)" id="sc0" style="padding:1rem;text-align:left;border-radius:12px">
+      <div style="font-size:1.2rem;margin-bottom:.3rem">💉 SQL Injection</div>
+      <div style="font-size:.75rem;color:var(--text-dim)">External attacker targets your web app — caught at the edge before reaching your VNet</div>
+    </button>
+    <button class="sim-btn scenario-pick" onclick="pickScenario(1)" id="sc1" style="padding:1rem;text-align:left;border-radius:12px">
+      <div style="font-size:1.2rem;margin-bottom:.3rem">🦠 Lateral Movement</div>
+      <div style="font-size:.75rem;color:var(--text-dim)">Compromised VM tries to spread — MDE + NSGs + Sentinel team up</div>
+    </button>
+    <button class="sim-btn scenario-pick" onclick="pickScenario(2)" id="sc2" style="padding:1rem;text-align:left;border-radius:12px">
+      <div style="font-size:1.2rem;margin-bottom:.3rem">📤 Data Exfiltration</div>
+      <div style="font-size:.75rem;color:var(--text-dim)">Malware tries to steal data — Firewall + DNS Defender + MDE triple-block</div>
+    </button>
+    <button class="sim-btn scenario-pick" onclick="pickScenario(3)" id="sc3" style="padding:1rem;text-align:left;border-radius:12px">
+      <div style="font-size:1.2rem;margin-bottom:.3rem">🟢 Legitimate Request</div>
+      <div style="font-size:.75rem;color:var(--text-dim)">Normal traffic — see what "healthy" looks like through every checkpoint</div>
+    </button>
+  </div>
+
+  <div class="sim-wrapper">
+    <div class="sim-controls">
+      <button class="sim-btn" id="btnPlay" onclick="simPlay()">▶ Play</button>
+      <button class="sim-btn" id="btnPause" onclick="simPause()" style="display:none">⏸ Pause</button>
+      <button class="sim-btn" onclick="simStep()">⏭ Next Step</button>
+      <button class="sim-btn" id="btnSpeed" onclick="simSpeed()">Speed: 1×</button>
+      <button class="sim-btn" onclick="simReset()">↺ Reset</button>
+      <span class="sim-step-label" id="stepLabel">Step 0 / 0</span>
+    </div>
+
+    <div class="sim-diagram" id="simDiagram">
+      <!-- Nodes positioned via JS -->
+    </div>
+
+    <div class="sim-detail" id="simDetail">
+      <h3>Pick an attack scenario above</h3>
+      <p>Select one of the 4 scenarios, then click <strong>▶ Play</strong> or <strong>⏭ Next Step</strong>. Watch the attack hit the network diagram — each node lights up to show WHERE the security product detects or blocks it. Red = attack blocked. Green = legitimate traffic passed.</p>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- SECURITY PRODUCT OVERLAY -->
+<section id="overlay" style="background:linear-gradient(180deg,var(--bg),var(--bg2))">
+<div class="section-inner">
+  <div class="section-label" style="background:rgba(168,85,247,.15);color:var(--purple)">🔮 The Full Picture</div>
+  <div class="section-title">Where Microsoft Security Products Protect</div>
+  <div class="section-desc">The networking layers handle traffic control — but Microsoft's security stack lays ON TOP, adding detection, monitoring, and response at every level.</div>
+
+  <!-- OVERLAY VISUAL -->
+  <div style="position:relative;width:100%;background:rgba(0,0,0,.25);border-radius:16px;border:1px solid var(--border);padding:2rem;margin-bottom:2rem;overflow-x:auto">
+    
+    <!-- Layer labels on left -->
+    <div style="display:flex;flex-direction:column;gap:0">
+      
+      <!-- EDGE LAYER -->
+      <div style="display:flex;align-items:stretch;gap:1rem;margin-bottom:.5rem">
+        <div style="min-width:140px;padding:1rem;border-radius:10px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);text-align:center">
+          <div style="font-size:1.4rem">🌍</div>
+          <div style="font-size:.75rem;font-weight:700;color:var(--red);margin-top:.25rem">AZURE EDGE</div>
+          <div style="font-size:.65rem;color:var(--text-dim)">DDoS + Front Door</div>
+        </div>
+        <div style="flex:1;display:flex;gap:.75rem;flex-wrap:wrap;align-items:center">
+          <div style="flex:1;min-width:200px;padding:1rem;border-radius:10px;background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.2)">
+            <div style="font-size:.78rem;font-weight:700;color:var(--blue)">🔭 Microsoft Sentinel</div>
+            <div style="font-size:.75rem;color:var(--text-dim);margin-top:.25rem">Ingests DDoS telemetry, Front Door WAF logs, and firewall diagnostics. Correlates network events with identity and endpoint signals. Runs analytics rules to detect network-based attacks (port scans, C2 callbacks, data exfiltration patterns).</div>
+          </div>
+          <div style="flex:1;min-width:200px;padding:1rem;border-radius:10px;background:rgba(0,229,255,.06);border:1px solid rgba(0,229,255,.2)">
+            <div style="font-size:.78rem;font-weight:700;color:var(--cyan)">☁️ Defender for Cloud — Network Recommendations</div>
+            <div style="font-size:.75rem;color:var(--text-dim);margin-top:.25rem">Continuously assesses your network posture: "Enable DDoS Standard on VNets with public IPs," "Restrict NSG rules allowing 0.0.0.0/0," "Enable WAF on Application Gateway." Secure Score reflects your network hygiene.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ARROW -->
+      <div style="text-align:center;color:var(--text-dim);font-size:1.2rem;margin:.25rem 0">⬇️</div>
+
+      <!-- HUB VNET LAYER -->
+      <div style="display:flex;align-items:stretch;gap:1rem;margin-bottom:.5rem">
+        <div style="min-width:140px;padding:1rem;border-radius:10px;background:rgba(249,115,22,.08);border:1px solid rgba(249,115,22,.2);text-align:center">
+          <div style="font-size:1.4rem">🔥</div>
+          <div style="font-size:.75rem;font-weight:700;color:var(--orange);margin-top:.25rem">HUB VNET</div>
+          <div style="font-size:.65rem;color:var(--text-dim)">Firewall + Gateway</div>
+        </div>
+        <div style="flex:1;display:flex;gap:.75rem;flex-wrap:wrap;align-items:center">
+          <div style="flex:1;min-width:200px;padding:1rem;border-radius:10px;background:rgba(249,115,22,.06);border:1px solid rgba(249,115,22,.2)">
+            <div style="font-size:.78rem;font-weight:700;color:var(--orange)">🔥 Azure Firewall IDPS + Threat Intel</div>
+            <div style="font-size:.75rem;color:var(--text-dim);margin-top:.25rem">67,000+ signatures detect known exploits, malware C2, and attack patterns in transit. Threat intelligence feed from Microsoft blocks traffic to/from known malicious IPs and domains in real-time.</div>
+          </div>
+          <div style="flex:1;min-width:200px;padding:1rem;border-radius:10px;background:rgba(168,85,247,.06);border:1px solid rgba(168,85,247,.2)">
+            <div style="font-size:.78rem;font-weight:700;color:var(--purple)">🔐 Defender for Key Vault</div>
+            <div style="font-size:.75rem;color:var(--text-dim);margin-top:.25rem">Detects unusual access to Key Vault (secrets, certs, keys) from suspicious IPs or unexpected Azure services. Catches credential harvesting attempts. Alerts on access from Tor exit nodes or known malicious IPs.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ARROW -->
+      <div style="text-align:center;color:var(--text-dim);font-size:1.2rem;margin:.25rem 0">⬇️</div>
+
+      <!-- SPOKE / WORKLOAD LAYER -->
+      <div style="display:flex;align-items:stretch;gap:1rem;margin-bottom:.5rem">
+        <div style="min-width:140px;padding:1rem;border-radius:10px;background:rgba(0,229,255,.08);border:1px solid rgba(0,229,255,.2);text-align:center">
+          <div style="font-size:1.4rem">🖥️</div>
+          <div style="font-size:.75rem;font-weight:700;color:var(--cyan);margin-top:.25rem">SPOKE VNETS</div>
+          <div style="font-size:.65rem;color:var(--text-dim)">Workload VMs</div>
+        </div>
+        <div style="flex:1;display:flex;gap:.75rem;flex-wrap:wrap;align-items:center">
+          <div style="flex:1;min-width:180px;padding:1rem;border-radius:10px;background:rgba(0,229,255,.06);border:1px solid rgba(0,229,255,.2)">
+            <div style="font-size:.78rem;font-weight:700;color:var(--cyan)">🛡️ Defender for Endpoint (MDE)</div>
+            <div style="font-size:.75rem;color:var(--text-dim);margin-top:.25rem">Kernel-level sensor on every VM. Detects post-breach activity: malware execution, credential dumping, lateral movement, persistence mechanisms. Network protection blocks connections to known malicious domains from the endpoint itself.</div>
+          </div>
+          <div style="flex:1;min-width:180px;padding:1rem;border-radius:10px;background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.2)">
+            <div style="font-size:.78rem;font-weight:700;color:var(--green)">☁️ Defender for Servers</div>
+            <div style="font-size:.75rem;color:var(--text-dim);margin-top:.25rem">Vulnerability assessment (Qualys/MDVM), JIT VM access (opens NSG ports temporarily on-demand), adaptive application controls (allowlist running processes), file integrity monitoring. Plan 2 includes MDE.</div>
+          </div>
+          <div style="flex:1;min-width:180px;padding:1rem;border-radius:10px;background:rgba(236,72,153,.06);border:1px solid rgba(236,72,153,.2)">
+            <div style="font-size:.78rem;font-weight:700;color:#ec4899">🔍 Defender for DNS</div>
+            <div style="font-size:.75rem;color:var(--text-dim);margin-top:.25rem">Monitors ALL DNS queries from your VNets (using Azure DNS). Detects DNS tunneling (data exfiltration over DNS), connections to known C2 domains, domain generation algorithms (DGA), and crypto mining DNS patterns.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ARROW -->
+      <div style="text-align:center;color:var(--text-dim);font-size:1.2rem;margin:.25rem 0">⬇️</div>
+
+      <!-- DATA LAYER -->
+      <div style="display:flex;align-items:stretch;gap:1rem;margin-bottom:.5rem">
+        <div style="min-width:140px;padding:1rem;border-radius:10px;background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.2);text-align:center">
+          <div style="font-size:1.4rem">🗄️</div>
+          <div style="font-size:.75rem;font-weight:700;color:var(--yellow);margin-top:.25rem">DATA LAYER</div>
+          <div style="font-size:.65rem;color:var(--text-dim)">PaaS + Storage</div>
+        </div>
+        <div style="flex:1;display:flex;gap:.75rem;flex-wrap:wrap;align-items:center">
+          <div style="flex:1;min-width:180px;padding:1rem;border-radius:10px;background:rgba(234,179,8,.06);border:1px solid rgba(234,179,8,.2)">
+            <div style="font-size:.78rem;font-weight:700;color:var(--yellow)">🗄️ Defender for Azure SQL</div>
+            <div style="font-size:.75rem;color:var(--text-dim);margin-top:.25rem">Detects SQL injection attempts, anomalous database access patterns, brute-force login attempts, and access from unusual locations. Vulnerability assessment scans for misconfigurations (excessive permissions, unencrypted columns).</div>
+          </div>
+          <div style="flex:1;min-width:180px;padding:1rem;border-radius:10px;background:rgba(249,115,22,.06);border:1px solid rgba(249,115,22,.2)">
+            <div style="font-size:.78rem;font-weight:700;color:var(--orange)">📦 Defender for Storage</div>
+            <div style="font-size:.75rem;color:var(--text-dim);margin-top:.25rem">Detects unusual access patterns to blobs and files: access from Tor, anonymous access enabled, mass download/deletion, malware uploads (hash reputation scanning), and sensitive data exposure.</div>
+          </div>
+          <div style="flex:1;min-width:180px;padding:1rem;border-radius:10px;background:rgba(168,85,247,.06);border:1px solid rgba(168,85,247,.2)">
+            <div style="font-size:.78rem;font-weight:700;color:var(--purple)">🔏 Defender for Resource Manager</div>
+            <div style="font-size:.75rem;color:var(--text-dim);margin-top:.25rem">Monitors Azure control plane (ARM API). Detects suspicious management operations: NSG rules being deleted, firewall being disabled, public IPs being attached, role assignments from unusual locations.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ARROW -->
+      <div style="text-align:center;color:var(--text-dim);font-size:1.2rem;margin:.25rem 0">⬇️</div>
+
+      <!-- IDENTITY LAYER -->
+      <div style="display:flex;align-items:stretch;gap:1rem">
+        <div style="min-width:140px;padding:1rem;border-radius:10px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);text-align:center">
+          <div style="font-size:1.4rem">🔑</div>
+          <div style="font-size:.75rem;font-weight:700;color:var(--green);margin-top:.25rem">IDENTITY</div>
+          <div style="font-size:.65rem;color:var(--text-dim)">Who accesses what</div>
+        </div>
+        <div style="flex:1;display:flex;gap:.75rem;flex-wrap:wrap;align-items:center">
+          <div style="flex:1;min-width:200px;padding:1rem;border-radius:10px;background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.2)">
+            <div style="font-size:.78rem;font-weight:700;color:var(--green)">🔑 Microsoft Entra ID + Conditional Access</div>
+            <div style="font-size:.75rem;color:var(--text-dim);margin-top:.25rem">Every network connection starts with identity. Conditional Access policies enforce: MFA required from untrusted networks, block sign-ins from risky locations, require compliant devices for VPN access, restrict access to management portals by role.</div>
+          </div>
+          <div style="flex:1;min-width:200px;padding:1rem;border-radius:10px;background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.2)">
+            <div style="font-size:.78rem;font-weight:700;color:var(--blue)">🛡️ Defender for Identity (MDI)</div>
+            <div style="font-size:.75rem;color:var(--text-dim);margin-top:.25rem">Monitors on-prem Active Directory traffic. Detects lateral movement (pass-the-hash, pass-the-ticket, golden ticket), reconnaissance (LDAP enumeration, DNS recon), and privilege escalation — attacks that happen INSIDE your network.</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- HOW THEY CONNECT -->
+  <div class="wim" style="background:rgba(168,85,247,.05);border-color:rgba(168,85,247,.15)">
+    <h4 style="color:var(--purple)">🔮 How It All Connects — XDR + Sentinel</h4>
+    <p>Every product above sends its signals to <strong>Microsoft Defender XDR</strong> (unified incident correlation) and <strong>Microsoft Sentinel</strong> (SIEM + SOAR). When Azure Firewall blocks a suspicious IP AND MDE detects malware on a VM AND Entra ID sees a risky sign-in — XDR automatically correlates these into a SINGLE incident with the full attack story. That's the power of a unified security stack on top of unified networking.</p>
+  </div>
+
+  <!-- KEY INSIGHT -->
+  <div class="wim" style="margin-top:1rem">
+    <h4>🔒 Why It Matters — Networking IS Security</h4>
+    <p>The networking layers (DDoS, WAF, Firewall, NSGs, Private Endpoints) are your <strong>prevention</strong> — they block attacks before they reach workloads. The security products (Defender, Sentinel, Entra) are your <strong>detection and response</strong> — they catch what gets through and hunt for threats already inside. You need BOTH. A firewall without MDE can't detect a compromised insider. MDE without a firewall can't stop a DDoS. Together, they're defense in depth.</p>
+  </div>
+</div>
+</section>
+
+<!-- PRODUCT EXPLORER -->
+<section id="explorer" style="background:var(--bg)">
+<div class="section-inner">
+  <div class="section-label" style="background:rgba(236,72,153,.15);color:#ec4899">🎯 Interactive</div>
+  <div class="section-title">Pick a Product — See How It Protects</div>
+  <div class="section-desc">Click any Microsoft security product to see its proactive defenses, reactive capabilities, where it sits in your network, and a real-world scenario.</div>
+
+  <!-- Product Selector Grid -->
+  <div id="prodGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.75rem;margin-bottom:2rem">
+  </div>
+
+  <!-- Product Detail Panel -->
+  <div id="prodDetail" style="display:none;background:var(--glass);border:1px solid var(--border);border-radius:16px;overflow:hidden">
+    <div id="prodHeader" style="padding:1.5rem 2rem;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:1rem">
+        <div id="prodIcon" style="font-size:2rem"></div>
+        <div>
+          <div id="prodName" style="font-size:1.3rem;font-weight:700"></div>
+          <div id="prodSub" style="font-size:.85rem;color:var(--text-dim)"></div>
+        </div>
+      </div>
+    </div>
+    <div style="padding:2rem;display:flex;flex-direction:column;gap:1.5rem">
+      <!-- WHERE IT SITS -->
+      <div id="prodWhere" style="padding:1rem 1.25rem;border-radius:10px;background:rgba(249,115,22,.05);border:1px solid rgba(249,115,22,.15)">
+        <h4 style="font-size:.8rem;font-weight:700;color:var(--orange);margin-bottom:.4rem;text-transform:uppercase;letter-spacing:.05em">📍 Where It Sits in the Network</h4>
+        <p id="prodWhereText" style="font-size:.85rem;color:var(--text-dim)"></p>
+      </div>
+      <!-- PROACTIVE / REACTIVE -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem" id="prodColumns">
+        <div style="padding:1.25rem;border-radius:10px;background:rgba(59,130,246,.05);border:1px solid rgba(59,130,246,.15)">
+          <h4 style="font-size:.8rem;font-weight:700;color:var(--blue);margin-bottom:.6rem;text-transform:uppercase;letter-spacing:.05em">🔵 Proactive — Before the Attack</h4>
+          <ul id="prodProactive" style="list-style:none;display:flex;flex-direction:column;gap:.4rem"></ul>
+        </div>
+        <div style="padding:1.25rem;border-radius:10px;background:rgba(239,68,68,.05);border:1px solid rgba(239,68,68,.15)">
+          <h4 style="font-size:.8rem;font-weight:700;color:var(--red);margin-bottom:.6rem;text-transform:uppercase;letter-spacing:.05em">🔴 Reactive — During/After Attack</h4>
+          <ul id="prodReactive" style="list-style:none;display:flex;flex-direction:column;gap:.4rem"></ul>
+        </div>
+      </div>
+      <!-- SCENARIO -->
+      <div style="padding:1.25rem;border-radius:10px;background:rgba(34,197,94,.05);border:1px solid rgba(34,197,94,.15)">
+        <h4 style="font-size:.8rem;font-weight:700;color:var(--green);margin-bottom:.6rem;text-transform:uppercase;letter-spacing:.05em">🎬 Real-World Scenario</h4>
+        <div id="prodScenario" style="font-size:.85rem;color:var(--text-dim);line-height:1.7"></div>
+      </div>
+      <!-- PRODUCT LIVE SIM -->
+      <div id="prodSimPanel" style="display:none;padding:1.25rem;border-radius:10px;background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.12)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;flex-wrap:wrap;gap:.5rem">
+          <h4 style="font-size:.8rem;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:.05em">⚡ Live Simulation</h4>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+            <button class="sim-btn" id="psBtnPlay" onclick="psPlay()">▶ Play</button>
+            <button class="sim-btn" id="psBtnPause" onclick="psPause()" style="display:none">⏸ Pause</button>
+            <button class="sim-btn" onclick="psReset()">↺ Restart</button>
+            <button class="sim-btn" id="psBtnSpeed" onclick="psSpeed()">Speed: 1×</button>
+          </div>
+        </div>
+        <div id="psScenario" class="psim-scenario-bar"></div>
+        <div id="psFeed" class="psim-feed"></div>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- SECURE CONNECTIVITY -->
+<section id="connectivity">
+<div class="section-inner">
+  <div class="section-label">🔗 Access</div>
+  <div class="section-title">Secure Connectivity</div>
+  <div class="section-desc">How users, admins, and on-premises networks connect to Azure workloads securely.</div>
+  <div class="card-grid">
+    <div class="card"><div class="icon">🏰</div><h3>Azure Bastion</h3><p>Browser-based RDP/SSH over TLS — no public IPs on VMs. Deployed in AzureBastionSubnet in the hub. Standard SKU adds file transfer, shareable links, IP-based connections, and Kerberos authentication.</p><span class="tag">No Public IP</span><span class="tag">TLS</span><span class="tag">Hub-deployed</span></div>
+    <div class="card"><div class="icon">🔐</div><h3>VPN Gateway</h3><p>IPsec/IKE tunnels for site-to-site (on-prem to Azure) and point-to-site (remote users). Supports BGP for dynamic routing, active-active for HA, zone-redundant SKUs. OpenVPN and IKEv2 protocols.</p><span class="tag">S2S</span><span class="tag">P2S</span><span class="tag">BGP</span><span class="tag">Zone-redundant</span></div>
+    <div class="card"><div class="icon">⚡</div><h3>ExpressRoute</h3><p>Private dedicated connection — not over public internet. 50 Mbps to 100 Gbps circuits. Global Reach for cross-premises connectivity. Microsoft peering for M365/Dynamics. FastPath bypasses the gateway for ultra-low latency.</p><span class="tag">Private circuit</span><span class="tag">Global Reach</span><span class="tag">FastPath</span></div>
+    <div class="card"><div class="icon">🔏</div><h3>Private Link & Service Endpoints</h3><p><strong>Private Link:</strong> Expose your own services privately to consumers in other VNets/tenants via Private Endpoints. <strong>Service Endpoints:</strong> Extend VNet identity to PaaS — traffic stays on backbone, but still uses PaaS public IP (less secure than PE).</p><span class="tag">Private Link Service</span><span class="tag">Service Endpoints</span><span class="tag">Cross-tenant</span></div>
+  </div>
+</div>
+</section>
+
+<!-- CHATBOX -->
+<button class="chatbox-toggle" id="chatToggle" onclick="toggleChat()">🌐</button>
+<div class="chatbox" id="chatbox">
+  <div class="chatbox-header">
+    <h3>🌐 Networking & Security Terms</h3>
+    <button onclick="toggleChat()">✕</button>
+  </div>
+  <div class="chatbox-search"><input type="text" id="chatSearch" placeholder="Search terms... (e.g., NSG, peering, IDPS)" oninput="searchTerms()"></div>
+  <div class="chatbox-results" id="chatResults"><div class="chatbox-empty">Type a term to search 100+ networking & security definitions</div></div>
+</div>
+
+<script>
+// ===== ATTACK SIMULATION ENGINE =====
+const scenarios = [
+  // SCENARIO 0: SQL INJECTION
+  {
+    name:'SQL Injection Attack',
+    steps:[
+      { title:'🔴 Attacker sends malicious request', desc:'Attacker sends GET /login?user=admin\' OR 1=1-- to app.contoso.com. This is a classic SQL injection attempting to bypass authentication and dump the user database.', checks:['SQL Injection','Authentication bypass','Data theft attempt'], activeNode:0, status:'attack', product:null },
+      { title:'🛡️ DDoS Protection — PASS', desc:'DDoS Protection checks for volumetric anomalies. This is a single crafted request, not a flood — it passes this layer. DDoS only catches volume-based attacks, not application-layer exploits.', checks:['Single request','Not volumetric','✓ Passed through'], activeNode:1, status:'pass', product:'DDoS Protection' },
+      { title:'🚫 Front Door WAF — BLOCKED!', desc:'WAF terminates TLS and inspects the HTTP request. OWASP CRS Rule 942100 detects the SQL injection pattern (OR 1=1) in the query string. Request is BLOCKED with 403 Forbidden. The attack NEVER reaches your VNet.', checks:['TLS terminated','OWASP CRS 942100','Pattern: OR 1=1','🚫 403 Forbidden','Attack stopped at EDGE'], activeNode:2, status:'blocked', product:'Front Door WAF' },
+      { title:'🔭 Sentinel — Correlates & Hunts', desc:'WAF block log streams to Sentinel via diagnostic settings. Analytics rule fires: "50+ WAF blocks from same IP in 10 minutes = web app reconnaissance." Sentinel creates a HIGH severity incident and cross-references the attacker IP against all other log sources.', checks:['WAF logs → Sentinel','Analytics rule triggered','IP cross-referenced','Incident created'], activeNode:2, status:'detect', product:'Microsoft Sentinel' },
+      { title:'☁️ Defender for Cloud — Posture Check', desc:'Meanwhile, Defender for Cloud is PROACTIVELY checking: Is WAF enabled on all public endpoints? Are there any App Gateways WITHOUT WAF? If the WAF wasn\'t there, MDC would have flagged it in Secure Score BEFORE the attack.', checks:['WAF enabled? ✓','All endpoints covered? ✓','Secure Score maintained','Proactive posture'], activeNode:2, status:'proactive', product:'Defender for Cloud' },
+      { title:'✅ Result: Attack stopped at Layer 2', desc:'The SQL injection never reached your firewall, your VNet, your VMs, or your database. It was caught and killed at the Azure EDGE — thousands of miles from your workload. Sentinel logged everything. If the attacker tries again, the automated playbook can add their IP to a global block list.', checks:['Never reached VNet','Never reached database','Full audit trail','Playbook ready','Defense in depth: Layer 2 of 7'], activeNode:2, status:'complete', product:null }
+    ]
+  },
+  // SCENARIO 1: LATERAL MOVEMENT
+  {
+    name:'Lateral Movement Attack',
+    steps:[
+      { title:'🔴 Attacker compromises web server', desc:'Through a zero-day in the web application, an attacker gets a reverse shell on a web server VM in the Web Subnet. They now have OS-level access to this one machine.', checks:['Zero-day exploit','Reverse shell','OS-level access'], activeNode:5, status:'attack', product:null },
+      { title:'🛡️ MDE — Detects suspicious activity', desc:'MDE\'s kernel-level sensor sees: cmd.exe spawned by w3wp.exe (web server process). Then whoami, net user, nltest /dclist — classic recon commands. Alert: "Suspicious sequence of exploration activities." Device risk: HIGH.', checks:['Process tree anomaly','Recon commands detected','Alert: Exploration','Risk: HIGH'], activeNode:5, status:'detect', product:'Defender for Endpoint' },
+      { title:'🔴 Attacker tries RDP to App Subnet', desc:'Attacker runs: mstsc /v:10.2.0.5 — trying to RDP into the app tier VM to spread. The connection attempt leaves the Web Subnet heading for the App Subnet.', checks:['RDP attempt','10.2.0.5:3389','Lateral movement'], activeNode:6, status:'attack', product:null },
+      { title:'🚫 NSG on App Subnet — BLOCKED!', desc:'NSG evaluates: No rule allows TCP 3389 from Web Subnet or ASG "WebServers." Only rule is: Allow TCP 8080 from ASG "WebServers" (the legitimate app API port). RDP is DENIED. The attacker cannot move laterally.', checks:['TCP 3389 from WebServers','No matching allow rule','Default: Deny All','🚫 RDP Blocked','Lateral movement STOPPED'], activeNode:6, status:'blocked', product:'NSG + ASG' },
+      { title:'🔴 Attacker tries direct database access', desc:'Can\'t reach app tier via RDP — attacker tries connecting directly to Azure SQL at 10.2.1.4:1433 from the web server. Maybe the Private Endpoint is reachable?', checks:['Direct SQL attempt','Port 1433','Bypass app tier'], activeNode:7, status:'attack', product:null },
+      { title:'🚫 NSG — BLOCKED again!', desc:'NSG on the Private Endpoint subnet: Only ASG "AppServers" can reach port 1433. The web server VM is in ASG "WebServers" — not authorized. DENIED. The attacker is TRAPPED in the Web Subnet.', checks:['Only ASG AppServers → 1433','WebServers ≠ AppServers','🚫 Connection Denied','Microsegmentation works'], activeNode:7, status:'blocked', product:'NSG + ASG' },
+      { title:'🔭 Sentinel — Full attack story', desc:'Sentinel correlates: MDE alert (recon on web server) + NSG deny logs (RDP attempt to app subnet) + NSG deny logs (SQL attempt) = ONE incident: "Compromised web server attempting lateral movement — contained by network segmentation."', checks:['MDE alert correlated','NSG denies correlated','Single incident created','Full kill chain mapped','MITRE: Lateral Movement'], activeNode:5, status:'detect', product:'Microsoft Sentinel' },
+      { title:'🤖 Automated Response', desc:'Sentinel playbook fires: (1) MDE isolates the web server — cut off from network but MDE channel stays alive for forensics. (2) SOC gets Teams notification with full timeline. (3) Live Response session opens for investigation. The attacker is locked in a box they can\'t escape.', checks:['VM isolated via MDE','Network cut, MDE alive','Teams alert sent','Live Response ready','Attacker contained'], activeNode:5, status:'complete', product:'MDE + Sentinel' }
+    ]
+  },
+  // SCENARIO 2: DATA EXFILTRATION
+  {
+    name:'Data Exfiltration Attack',
+    steps:[
+      { title:'🔴 Malware activates on App Server', desc:'Malware that evaded initial detection activates on an app server VM. It\'s collected 500MB of customer records from the database (the app has legitimate DB access). Now it needs to get the data OUT.', checks:['Malware active','500MB customer data','Exfiltration attempt'], activeNode:6, status:'attack', product:null },
+      { title:'🔴 Attempt 1: HTTPS upload to external storage', desc:'Malware tries to POST data to https://attacker-storage.blob.core.windows.net/exfil. The traffic heads outbound from the spoke subnet toward the internet.', checks:['HTTPS POST','External blob storage','500MB payload'], activeNode:6, status:'attack', product:null },
+      { title:'🔥 UDR forces traffic through Hub Firewall', desc:'Route table on spoke subnet: 0.0.0.0/0 → Azure Firewall private IP. There is NO direct internet path. Every outbound byte MUST pass through the firewall. The malware can\'t bypass this.', checks:['UDR enforced','No direct egress','All traffic → Firewall'], activeNode:3, status:'pass', product:'UDR → Azure Firewall' },
+      { title:'🚫 Azure Firewall — BLOCKED!', desc:'Firewall Premium: (1) TLS inspection decrypts the HTTPS stream — sees the POST payload. (2) Application rule checks FQDN — attacker-storage.blob.core.windows.net is NOT in the tenant allowlist. DENIED. (3) IDPS also flags the data exfiltration signature pattern. Triple catch.', checks:['TLS inspection: decrypted','FQDN: not in allowlist','IDPS: exfil signature match','Threat Intel: flagged IP','🚫 DENIED — Triple block'], activeNode:3, status:'blocked', product:'Azure Firewall Premium' },
+      { title:'🔴 Attempt 2: DNS tunneling fallback', desc:'Firewall blocked HTTPS — malware falls back to DNS tunneling. It encodes data into DNS subdomain queries: aGVsbG8gd29ybGQ.exfil.evil-c2.com. DNS (port 53) is usually allowed through firewalls.', checks:['DNS tunneling','Base64 in subdomain','Port 53 fallback'], activeNode:6, status:'attack', product:null },
+      { title:'🚫 Defender for DNS — CAUGHT!', desc:'DNS Defender monitors all Azure DNS queries. It detects: (1) Abnormally long subdomain labels (50+ chars = encoded data), (2) High-frequency unique queries to same domain, (3) Domain matches known C2 feed. Alert: "DNS tunneling data exfiltration detected."', checks:['Long subdomains detected','High query frequency','Known C2 domain','🚫 DNS Tunneling Blocked'], activeNode:6, status:'blocked', product:'Defender for DNS' },
+      { title:'🛡️ MDE Network Protection — Belt and suspenders', desc:'MDE on the app server VM independently blocks outbound connections to evil-c2.com — it\'s in MDE\'s network protection block list. Even if DNS Defender missed it, MDE catches it at the endpoint. Two independent blocks.', checks:['MDE Network Protection','Known malicious domain','Blocked at endpoint','Independent of Firewall'], activeNode:6, status:'blocked', product:'Defender for Endpoint' },
+      { title:'🔭 Sentinel — Correlates triple detection', desc:'Three products independently caught the same attack: Azure Firewall (HTTPS blocked) + Defender for DNS (tunneling detected) + MDE (C2 domain blocked). Sentinel Fusion creates ONE incident with the complete exfiltration story. Zero data left the network.', checks:['3 products detected','0 bytes exfiltrated','Fusion incident created','Full exfil story','Customer data SAFE'], activeNode:6, status:'complete', product:'Sentinel + XDR' }
+    ]
+  },
+  // SCENARIO 3: LEGITIMATE REQUEST
+  {
+    name:'Legitimate Request (Happy Path)',
+    steps:[
+      { title:'🟢 User browses to app.contoso.com', desc:'A legitimate employee opens the company web app from their compliant, Entra-joined laptop at the Seattle office. DNS resolves to Azure Front Door\'s anycast IP.', checks:['Legitimate user','Compliant device','Corporate network'], activeNode:0, status:'legit', product:null },
+      { title:'✅ DDoS Protection — Normal traffic', desc:'Always-on monitoring sees normal traffic patterns. No volumetric anomaly. This is what DDoS Protection does 99.99% of the time — silently watching, learning your baseline, ready to act if traffic spikes 10x.', checks:['Normal baseline','No anomaly','✓ Passed'], activeNode:1, status:'legit-pass', product:'DDoS Protection' },
+      { title:'✅ Front Door WAF — Clean request', desc:'TLS terminated. WAF scans the HTTP request against OWASP CRS — no injection patterns, no XSS, no command injection. Custom rules: user is from allowed geography, rate is under threshold. Request forwarded to backend.', checks:['No injection patterns','Geo: allowed ✓','Rate: under limit ✓','✓ Forwarded'], activeNode:2, status:'legit-pass', product:'Front Door WAF' },
+      { title:'✅ Azure Firewall — Rules match', desc:'Traffic routes through the hub firewall via UDR. Network rule: Allow 443 inbound to spoke. Application rule: *.contoso.com is in the FQDN allowlist. IDPS scans the payload — clean. TLS inspection finds no threats. Forwarded.', checks:['FQDN: allowed ✓','IDPS: clean ✓','TLS inspection: clean ✓','✓ Forwarded'], activeNode:3, status:'legit-pass', product:'Azure Firewall' },
+      { title:'✅ App Gateway — Load balanced', desc:'Application Gateway receives the request. Health probes confirm all 3 web servers are healthy. WAF v2 does a final L7 inspection. Request is routed to the least-loaded web server via round-robin.', checks:['Backend healthy ✓','WAF v2: clean ✓','Load balanced','✓ Routed to web-vm-02'], activeNode:4, status:'legit-pass', product:'App Gateway + WAF v2' },
+      { title:'✅ NSG — Authorized traffic', desc:'NSG on Web Subnet: Priority 100 — Allow TCP 443 from AppGW subnet. This request matches. All 7 security layers processed this request in milliseconds — the user never noticed any of it.', checks:['Rule 100: match ✓','TCP 443 from AppGW ✓','Latency: <5ms added','✓ Delivered to VM'], activeNode:5, status:'legit-pass', product:'NSG' },
+      { title:'✅ Web → App → Database via Private Endpoint', desc:'Web server calls the API tier (allowed by ASG rule). App server queries Azure SQL via Private Endpoint — traffic stays on Azure backbone, private IP 10.2.1.4. Response travels back through the entire stack. Stateful connections allow return traffic automatically.', checks:['ASG: WebServers → 8080 ✓','Private Endpoint: 10.2.1.4','Azure backbone only','Response returned','✓ Page loads in 230ms'], activeNode:8, status:'legit-pass', product:'ASG + Private Endpoint' },
+      { title:'🟢 Result: Seamless & Secure', desc:'The user got their page in 230ms. They had no idea their request passed through 7 security layers, was inspected by DDoS Protection, WAF (twice), Azure Firewall (with IDPS + TLS inspection), two NSGs, and traveled via Private Endpoint. THAT\'S defense in depth done right — invisible to users, impenetrable to attackers.', checks:['7 layers traversed','User noticed nothing','Every hop logged','Every hop inspectable','Sentinel has full trail'], activeNode:0, status:'complete', product:null }
+    ]
+  }
+];
+
+const nodeData = [
+  { id:'user', icon:'👤', label:'User', x:2, y:50 },
+  { id:'ddos', icon:'🛡️', label:'DDoS\nProtection', x:14, y:25 },
+  { id:'waf', icon:'🌐', label:'Front Door\n+ WAF', x:14, y:75 },
+  { id:'fw', icon:'🔥', label:'Azure\nFirewall', x:32, y:50 },
+  { id:'appgw', icon:'⚖️', label:'App\nGateway', x:50, y:50 },
+  { id:'web', icon:'🖥️', label:'Web\nSubnet', x:62, y:30 },
+  { id:'app', icon:'⚙️', label:'App\nSubnet', x:74, y:50 },
+  { id:'pe', icon:'🔏', label:'Private\nEndpoint', x:86, y:30 },
+  { id:'sql', icon:'🗄️', label:'Azure\nSQL', x:94, y:65 }
+];
+
+let currentStep = -1, playing = false, speed = 1, timer = null, activeScenario = 0;
+
+function pickScenario(idx) {
+  activeScenario = idx;
+  simReset();
+  document.querySelectorAll('.scenario-pick').forEach((b,i) => {
+    b.classList.toggle('active', i === idx);
+    b.style.borderColor = i === idx ? 'var(--orange)' : 'var(--border)';
+    b.style.background = i === idx ? 'var(--orange-dim)' : 'var(--glass)';
+  });
+  const sc = scenarios[idx];
+  document.getElementById('stepLabel').textContent = `Step 0 / ${sc.steps.length}`;
+  document.getElementById('simDetail').innerHTML = `<h3>${sc.name}</h3><p>Click <strong>▶ Play</strong> to watch the attack unfold, or <strong>⏭ Next Step</strong> to advance one layer at a time. Each step shows which security product acts and whether the traffic is blocked, detected, or allowed.</p>`;
+}
+
+function buildDiagram() {
+  const d = document.getElementById('simDiagram');
+  d.innerHTML = '';
+  const w = d.offsetWidth, h = d.offsetHeight;
+  // Azure cloud boundary
+  const cloud = document.createElement('div');
+  cloud.style.cssText = 'position:absolute;left:10%;top:5%;width:88%;height:90%;border:2px dashed rgba(249,115,22,.15);border-radius:20px;pointer-events:none';
+  const cloudLabel = document.createElement('div');
+  cloudLabel.style.cssText = 'position:absolute;top:8px;right:16px;font-size:.65rem;color:rgba(249,115,22,.3);font-weight:700;letter-spacing:.05em';
+  cloudLabel.textContent = 'AZURE CLOUD';
+  cloud.appendChild(cloudLabel);
+  d.appendChild(cloud);
+  // Hub boundary
+  const hub = document.createElement('div');
+  hub.style.cssText = 'position:absolute;left:25%;top:15%;width:20%;height:70%;border:1px dashed rgba(249,115,22,.1);border-radius:12px;pointer-events:none';
+  const hubLabel = document.createElement('div');
+  hubLabel.style.cssText = 'position:absolute;bottom:6px;left:50%;transform:translateX(-50%);font-size:.6rem;color:rgba(249,115,22,.25);font-weight:600;white-space:nowrap';
+  hubLabel.textContent = 'HUB VNET';
+  hub.appendChild(hubLabel);
+  d.appendChild(hub);
+  // Spoke boundary
+  const spoke = document.createElement('div');
+  spoke.style.cssText = 'position:absolute;left:52%;top:10%;width:42%;height:80%;border:1px dashed rgba(0,229,255,.1);border-radius:12px;pointer-events:none';
+  const spokeLabel = document.createElement('div');
+  spokeLabel.style.cssText = 'position:absolute;bottom:6px;left:50%;transform:translateX(-50%);font-size:.6rem;color:rgba(0,229,255,.25);font-weight:600;white-space:nowrap';
+  spokeLabel.textContent = 'SPOKE VNET';
+  spoke.appendChild(spokeLabel);
+  d.appendChild(spoke);
+  
+  nodeData.forEach((n, i) => {
+    const el = document.createElement('div');
+    el.className = 'sim-node waiting';
+    el.id = 'node-' + i;
+    el.innerHTML = `<span class="node-icon">${n.icon}</span>${n.label.replace(/\n/g,'<br>')}`;
+    el.style.left = (n.x / 100 * w - 45) + 'px';
+    el.style.top = (n.y / 100 * h - 25) + 'px';
+    d.appendChild(el);
+  });
+  for (let i = 0; i < nodeData.length - 1; i++) {
+    const a = nodeData[i], b = nodeData[i + 1];
+    const ax = a.x / 100 * w, ay = a.y / 100 * h;
+    const bx = b.x / 100 * w, by = b.y / 100 * h;
+    const dx = bx - ax, dy = by - ay;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+    const arrow = document.createElement('div');
+    arrow.className = 'sim-arrow waiting';
+    arrow.id = 'arrow-' + i;
+    arrow.style.left = ax + 'px';
+    arrow.style.top = ay + 'px';
+    arrow.style.width = len + 'px';
+    arrow.style.transform = `rotate(${angle}deg)`;
+    d.appendChild(arrow);
+  }
+}
+
+function updateVisuals() {
+  const sc = scenarios[activeScenario];
+  const step = currentStep >= 0 && currentStep < sc.steps.length ? sc.steps[currentStep] : null;
+  
+  // Reset all nodes
+  for (let i = 0; i < nodeData.length; i++) {
+    const el = document.getElementById('node-' + i);
+    el.className = 'sim-node waiting';
+    el.style.boxShadow = 'none';
+    el.style.borderColor = 'var(--border)';
+  }
+  // Reset all arrows
+  for (let i = 0; i < nodeData.length - 1; i++) {
+    const el = document.getElementById('arrow-' + i);
+    el.className = 'sim-arrow waiting';
+  }
+
+  if (step) {
+    const n = step.activeNode;
+    const el = document.getElementById('node-' + n);
+    
+    if (step.status === 'attack') {
+      el.className = 'sim-node active';
+      el.style.boxShadow = '0 0 25px rgba(239,68,68,.6)';
+      el.style.borderColor = 'var(--red)';
+    } else if (step.status === 'blocked') {
+      el.className = 'sim-node active';
+      el.style.boxShadow = '0 0 25px rgba(239,68,68,.8)';
+      el.style.borderColor = 'var(--red)';
+    } else if (step.status === 'detect' || step.status === 'proactive') {
+      el.className = 'sim-node active';
+      el.style.boxShadow = '0 0 25px rgba(168,85,247,.6)';
+      el.style.borderColor = 'var(--purple)';
+    } else if (step.status === 'pass') {
+      el.className = 'sim-node active';
+      el.style.boxShadow = '0 0 20px rgba(249,115,22,.5)';
+      el.style.borderColor = 'var(--orange)';
+    } else if (step.status === 'legit' || step.status === 'legit-pass') {
+      el.className = 'sim-node active';
+      el.style.boxShadow = '0 0 20px rgba(34,197,94,.5)';
+      el.style.borderColor = 'var(--green)';
+    } else if (step.status === 'complete') {
+      el.className = 'sim-node active';
+      el.style.boxShadow = '0 0 25px rgba(34,197,94,.6)';
+      el.style.borderColor = 'var(--green)';
+    }
+    
+    // Light up path to active node for legit scenario
+    if (activeScenario === 3) {
+      for (let i = 0; i < Math.min(n, nodeData.length - 1); i++) {
+        document.getElementById('arrow-' + i).className = 'sim-arrow passed';
+        document.getElementById('node-' + i).className = 'sim-node passed';
+        document.getElementById('node-' + i).style.borderColor = 'var(--green)';
+      }
+    }
+  }
+
+  document.getElementById('stepLabel').textContent = `Step ${currentStep + 1} / ${sc.steps.length}`;
+
+  const det = document.getElementById('simDetail');
+  if (step) {
+    const statusColors = { attack:'var(--red)', blocked:'var(--red)', detect:'var(--purple)', proactive:'var(--blue)', pass:'var(--orange)', 'legit':'var(--green)', 'legit-pass':'var(--green)', complete:'var(--green)' };
+    const statusLabels = { attack:'🔴 Attack', blocked:'🚫 Blocked', detect:'🔭 Detected', proactive:'🔵 Proactive', pass:'➡️ Passed', 'legit':'🟢 Legitimate', 'legit-pass':'✅ Passed', complete:'✅ Complete' };
+    const color = statusColors[step.status] || 'var(--orange)';
+    const productTag = step.product ? `<span style="display:inline-block;padding:.2rem .6rem;border-radius:6px;font-size:.72rem;font-weight:700;background:${color}18;color:${color};border:1px solid ${color}40;margin-bottom:.75rem">🏷️ ${step.product}</span>` : '';
+    const statusTag = `<span style="display:inline-block;padding:.15rem .5rem;border-radius:4px;font-size:.7rem;font-weight:600;background:${color}18;color:${color};margin-left:.5rem">${statusLabels[step.status]}</span>`;
+    det.innerHTML = `${productTag}<h3 style="color:${color}">${step.title}${statusTag}</h3><p>${step.desc}</p><div class="detail-checks">${step.checks.map(c => {
+      const isBlock = c.includes('🚫') || c.includes('BLOCKED') || c.includes('DENIED') || c.includes('Blocked') || c.includes('STOPPED');
+      const isPass = c.includes('✓') || c.includes('✅') || c.includes('clean') || c.includes('allowed') || c.includes('match ✓');
+      return `<span class="check${isBlock ? ' fail' : ''}" style="${isPass ? 'background:rgba(34,197,94,.1);color:var(--green);border-color:rgba(34,197,94,.2)' : ''}">${c}</span>`;
+    }).join('')}</div>`;
+  } else if (currentStep >= sc.steps.length) {
+    det.innerHTML = `<h3 style="color:var(--green)">✅ Scenario Complete — ${sc.name}</h3><p>Every security layer played its role. In a real environment, all of this telemetry flows to Microsoft Sentinel and Defender XDR, giving your SOC team a complete picture of what happened, what was blocked, and what to investigate next.</p>`;
+  }
+}
+
+function simStep() {
+  const sc = scenarios[activeScenario];
+  if (currentStep < sc.steps.length) { currentStep++; updateVisuals(); }
+}
+function simPlay() {
+  playing = true;
+  document.getElementById('btnPlay').style.display = 'none';
+  document.getElementById('btnPause').style.display = '';
+  function tick() { if (!playing) return; simStep(); if (currentStep < scenarios[activeScenario].steps.length) timer = setTimeout(tick, 4000 / speed); else simPause(); }
+  tick();
+}
+function simPause() {
+  playing = false; clearTimeout(timer);
+  document.getElementById('btnPlay').style.display = '';
+  document.getElementById('btnPause').style.display = 'none';
+}
+function simReset() {
+  simPause(); currentStep = -1;
+  const sc = scenarios[activeScenario];
+  for (let i = 0; i < nodeData.length; i++) {
+    const el = document.getElementById('node-' + i);
+    if (el) { el.className = 'sim-node waiting'; el.style.boxShadow = 'none'; el.style.borderColor = 'var(--border)'; }
+  }
+  for (let i = 0; i < nodeData.length - 1; i++) {
+    const el = document.getElementById('arrow-' + i);
+    if (el) el.className = 'sim-arrow waiting';
+  }
+  document.getElementById('stepLabel').textContent = `Step 0 / ${sc.steps.length}`;
+  document.getElementById('simDetail').innerHTML = `<h3>${sc.name}</h3><p>Click <strong>▶ Play</strong> to watch the attack unfold, or <strong>⏭ Next Step</strong> to advance one layer at a time.</p>`;
+}
+function simSpeed() {
+  const speeds = [0.5, 1, 2];
+  const idx = (speeds.indexOf(speed) + 1) % speeds.length;
+  speed = speeds[idx];
+  document.getElementById('btnSpeed').textContent = `Speed: ${speed}×`;
+}
+
+window.addEventListener('load',()=>{ buildDiagram(); buildProductGrid(); pickScenario(0); });
+window.addEventListener('resize',()=>{ buildDiagram(); if(currentStep>=0) updateVisuals(); });
+
+// ===== CHATBOX =====
+function toggleChat() {
+  document.getElementById('chatbox').classList.toggle('open');
+  if (document.getElementById('chatbox').classList.contains('open')) document.getElementById('chatSearch').focus();
+}
+
+// ===== PRODUCT EXPLORER =====
+const products = [
+  {
+    id:'mdc', icon:'☁️', name:'Defender for Cloud', sub:'CSPM • CWPP • Attack Paths • Secure Score', color:'#22c55e',
+    where:'Sits ABOVE the entire network — monitors your Azure subscription, resource configurations, and cloud posture across all layers. It doesn\'t inspect traffic; it inspects your CONFIGURATION to find weaknesses before attackers do.',
+    proactive:[
+      'Secure Score — grades your security posture (0-100%) with specific fix recommendations',
+      'Attack Path Analysis — maps exploitable paths like "Internet → open NSG → VM with managed identity → Storage Account"',
+      'Adaptive Network Hardening — watches 30 days of NSG traffic, recommends tightening rules to match actual usage',
+      'Regulatory Compliance dashboard — maps your config against CIS, NIST 800-53, PCI-DSS, ISO 27001',
+      'Security recommendations — "Enable DDoS Standard," "Restrict SSH access," "Use Private Endpoints for SQL"',
+      'Cloud Security Explorer — query your cloud security graph: "show me all VMs with public IPs AND no MDE"'
+    ],
+    reactive:[
+      'Security alerts when risky configurations appear (someone opened RDP to the internet)',
+      'Alerts fed to Sentinel for correlation with other signals',
+      'Workflow automation — auto-trigger Logic App when a high-severity recommendation appears',
+      'Governance rules — auto-assign owners and deadlines to unresolved recommendations'
+    ],
+    scenario:'A new developer creates a VM and opens NSG port 3389 (RDP) to 0.0.0.0/0 to troubleshoot an issue. Here\'s what happens:',
+    steps:[
+      {title:'Developer opens RDP to the internet', detail:'NSG rule created: Allow TCP 3389 from 0.0.0.0/0 (Any). The developer can now RDP from home — but so can everyone else on the internet.', status:'⚠️ Risky Config'},
+      {title:'Defender for Cloud detects within minutes', detail:'Continuous posture assessment flags the NSG. Recommendation: "Management ports should be closed on your virtual machines." Severity: HIGH. Secure Score drops 4 points.', status:'🔵 Proactive Detection'},
+      {title:'Attack Path Analysis maps the risk', detail:'MDC shows: Internet → Open RDP → VM has Contributor role → VM managed identity can access Key Vault → Key Vault has database connection strings. The blast radius isn\'t just the VM — it\'s the entire database.', status:'🔵 Path Mapped'},
+      {title:'Adaptive Network Hardening recommends', detail:'Based on 30 days of traffic, only 2 IPs ever used RDP. Recommendation: "Restrict port 3389 to source IPs 203.0.113.5 and 198.51.100.12 only." One-click apply.', status:'🔵 Recommendation'},
+      {title:'Governance rule auto-assigns', detail:'Your governance policy auto-assigns this to the VM owner with a 72-hour remediation deadline. If not fixed, it escalates to the security team lead.', status:'🔵 Auto-Assigned'},
+      {title:'JIT VM Access alternative offered', detail:'MDC suggests enabling Just-In-Time access instead: ports stay CLOSED. When the developer needs RDP, they request it — NSG opens for their IP only, for 3 hours max, then auto-closes.', status:'✅ Best Practice'}
+    ]
+  },
+  {
+    id:'mde', icon:'🛡️', name:'Defender for Endpoint', sub:'EDR • MDAV • ASR • Network Protection • Live Response', color:'#00e5ff',
+    where:'On EVERY VM/server in your spoke VNets — kernel-level sensor installed on the operating system. It sees everything happening on the endpoint: processes, files, registry, network connections, memory.',
+    proactive:[
+      'Attack Surface Reduction (ASR) rules — blocks risky behaviors before exploitation (Office macros spawning PowerShell, unsigned executables, credential theft from LSASS)',
+      'Network Protection — blocks outbound connections to known malicious domains/IPs at the endpoint before traffic even hits the network',
+      'Controlled Folder Access — prevents ransomware from encrypting protected folders',
+      'Device risk score — continuously evaluates each VM\'s risk level. High-risk devices can be blocked from accessing resources via Conditional Access',
+      'Threat & Vulnerability Management — scans for unpatched software, misconfigured OS settings, and vulnerable drivers',
+      'Web content filtering — blocks access to categories of websites (gambling, malware, etc.) at the endpoint level'
+    ],
+    reactive:[
+      'EDR — full timeline of every process, file, registry change, and network connection. Trace an attack from initial access to impact',
+      'Automated Investigation & Remediation (AIR) — automatically investigates alerts, determines scope, and remediates (quarantine file, kill process, isolate machine)',
+      'Live Response — remote shell into any VM for forensic investigation without RDP/SSH',
+      'Machine isolation — one click cuts a compromised VM off from the network while keeping the MDE channel alive for investigation',
+      'Advanced Hunting — KQL queries across all endpoint telemetry: "show me all machines that connected to this IP in the last 30 days"'
+    ],
+    scenario:'A user on a web server VM opens a phishing email attachment that deploys fileless malware:',
+    steps:[
+      {title:'User opens malicious Excel attachment', detail:'The Excel file contains a macro. ASR Rule "Block Office applications from creating child processes" fires. In audit mode it would log — in block mode it PREVENTS Excel from spawning cmd.exe.', status:'🛡️ ASR Block (Proactive)'},
+      {title:'Assume ASR was in audit mode — macro runs', detail:'Excel spawns PowerShell with encoded command. MDE sensor captures: parent process (EXCEL.EXE) → child process (powershell.exe -encodedCommand ...). Alert: "Suspicious PowerShell execution from Office application."', status:'🔴 Alert Generated'},
+      {title:'PowerShell loads malware in memory', detail:'Fileless attack — no file on disk. MDE\'s memory scanning detects reflective DLL loading. AMSI (Antimalware Scan Interface) scans the decoded PowerShell script and flags known attack patterns.', status:'🔴 Memory Detection'},
+      {title:'Malware tries to connect to C2 server', detail:'MDE Network Protection blocks the outbound connection to evil-domain.com (known C2). The connection never leaves the VM — blocked before it hits the NSG or firewall.', status:'🛡️ Network Protection'},
+      {title:'Automated Investigation kicks in', detail:'AIR investigates: What files were dropped? What processes were spawned? What other machines talked to this C2? It finds 0 lateral movement. Auto-remediates: quarantines the malicious PowerShell, kills the process tree.', status:'🤖 Auto-Remediated'},
+      {title:'Machine isolated if severity warrants', detail:'If the malware showed signs of lateral movement, SOC can one-click isolate the VM. It\'s cut off from the network — can\'t reach any other VM — but MDE channel stays alive so you can investigate via Live Response.', status:'🔒 Containment Ready'}
+    ]
+  },
+  {
+    id:'sentinel', icon:'🔭', name:'Microsoft Sentinel', sub:'SIEM • SOAR • KQL • Fusion ML • Playbooks', color:'#14b8a6',
+    where:'Sits in a Log Analytics Workspace — collects logs from EVERY layer: NSG flow logs, Azure Firewall logs, Front Door WAF logs, MDE alerts, Entra sign-ins, Defender for Cloud alerts, VM syslog. It\'s the central brain that sees across all network and security layers.',
+    proactive:[
+      'Threat Hunting — proactive KQL queries: "Show me all outbound connections to newly registered domains in the last 7 days"',
+      'Fusion ML — machine learning correlates low-fidelity signals across multiple sources that individually look benign but together indicate an attack',
+      'User & Entity Behavior Analytics (UEBA) — learns normal behavior for each user/IP/VM, alerts when behavior deviates',
+      'Threat Intelligence integration — ingest IOC feeds, auto-match against all incoming logs',
+      'Watchlists — track high-value assets, VIP users, or known-bad IPs and auto-enrich incidents when they appear',
+      'Workbooks — real-time dashboards showing network health, top blocked IPs, firewall rule hits, NSG deny trends'
+    ],
+    reactive:[
+      'Analytics rules — scheduled KQL queries that create incidents: "10+ failed SSH logins from same IP in 5 minutes"',
+      'Near Real-Time (NRT) rules — run every minute for critical detections',
+      'Automated Playbooks (Logic Apps) — incident triggers auto-response: block IP in firewall, disable user in Entra, send Teams notification, create ServiceNow ticket',
+      'Investigation Graph — visual map of all entities (IPs, users, machines, files) connected to an incident',
+      'Incident management — assign, track, comment, and close incidents with full audit trail'
+    ],
+    scenario:'A sophisticated attacker uses stolen credentials, avoids endpoint detection, and tries to exfiltrate data. No single product catches it — but Sentinel correlates across all of them:',
+    steps:[
+      {title:'Attacker logs in with stolen credentials from unusual location', detail:'Entra ID logs: successful sign-in from Nigeria (user normally signs in from Seattle). Risk level: Medium. On its own, this might be legitimate travel. Entra sends sign-in log to Sentinel.', status:'⚠️ Low Signal'},
+      {title:'Attacker accesses Azure portal and lists VMs', detail:'Azure Activity Log: user calls ARM API to list VMs and NSGs. Normal for an admin — but this user is a developer who never touched infrastructure before. UEBA flags behavioral anomaly.', status:'⚠️ Low Signal'},
+      {title:'Attacker RDPs to a server via approved JIT request', detail:'Defender for Servers: JIT access granted (legitimate flow). But the source IP is a VPS provider in a country the user has never connected from. NSG flow log shows the RDP session.', status:'⚠️ Low Signal'},
+      {title:'Attacker runs recon commands on the server', detail:'MDE: no malware detected, but process telemetry shows whoami, net user, nltest /dclist — classic reconnaissance. Low-severity MDE alert: "Suspicious sequence of recon commands."', status:'⚠️ Low Signal'},
+      {title:'Sentinel Fusion ML correlates all signals', detail:'Fusion combines: unusual sign-in location + first-time ARM API access + JIT from suspicious IP + recon commands = HIGH confidence: "Multi-stage attack: Compromised credentials with reconnaissance." One incident, full story.', status:'🔴 HIGH Incident'},
+      {title:'Automated playbook responds', detail:'Playbook fires: (1) Disable user in Entra ID, (2) Revoke all active sessions, (3) Add attacker IP to Azure Firewall deny list, (4) Isolate the accessed VM via MDE API, (5) Send Teams alert to SOC with full timeline. Total response time: 45 seconds.', status:'🤖 Auto-Response'}
+    ]
+  },
+  {
+    id:'firewall', icon:'🔥', name:'Azure Firewall Premium', sub:'IDPS • TLS Inspection • Threat Intel • FQDN Filtering', color:'#f97316',
+    where:'Deployed in the Hub VNet (AzureFirewallSubnet). ALL traffic between spokes and to/from the internet passes through it via UDRs. It\'s the central chokepoint — the drawbridge of your castle.',
+    proactive:[
+      'FQDN filtering — allowlist which domains workloads can reach. App rule: allow *.microsoft.com, deny everything else',
+      'Web categories — block categories like "Malware," "Phishing," "Gambling" without managing individual URLs',
+      'TLS inspection — decrypt outbound HTTPS traffic to inspect what\'s actually being sent (prevents encrypted data exfil)',
+      'DNS proxy — forces all DNS through the firewall so you can apply FQDN rules to network-level traffic',
+      'IP Groups — organize allowed/denied IPs into reusable groups for clean policy management',
+      'Threat intelligence-based filtering — auto-blocks traffic to/from known malicious IPs/domains using Microsoft\'s feed'
+    ],
+    reactive:[
+      'IDPS — 67,000+ signatures detect exploits, malware C2, attack patterns in real-time. Alert or block mode',
+      'Traffic logs — every allowed and denied connection logged to Log Analytics / Sentinel',
+      'SNAT/DNAT — controls exactly how traffic enters and exits your network',
+      'Forced tunneling — ensures no workload can bypass the firewall to reach the internet directly'
+    ],
+    scenario:'A compromised app server tries to exfiltrate customer data to an external cloud storage service:',
+    steps:[
+      {title:'Malware on app server starts uploading data', detail:'The malware tries to POST 500MB of customer records to https://attacker-storage.blob.core.windows.net/exfil. The traffic leaves the spoke subnet.', status:'🔴 Exfil Attempt'},
+      {title:'UDR forces traffic through Hub Firewall', detail:'Route table on the spoke subnet: 0.0.0.0/0 → Azure Firewall private IP. The traffic MUST pass through the firewall — there\'s no direct internet path from the spoke.', status:'🔵 UDR Enforced'},
+      {title:'TLS inspection decrypts the HTTPS stream', detail:'Azure Firewall Premium terminates the TLS connection, decrypts the traffic, and can now see the actual HTTP request: POST with 500MB body to an external blob endpoint.', status:'🔍 Decrypted'},
+      {title:'Application rule evaluates the FQDN', detail:'App rules only allow: *.microsoft.com, *.windows.net for YOUR tenant. attacker-storage.blob.core.windows.net is a different tenant\'s storage — not in the allowlist. 🚫 DENIED.', status:'🚫 FQDN Blocked'},
+      {title:'IDPS inspects the payload pattern', detail:'Even if the FQDN had passed, IDPS detects the exfiltration pattern: large POST to external storage, base64-encoded payload, known data exfiltration signature match.', status:'🚫 IDPS Flagged'},
+      {title:'Threat Intel confirms the destination', detail:'The destination IP is in Microsoft\'s threat intelligence feed — flagged as associated with a data theft campaign last week. Triple block. All three checks logged and sent to Sentinel.', status:'✅ Exfil Prevented'}
+    ]
+  },
+  {
+    id:'entra', icon:'🔑', name:'Entra ID + Conditional Access', sub:'Identity • MFA • Risk Policies • PIM • Passwordless', color:'#3b82f6',
+    where:'The IDENTITY layer that wraps everything. Every Azure portal login, every VPN connection, every management API call goes through Entra ID first. It\'s the front door before the front door — the first check before any network access.',
+    proactive:[
+      'Conditional Access — enforce MFA from untrusted networks, block sign-ins from risky countries, require compliant devices for VPN/management access',
+      'Identity Protection — ML detects risky sign-ins (impossible travel, anonymous IP, password spray patterns) and auto-blocks or forces MFA',
+      'Privileged Identity Management (PIM) — no standing admin access. Admins must "activate" their role for a limited time window with justification and approval',
+      'Passwordless authentication — FIDO2 keys, Windows Hello, Authenticator app. Eliminates credential theft risk entirely',
+      'Continuous Access Evaluation (CAE) — if a user\'s risk changes mid-session (impossible travel detected), access is revoked in near-real-time, not at token expiry',
+      'Named Locations — define trusted corporate IPs. Policies can skip MFA from office but enforce it from everywhere else'
+    ],
+    reactive:[
+      'Risk-based sign-in policies — high-risk sign-in detected → force password change + MFA',
+      'User risk policies — leaked credentials detected on dark web → block user until password reset',
+      'Sign-in logs to Sentinel — every authentication event available for hunting and correlation',
+      'Auto-remediation — compromised user automatically blocked, sessions revoked, admin notified'
+    ],
+    scenario:'An attacker obtains a Global Admin\'s password from a dark web credential dump:',
+    steps:[
+      {title:'Attacker tries to sign in to Azure Portal', detail:'Entra ID receives the authentication request. Username and password are correct. Without Conditional Access, the attacker is in. But this org has policies...', status:'🔴 Valid Credentials'},
+      {title:'Conditional Access evaluates', detail:'Policy: "All admin roles require MFA + compliant device from any location." The attacker has the password but NOT the second factor (phone/FIDO2 key) and NOT a compliant device.', status:'🚫 MFA Required'},
+      {title:'Identity Protection flags the sign-in', detail:'ML detects: sign-in from a new country (attacker in Eastern Europe, admin in Seattle), using an anonymous VPN IP, at 3 AM local time. Risk level: HIGH. Sign-in blocked even if MFA succeeds.', status:'🚫 Risk: HIGH'},
+      {title:'PIM blocks even if they got in', detail:'Even if the attacker bypassed MFA AND risk detection, PIM means the Global Admin role isn\'t active. They\'d need to "activate" it — requiring Azure MFA + justification + another admin\'s approval.', status:'🚫 No Standing Access'},
+      {title:'CAE revokes any existing sessions', detail:'If the admin had an active session and the risk changed, Continuous Access Evaluation revokes the token in near-real-time — doesn\'t wait for the 1-hour token lifetime to expire.', status:'🔒 Session Revoked'},
+      {title:'Sentinel incident created', detail:'The failed sign-in, risk detection, and Conditional Access block all flow to Sentinel. Playbook fires: reset admin password, alert security team, add attacker IP to firewall deny list.', status:'🤖 Auto-Response'}
+    ]
+  },
+  {
+    id:'dns', icon:'🔍', name:'Defender for DNS', sub:'DNS Tunneling • C2 Detection • DGA • Crypto Mining', color:'#ec4899',
+    where:'Monitors Azure DNS — every DNS query from every VM in every VNet that uses Azure-provided DNS. It doesn\'t sit inline; it analyzes DNS query patterns to detect threats hiding in DNS traffic.',
+    proactive:[
+      'Baseline learning — understands normal DNS patterns for your environment (which domains are queried, how often, from which VMs)',
+      'Threat intelligence — continuously updated list of known malicious domains matched against your DNS queries',
+      'DGA detection — ML identifies algorithmically generated domain names (randomized strings) used by malware to find C2 servers',
+      'DNS tunneling detection — identifies suspiciously long or frequent TXT/CNAME queries that indicate data being smuggled out via DNS'
+    ],
+    reactive:[
+      'Alerts on C2 communication — VM queried a known command-and-control domain',
+      'Crypto mining detection — DNS queries to known mining pools',
+      'Anomalous DNS volume — sudden spike in DNS queries from a VM (could indicate malware beaconing)',
+      'Alerts feed to Sentinel for cross-correlation with firewall and endpoint signals'
+    ],
+    scenario:'Malware on a VM uses DNS tunneling to exfiltrate data — a technique that bypasses most firewalls because DNS (port 53) is almost always allowed:',
+    steps:[
+      {title:'Malware encodes stolen data into DNS queries', detail:'Instead of sending data over HTTPS (which the firewall inspects), the malware encodes customer records into DNS lookups: aGVsbG8gd29ybGQ.exfil.evil-domain.com — the subdomain IS the data, base64 encoded.', status:'🔴 Stealth Exfil'},
+      {title:'DNS queries appear normal at the firewall', detail:'Azure Firewall sees DNS traffic on port 53 — which is allowed (VMs need DNS). The firewall doesn\'t decode the subdomain content. Traditional network monitoring misses this entirely.', status:'⚠️ Firewall Bypassed'},
+      {title:'Defender for DNS detects the pattern', detail:'DNS Defender sees: (1) Unusually long subdomain labels (50+ chars = likely encoded data), (2) High volume of unique subdomain queries to same domain, (3) TXT record queries with large responses. Pattern match: DNS tunneling.', status:'🔴 DNS Tunneling Detected'},
+      {title:'DGA detection confirms malware', detail:'The malware also uses Domain Generation Algorithm to find backup C2 servers: xkr7m2p.com, qw9f3h.net, m8k2v.org — random strings that no human would type. ML flags these instantly.', status:'🔴 DGA Detected'},
+      {title:'Alert sent to Sentinel + XDR', detail:'Defender for DNS sends alerts to both Sentinel and Defender XDR. Sentinel correlates with MDE process telemetry — identifies exactly which process (malware.exe PID 4392) is making the DNS queries.', status:'🔗 Correlated'},
+      {title:'Playbook blocks the domain and isolates VM', detail:'Automated response: (1) Add evil-domain.com to Azure Firewall deny list, (2) Add the backup DGA domains, (3) MDE isolates the compromised VM, (4) SOC alerted with full timeline showing the encoded data and decoded contents.', status:'✅ Contained'}
+    ]
+  },
+  {
+    id:'sql', icon:'🗄️', name:'Defender for Azure SQL', sub:'SQL Injection • Anomalous Access • Vulnerability Assessment', color:'#eab308',
+    where:'Monitors your Azure SQL Databases and Managed Instances at the DATA layer — the innermost ring of your network. Even if an attacker gets past every firewall, NSG, and endpoint — this is the last line of defense around your most valuable asset: the data.',
+    proactive:[
+      'Vulnerability Assessment — scans for misconfigurations: excessive user permissions, unencrypted sensitive columns, missing auditing, inactive users with access',
+      'Data Discovery & Classification — finds and tags columns containing PII, financial data, health records. You can\'t protect what you don\'t know exists',
+      'Auditing — logs all database operations to Storage/Log Analytics/Event Hub for compliance and forensics',
+      'Transparent Data Encryption (TDE) — encrypts data at rest by default. Customer-managed keys available in Key Vault'
+    ],
+    reactive:[
+      'SQL injection detection — alerts on injection patterns in queries: UNION SELECT, OR 1=1, WAITFOR DELAY',
+      'Anomalous access — login from unusual IP, unusual time, unusual application, or first-time access to sensitive tables',
+      'Brute force detection — multiple failed login attempts from same or distributed sources',
+      'Data exfiltration patterns — unusually large query results, bulk export operations, suspicious stored procedure execution',
+      'Alerts to Sentinel with full query text for investigation'
+    ],
+    scenario:'An attacker who compromised a web app tries to extract customer data through the application\'s database connection:',
+    steps:[
+      {title:'Attacker exploits web app vulnerability', detail:'The web app has an unpatched deserialization vulnerability. Attacker gains code execution on the web server. They find the database connection string in the app config (connects via Private Endpoint to Azure SQL).', status:'🔴 Web App Compromised'},
+      {title:'Attacker runs recon queries', detail:'Using the app\'s existing connection: SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES — mapping all tables. Defender for SQL flags: "Anomalous query pattern — information schema enumeration from application that normally queries 3 specific tables."', status:'🔴 Recon Detected'},
+      {title:'Attacker queries sensitive table', detail:'SELECT * FROM Customers WHERE 1=1 — bulk data pull. Data Classification already tagged this table as containing PII (names, emails, SSNs). Defender flags: "Bulk access to classified data from unusual pattern."', status:'🔴 Data Access Alert'},
+      {title:'SQL Injection attempt on login', detail:'Attacker also tries injection through the web form: admin\' OR 1=1-- . Even though the app parameterizes queries (blocking the injection), Defender for SQL sees the injection ATTEMPT in the query log and alerts.', status:'🔴 SQLi Detected'},
+      {title:'Sentinel correlates the full attack chain', detail:'Sentinel sees: MDE alert on web server (deserialization) + SQL Defender alert (recon + bulk access + SQLi attempt) + NSG flow logs showing the attacker\'s lateral path. Full incident: "Web app compromise leading to database reconnaissance."', status:'🔗 Full Chain'},
+      {title:'Response: connection blocked, app isolated', detail:'Playbook: (1) Revoke the compromised connection string, (2) Rotate SQL credentials in Key Vault, (3) MDE isolates web server, (4) Enable SQL Firewall rule blocking the web server IP until remediated, (5) Audit log preserved for forensics.', status:'✅ Contained'}
+    ]
+  }
+];
+
+function buildProductGrid(){
+  const g=document.getElementById('prodGrid');
+  g.innerHTML=products.map(p=>`
+    <button onclick="selectProduct('${p.id}')" id="prod-${p.id}" style="background:var(--glass);border:1px solid var(--border);border-radius:12px;padding:1rem;cursor:pointer;text-align:center;transition:all .3s;color:var(--text);font-family:inherit">
+      <div style="font-size:1.8rem;margin-bottom:.4rem">${p.icon}</div>
+      <div style="font-size:.82rem;font-weight:700;color:${p.color}">${p.name}</div>
+      <div style="font-size:.65rem;color:var(--text-dim);margin-top:.2rem">${p.sub.split('•')[0].trim()}</div>
+    </button>
+  `).join('');
+}
+
+function selectProduct(id){
+  const p=products.find(x=>x.id===id);if(!p)return;
+  // Highlight selected
+  products.forEach(x=>{
+    const el=document.getElementById('prod-'+x.id);
+    el.style.borderColor=x.id===id?x.color:'rgba(255,255,255,.08)';
+    el.style.background=x.id===id?x.color+'18':'var(--glass)';
+    el.style.transform=x.id===id?'translateY(-4px)':'none';
+    el.style.boxShadow=x.id===id?'0 8px 24px '+x.color+'30':'none';
+  });
+  // Fill detail
+  document.getElementById('prodDetail').style.display='block';
+  document.getElementById('prodIcon').textContent=p.icon;
+  document.getElementById('prodName').textContent=p.name;
+  document.getElementById('prodName').style.color=p.color;
+  document.getElementById('prodSub').textContent=p.sub;
+  document.getElementById('prodWhereText').textContent=p.where;
+  document.getElementById('prodProactive').innerHTML=p.proactive.map(x=>`<li style="font-size:.82rem;color:var(--text-dim);padding-left:1rem;position:relative"><span style="position:absolute;left:0;color:var(--blue)">→</span>${x}</li>`).join('');
+  document.getElementById('prodReactive').innerHTML=p.reactive.map(x=>`<li style="font-size:.82rem;color:var(--text-dim);padding-left:1rem;position:relative"><span style="position:absolute;left:0;color:var(--red)">→</span>${x}</li>`).join('');
+  document.getElementById('prodScenario').textContent=p.scenario;
+  psLoad(p.id);
+  // Scroll to detail
+  document.getElementById('prodDetail').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+window.addEventListener('load',buildProductGrid);
+
+
+// ===== PRODUCT LIVE SIM =====
+const productSims = {
+mdc:{
+  title:'A developer accidentally exposes a server to the entire internet — watch how Defender for Cloud responds.',
+  events:[
+    {t:1,type:'attack',actor:'👤 Developer',msg:'Created a new virtual machine and opened port 3389 (Remote Desktop) to 0.0.0.0/0 — the entire internet — to troubleshoot a config issue from home.'},
+    {t:3,type:'detect',actor:'☁️ Defender for Cloud',msg:'Continuous configuration scan detected the open management port. Flagged as HIGH severity within 2 minutes of the rule being created.'},
+    {t:5,type:'detect',actor:'☁️ Defender for Cloud',msg:'Recommendation generated: "Management ports should be closed on your virtual machines." Secure Score dropped 4 points.'},
+    {t:7,type:'detect',actor:'☁️ Defender for Cloud',msg:'Attack Path Analysis mapped the full risk — Open RDP → VM → Managed Identity → Key Vault → Database connection strings. One open port, entire data layer exposed.'},
+    {t:9,type:'block',actor:'☁️ Defender for Cloud',msg:'Adaptive Network Hardening: reviewed 30 days of NSG traffic logs. Only 2 IPs ever used that port. Suggested restricting it to those 2 IPs only. One-click fix available in the portal.'},
+    {t:11,type:'block',actor:'☁️ Defender for Cloud',msg:'Governance rule applied: the VM owner was auto-assigned a 72-hour remediation deadline. If unresolved, it escalates to the security team lead automatically.'},
+    {t:13,type:'block',actor:'☁️ Defender for Cloud',msg:'Alternative recommended: Just-In-Time VM Access. Port stays completely closed at all times. The developer requests access when needed — port opens for their IP only, for 3 hours max, then auto-closes.'},
+    {t:15,type:'result',actor:'✅ Result',msg:'The developer still gets the access they need. The attack surface is gone. Defender for Cloud caught this proactively — before any attacker found it, and before any incident occurred.'}
+  ]
+},
+mde:{
+  title:'A phishing email delivers malware onto a company server — MDE detects and contains it automatically.',
+  events:[
+    {t:1,type:'attack',actor:'👤 Attacker',msg:'Sent a phishing email to an employee with a malicious Excel attachment. The employee opened it.'},
+    {t:3,type:'block',actor:'🛡️ MDE',msg:'Attack Surface Reduction rule evaluated: "Block Office applications from creating child processes." Excel tried to spawn CMD.EXE to run the macro — BLOCKED before it could execute.'},
+    {t:4,type:'info',actor:'📋 Note',msg:'Assuming the ASR rule was in audit mode during rollout (common during deployment). The macro ran. This is why moving from audit to block mode matters.'},
+    {t:5,type:'detect',actor:'🛡️ MDE',msg:'ALERT: Suspicious process tree. Excel spawned PowerShell with a base64-encoded command. Spreadsheets do not normally launch PowerShell — this is a red flag.'},
+    {t:7,type:'detect',actor:'🛡️ MDE',msg:'Memory scan found reflective DLL injection — the malware loaded itself entirely in memory, writing nothing to disk. Traditional antivirus scans files on disk and would have missed this completely.'},
+    {t:9,type:'block',actor:'🛡️ MDE',msg:'Malware attempted to connect to its command-and-control server at evil-c2.com. MDE Network Protection blocked the connection at the endpoint — before any traffic reached the firewall or the internet.'},
+    {t:10,type:'block',actor:'🛡️ MDE',msg:'Automated Investigation launched: traced every process, file, registry change, and network connection from this machine. Scope confirmed — 0 other VMs affected, 0 lateral movement.'},
+    {t:12,type:'block',actor:'🛡️ MDE',msg:'Auto-remediated: malicious process killed, PowerShell payload quarantined. The entire response happened without anyone clicking anything.'},
+    {t:13,type:'correlate',actor:'🔭 Sentinel',msg:'MDE alert forwarded to Sentinel. Incident created with MITRE ATT&CK chain: Initial Access (phishing) → Execution (PowerShell) → C2 blocked (network protection).'},
+    {t:15,type:'result',actor:'✅ Result',msg:'One machine. Zero data accessed. Zero spread. The entire detection, investigation, and containment happened automatically in under 3 minutes.'}
+  ]
+},
+sentinel:{
+  title:'An attacker uses stolen credentials and moves carefully — no single product sees the whole picture. Sentinel does.',
+  events:[
+    {t:1,type:'attack',actor:'👤 Attacker',msg:'Logged in using stolen Global Admin credentials. Username and password are correct. Sign-in came from Nigeria — the real user is always in Seattle.'},
+    {t:2,type:'detect',actor:'🔑 Entra ID',msg:'Risk signal generated: new country, anonymous VPN IP, 3 AM local time for the user. Sent to Sentinel as a medium-risk event. On its own — could be a business trip.'},
+    {t:3,type:'attack',actor:'👤 Attacker',msg:'Accessed Azure portal and listed all virtual machines, network security groups, and subnet configurations. Mapping the environment.'},
+    {t:4,type:'detect',actor:'🔭 Sentinel',msg:'Behavioral anomaly flagged: first-time Azure infrastructure API calls from this identity. This user is a developer — they have never touched VMs or NSGs before. Logged, low signal.'},
+    {t:5,type:'attack',actor:'👤 Attacker',msg:'Requested Just-In-Time access to a server — a legitimate access workflow. Approved. RDP session started from a VPS in Eastern Europe.'},
+    {t:6,type:'detect',actor:'🛡️ MDE',msg:'Low-severity alert on the server: recon commands detected — whoami, net user, nltest. No malware found. On its own, looks like an admin poking around.'},
+    {t:8,type:'correlate',actor:'🔭 Sentinel',msg:'Fusion ML engine received 4 signals: unusual sign-in location + first infrastructure API access + JIT from suspicious IP + recon commands. Each one alone is noise. Together they are a pattern.'},
+    {t:10,type:'correlate',actor:'🔭 Sentinel',msg:'INCIDENT CREATED — Severity: HIGH — "Multi-stage attack: Compromised credentials with active reconnaissance." The full attack story assembled automatically from 4 different signal sources.'},
+    {t:11,type:'block',actor:'🔭 Sentinel',msg:'Automated Playbook fired in 4 seconds: (1) User disabled in Entra ID. (2) All active sessions revoked. (3) Attacker IP added to Azure Firewall deny list. (4) VM isolated via MDE API. (5) SOC alerted in Teams with the full timeline.'},
+    {t:14,type:'result',actor:'✅ Result',msg:'Total automated response: 45 seconds. No data was accessed. No human had to make a single call. This is what cross-product correlation delivers — the signal no individual product could produce alone.'}
+  ]
+},
+firewall:{
+  title:'Malware on a server tries to send 500MB of customer data to an attacker — two methods, both blocked.',
+  events:[
+    {t:1,type:'attack',actor:'👤 Attacker',msg:'Malware activated on an app server. Already pulled 500MB of customer records from Azure SQL. Now trying to upload them to external storage via HTTPS.'},
+    {t:2,type:'info',actor:'🌐 Azure Network',msg:'Route table on the spoke subnet: all traffic to the internet must route through Azure Firewall. There is no direct internet path from any workload. This is by design.'},
+    {t:3,type:'detect',actor:'🔥 Azure Firewall',msg:'TLS connection intercepted. Firewall Premium decrypts the HTTPS stream — can now read what\'s actually being sent. Without TLS inspection, the firewall would see encrypted bytes and nothing else.'},
+    {t:4,type:'block',actor:'🔥 Azure Firewall',msg:'Application rule check: destination domain attacker-storage.blob.core.windows.net is not in the approved allowlist. Connection denied. Zero bytes transmitted.'},
+    {t:5,type:'block',actor:'🔥 Azure Firewall',msg:'IDPS simultaneously matched Rule 2027001 — large POST with base64-encoded payload to an external endpoint. Data exfiltration pattern. Even if the FQDN had passed, IDPS would have stopped it.'},
+    {t:6,type:'block',actor:'🔥 Azure Firewall',msg:'Threat Intelligence flagged the destination IP — linked to a data theft campaign from the previous week. Three independent blocks hit at the same time: FQDN + IDPS + Threat Intel.'},
+    {t:7,type:'attack',actor:'👤 Attacker',msg:'HTTPS failed. Switched to DNS tunneling: encoding the data into DNS subdomain queries on port 53. Most firewalls allow DNS through without inspection.'},
+    {t:9,type:'block',actor:'🔍 Defender for DNS',msg:'DNS tunneling detected: subdomain labels averaging 54 characters (normal is under 15), 847 unique queries per minute to evil-c2.com, domain confirmed in threat intelligence C2 feed. Blocked.'},
+    {t:10,type:'correlate',actor:'🔭 Sentinel',msg:'Firewall deny logs and DNS Defender alert ingested together. INCIDENT created: "Active exfiltration — two methods attempted, both blocked." Zero bytes left Azure.'},
+    {t:12,type:'result',actor:'✅ Result',msg:'500MB of customer records stayed in Azure. The firewall caught the first attempt. Defender for DNS caught the backup plan. Both were stopped, logged, and correlated automatically.'}
+  ]
+},
+entra:{
+  title:'An attacker has the right password. They still cannot get in.',
+  events:[
+    {t:1,type:'attack',actor:'👤 Attacker',msg:'Purchased a Global Admin\'s credentials from a dark web breach dump. Username and password are valid and current.'},
+    {t:2,type:'info',actor:'🔑 Entra ID',msg:'Sign-in request received. Username verified. Password matches. Without Conditional Access, this would be a successful login.'},
+    {t:3,type:'block',actor:'🔑 Entra ID',msg:'Conditional Access policy applied: all admin roles require MFA plus a compliant device from any location. The attacker has the password but not the registered phone or a compliant device. Blocked.'},
+    {t:5,type:'block',actor:'🔑 Entra ID',msg:'Identity Protection ML flagged: new country, anonymous VPN IP, 3 AM local time for the user. Risk rated HIGH. Even if MFA somehow succeeded, this sign-in would still be blocked by risk policy.'},
+    {t:7,type:'block',actor:'🔑 Entra ID',msg:'Even if both of those blocks were bypassed: Privileged Identity Management means the Global Admin role is not active by default. To activate it, the attacker would need additional MFA, a written justification, and approval from another admin.'},
+    {t:9,type:'block',actor:'🔑 Entra ID',msg:'If the real admin had a session open: Continuous Access Evaluation detects the risk change and revokes that session token in near-real-time — it does not wait for the 1-hour token lifetime to expire.'},
+    {t:10,type:'correlate',actor:'🔭 Sentinel',msg:'All events forwarded to Sentinel: failed MFA attempt, high-risk sign-in, Conditional Access block. Playbook triggered: admin password force-reset, SOC alerted, attacker IP added to firewall deny list.'},
+    {t:12,type:'result',actor:'✅ Result',msg:'Valid credentials. Zero access. Four independent identity controls — each one would have been enough alone. This is why identity is the security layer that matters before any traffic reaches the network.'}
+  ]
+},
+dns:{
+  title:'Malware tries to use DNS to sneak data out — a technique most firewalls miss completely.',
+  events:[
+    {t:1,type:'info',actor:'📋 Context',msg:'DNS translates domain names into IP addresses. Every device needs it to connect to anything. Because it\'s required for normal operation, most firewalls allow DNS traffic through without inspecting it. Attackers know this.'},
+    {t:2,type:'attack',actor:'👤 Attacker',msg:'HTTPS upload was blocked by the firewall. Switched to DNS tunneling: encoding stolen customer records as base64 text inside DNS lookup requests. The subdomain name itself is the stolen data.'},
+    {t:3,type:'attack',actor:'👤 Attacker',msg:'Sending lookups like: aGVsbG8gd29ybGQ.chunk-001.evil-c2.com — the long string before the dot is encoded data. Hundreds of these queries per minute exfiltrate the file piece by piece.'},
+    {t:4,type:'info',actor:'🌐 Azure Firewall',msg:'Sees DNS traffic on port 53 heading outbound. Allowed — VMs need DNS to function. The firewall passes it through. This is the gap DNS tunneling exploits.'},
+    {t:5,type:'detect',actor:'🔍 Defender for DNS',msg:'Anomaly detected: subdomain labels averaging 54 characters long. Legitimate DNS subdomains are short, readable names. These look like encoded content.'},
+    {t:6,type:'detect',actor:'🔍 Defender for DNS',msg:'Volume anomaly: 847 unique subdomain queries per minute to evil-c2.com. A server making hundreds of unique DNS requests per minute to the same base domain is not normal behavior.'},
+    {t:7,type:'block',actor:'🔍 Defender for DNS',msg:'Threat Intelligence matched: evil-c2.com is in the known command-and-control domain feed. DNS tunneling confirmed. All queries to this domain blocked immediately.'},
+    {t:8,type:'block',actor:'🔍 Defender for DNS',msg:'Also detected: malware queried algorithmically-generated backup domains — xkr7m2p.com, qw9f3h.net — random character strings no human types. DGA pattern identified. All backup domains blocked too.'},
+    {t:9,type:'block',actor:'🛡️ MDE',msg:'MDE Network Protection independently confirmed the block — evil-c2.com was already on MDE\'s network block list. Two separate products reached the same conclusion independently.'},
+    {t:10,type:'correlate',actor:'🔭 Sentinel',msg:'DNS alert correlated with MDE process telemetry. Identified the exact source: malware.exe running as PID 4392. Playbook: domain added to firewall deny list, VM isolated, SOC alerted with the decoded DNS payload.'},
+    {t:12,type:'result',actor:'✅ Result',msg:'A technique that bypasses most traditional firewalls was caught at the DNS layer. Defender for DNS detects what a port-and-protocol firewall cannot — the pattern, the volume, and the intent hidden in plain-text DNS traffic.'}
+  ]
+},
+sql:{
+  title:'An attacker inside the network tries to pull data directly from the database using the app\'s own credentials.',
+  events:[
+    {t:1,type:'attack',actor:'👤 Attacker',msg:'Exploited a vulnerability in the web application. Found the database connection string stored in the app config file. Now has valid credentials to connect directly to Azure SQL.'},
+    {t:2,type:'attack',actor:'👤 Attacker',msg:'Connected to Azure SQL through the app\'s Private Endpoint. Authentication succeeded — using the application\'s own service account. Looks like a completely normal app connection.'},
+    {t:3,type:'detect',actor:'🗄️ Defender for SQL',msg:'Anomaly: this application normally queries 3 specific tables. It just ran SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES — a command that maps the entire database structure. This app has never done this before.'},
+    {t:5,type:'detect',actor:'🗄️ Defender for SQL',msg:'ALERT: Database enumeration from an application identity. Severity HIGH. Forwarded to Sentinel immediately.'},
+    {t:6,type:'attack',actor:'👤 Attacker',msg:'Ran SELECT * FROM Customers WHERE 1=1 — attempting to pull every single customer record in one query.'},
+    {t:7,type:'detect',actor:'🗄️ Defender for SQL',msg:'ALERT: Bulk access to a data-classified table. Data Discovery and Classification had already tagged the "Customers" table as containing PII — names, emails, and SSNs. Any bulk pull triggers an automatic alert.'},
+    {t:8,type:'attack',actor:'👤 Attacker',msg:'Also tried injecting through the web login form: admin\' OR 1=1-- to bypass the login and access data directly.'},
+    {t:9,type:'block',actor:'🗄️ Defender for SQL',msg:'SQL injection pattern detected in the query log. The app\'s parameterized queries blocked the actual injection from working — but Defender for SQL recorded the attempt and alerted on it regardless of whether it succeeded.'},
+    {t:10,type:'correlate',actor:'🔭 Sentinel',msg:'Three signals combined: MDE alert (web server exploit) + Defender for SQL (recon) + Defender for SQL (bulk access + SQLi attempt) = full attack chain mapped from initial exploit to data access.'},
+    {t:11,type:'correlate',actor:'🔭 Sentinel',msg:'INCIDENT: "Web application compromise leading to database reconnaissance." Every step documented — the first exploit, the credential theft, the recon queries, and the bulk data pull attempt.'},
+    {t:12,type:'block',actor:'🔭 Sentinel',msg:'Playbook fired: connection string revoked, database credentials rotated in Key Vault, web server isolated via MDE, SQL firewall blocked the web server IP, full audit log preserved for forensics.'},
+    {t:14,type:'result',actor:'✅ Result',msg:'The attacker had valid credentials and a private network path to the database. Defender for SQL still caught it — at the data layer. If every other security control failed, this last line held.'}
+  ]
+}};
+
+let psActive=null,psIdx=0,psPlaying=false,psTimer=null,psSpeedVal=1;
+
+function psLoad(id){
+  const sim=productSims[id]; if(!sim)return;
+  psActive=sim; psIdx=0; psPlaying=false; clearTimeout(psTimer);
+  document.getElementById('prodSimPanel').style.display='block';
+  document.getElementById('psScenario').textContent=sim.title;
+  document.getElementById('psFeed').innerHTML='';
+  document.getElementById('psBtnPlay').style.display='';
+  document.getElementById('psBtnPause').style.display='none';
+  setTimeout(psPlay,600);
+}
+function psAddEvent(ev){
+  const feed=document.getElementById('psFeed');
+  const m=Math.floor(ev.t/60),s=ev.t%60;
+  const ts=`+${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  const row=document.createElement('div');
+  row.className=`psim-row psim-${ev.type}`;
+  row.innerHTML=`<span class="psim-time">${ts}</span><span class="psim-actor">${ev.actor}</span><span class="psim-msg">${ev.msg}</span>`;
+  feed.appendChild(row);
+  feed.scrollTop=feed.scrollHeight;
+}
+function psStep(){
+  if(!psActive||psIdx>=psActive.events.length){psPause();return;}
+  psAddEvent(psActive.events[psIdx]);
+  psIdx++;
+}
+function psPlay(){
+  if(!psActive)return;
+  psPlaying=true;
+  document.getElementById('psBtnPlay').style.display='none';
+  document.getElementById('psBtnPause').style.display='';
+  function tick(){
+    if(!psPlaying)return;
+    psStep();
+    if(psIdx<psActive.events.length){
+      const prev=psActive.events[psIdx-1],next=psActive.events[psIdx];
+      const gap=Math.max(400,(next.t-prev.t)*900/psSpeedVal);
+      psTimer=setTimeout(tick,gap);
+    } else { psPause(); }
+  }
+  tick();
+}
+function psPause(){
+  psPlaying=false; clearTimeout(psTimer);
+  document.getElementById('psBtnPlay').style.display='';
+  document.getElementById('psBtnPause').style.display='none';
+}
+function psReset(){
+  psPause(); psIdx=0;
+  document.getElementById('psFeed').innerHTML='';
+  setTimeout(psPlay,300);
+}
+function psSpeed(){
+  const speeds=[0.5,1,2,3];
+  const i=(speeds.indexOf(psSpeedVal)+1)%speeds.length;
+  psSpeedVal=speeds[i];
+  document.getElementById('psBtnSpeed').textContent=`Speed: ${psSpeedVal}×`;
+}
+
+const terms = [
+  {t:'VNet (Virtual Network)',d:'The fundamental building block for private networking in Azure. An isolated network where you deploy VMs, load balancers, and other resources. Defined by one or more CIDR address spaces.',w:'Without VNets, all resources would sit on shared networks with no isolation — like putting every server in an office on the same flat LAN.'},
+  {t:'Subnet',d:'A range of IP addresses within a VNet. Resources are deployed into subnets. Each subnet can have its own NSG and route table for granular control.',w:'Subnets enable microsegmentation — if one tier is compromised, NSG rules prevent lateral movement to other tiers.'},
+  {t:'NSG (Network Security Group)',d:'Stateful L3/L4 packet filter applied at subnet or NIC level. Rules use 5-tuple: source IP, destination IP, source port, destination port, protocol. Evaluated by priority (lowest number first).',w:'NSGs are your first line of defense at the workload level. Misconfigured NSGs (allow 0.0.0.0/0 on RDP) are one of the top causes of Azure breaches.'},
+  {t:'ASG (Application Security Group)',d:'Logical grouping of VMs by function (web, app, db). Used in NSG rules instead of IP addresses. When a VM is added to an ASG, all associated rules apply automatically.',w:'ASGs eliminate the need to update NSG rules every time infrastructure scales — critical for dynamic cloud environments.'},
+  {t:'Azure Firewall',d:'Managed, stateful L3–L7 network firewall in the hub VNet. Supports network rules, application rules (FQDN), DNAT/SNAT, threat intelligence, DNS proxy. Premium adds TLS inspection and IDPS.',w:'Centralizes all egress and east-west filtering. Without a centralized firewall, each spoke manages its own security — and you lose visibility.'},
+  {t:'IDPS (Intrusion Detection & Prevention)',d:'Azure Firewall Premium feature with 67,000+ signatures. Inspects traffic for known attack patterns (exploits, C2 callbacks, malware). Can alert or block.',w:'Signature-based detection catches known attacks that bypass application-level controls — your network-layer safety net.'},
+  {t:'TLS Inspection',d:'Azure Firewall Premium decrypts TLS traffic, inspects it with IDPS and application rules, then re-encrypts. Uses an intermediate CA certificate you provide.',w:'80%+ of traffic is encrypted. Without TLS inspection, your firewall is blind to threats hiding in encrypted traffic.'},
+  {t:'WAF (Web Application Firewall)',d:'L7 firewall for web traffic. Protects against OWASP Top 10 (SQL injection, XSS, etc.). Available on Front Door, Application Gateway, and CDN. Managed and custom rules.',w:'Network firewalls don\'t understand HTTP — WAF catches application-layer attacks that pass right through L3/L4 filters.'},
+  {t:'OWASP CRS',d:'OWASP Core Rule Set — the managed rule set used by Azure WAF. CRS 3.2 includes rules for SQL injection, XSS, LFI, RFI, command injection, and more. Updated regularly.',w:'Using managed rules means you get protection against known web attacks without writing rules yourself.'},
+  {t:'Azure DDoS Protection',d:'Mitigates volumetric, protocol, and application-layer DDoS attacks. Basic is free (always-on). Standard adds adaptive tuning, telemetry, attack analytics, and cost protection.',w:'DDoS attacks are the most common availability threat. Standard plan learns YOUR traffic patterns and auto-tunes thresholds.'},
+  {t:'Hub-Spoke Topology',d:'Network architecture where a central hub VNet hosts shared services (firewall, gateway, bastion) and spoke VNets host isolated workloads. Spokes peer to the hub. Recommended by Azure Cloud Adoption Framework.',w:'Centralizes security policy enforcement. All inter-spoke and outbound traffic flows through the hub — single chokepoint for inspection.'},
+  {t:'VNet Peering',d:'Low-latency connection between two VNets over the Azure backbone. Non-transitive by default (Spoke A ↔ Hub ↔ Spoke B, but A cannot reach B directly without hub routing). Global peering works across regions.',w:'Non-transitive peering is a security feature — it prevents uncontrolled lateral movement between workloads.'},
+  {t:'UDR (User Defined Route)',d:'Custom route table entries that override Azure\'s default system routes. Common pattern: 0.0.0.0/0 → Azure Firewall — forces all traffic through the hub firewall.',w:'Without UDRs, spoke traffic can bypass the firewall entirely using default Azure routes. UDRs enforce your security architecture.'},
+  {t:'Private Endpoint',d:'A network interface with a private IP from your VNet, connected to an Azure PaaS service (SQL, Storage, Key Vault). Traffic stays on Microsoft backbone.',w:'Eliminates public exposure of PaaS services. Without PE, your database is reachable from the internet (even with firewall rules, the public IP exists).'},
+  {t:'Private DNS Zone',d:'Azure-managed DNS that resolves PaaS FQDNs to private endpoint IPs. Example: mydb.database.windows.net → 10.2.1.4 instead of the public IP. Linked to your VNet.',w:'Without private DNS zones, clients resolve to the public IP and traffic exits your VNet — bypassing all your private networking.'},
+  {t:'Service Endpoint',d:'Extends VNet identity to a PaaS service over the Azure backbone. Simpler than Private Endpoint but the PaaS resource still has a public IP. Less secure — use PE when possible.',w:'Service Endpoints were the first-gen solution. Private Endpoints are the modern best practice — they completely remove the public attack surface.'},
+  {t:'Azure Bastion',d:'Managed jump-box service. Browser-based RDP/SSH over TLS — no public IPs needed on VMs. Deployed in AzureBastionSubnet. Standard SKU adds shareable links, file transfer, IP-based connections.',w:'Public RDP/SSH endpoints are the #1 brute-force target in Azure. Bastion eliminates them entirely.'},
+  {t:'VPN Gateway',d:'IPsec/IKE VPN for site-to-site (on-prem to Azure) and point-to-site (remote users). Supports BGP, active-active, zone-redundant SKUs. Deployed in GatewaySubnet.',w:'Encrypted tunnel for hybrid connectivity. Without it, you\'d need ExpressRoute (expensive) or expose services publicly.'},
+  {t:'ExpressRoute',d:'Private, dedicated connection from on-prem to Azure — traffic never touches the public internet. 50 Mbps to 100 Gbps. Global Reach connects sites through Azure backbone.',w:'For sensitive workloads, public internet connectivity (even VPN-encrypted) may not meet compliance requirements. ExpressRoute is the answer.'},
+  {t:'Forced Tunneling',d:'Routing pattern where ALL internet-bound traffic from a spoke is forced through an on-premises firewall or the hub Azure Firewall (via UDR 0.0.0.0/0). No direct internet egress from workloads.',w:'Prevents data exfiltration via direct internet access. Every outbound connection is inspected and logged.'},
+  {t:'CIDR',d:'Classless Inter-Domain Routing — notation for IP address ranges. Example: 10.0.0.0/16 = 65,536 addresses. /24 = 256 addresses. Used to define VNet and subnet address spaces.',w:'Proper CIDR planning prevents overlapping address spaces — which break VNet peering, VPN, and ExpressRoute connectivity.'},
+  {t:'Service Tag',d:'Named group of IP address prefixes for Azure services (e.g., Internet, VirtualNetwork, AzureLoadBalancer, Storage, Sql). Used in NSG and firewall rules. Microsoft manages the IPs.',w:'Service Tags eliminate hardcoding Azure service IPs in rules. When Microsoft adds new data centers, your rules auto-update.'},
+  {t:'NSG Flow Logs',d:'Records all traffic flowing through NSGs — source/dest IP, ports, protocol, allow/deny. Stored in a Storage Account. Analyzed by Traffic Analytics in Network Watcher.',w:'Flow logs are your network forensics data. When investigating a breach, they show exactly what traffic was allowed or denied.'},
+  {t:'Network Watcher',d:'Azure\'s network diagnostic and monitoring suite. Includes: IP flow verify, next hop, connection troubleshoot, packet capture, NSG flow logs, Traffic Analytics, connection monitor.',w:'When something breaks, Network Watcher tells you WHERE and WHY — which rule blocked traffic, what route was taken, or where a packet was dropped.'},
+  {t:'NAT Gateway',d:'Provides outbound internet connectivity for VMs in a subnet using a static public IP (or prefix). All outbound traffic from the subnet uses the NAT Gateway IP.',w:'Without NAT Gateway, outbound connections use random Azure IPs that change — breaking IP-allowlisted external services.'},
+  {t:'Load Balancer (Standard)',d:'L4 (TCP/UDP) load balancer. Distributes traffic across VMs in a backend pool. Health probes detect failures. Supports HA ports, outbound rules, zone-redundant frontend.',w:'Standard LB is zone-aware and secure by default (closed to inbound traffic without NSG rules) — unlike Basic LB which is open.'},
+  {t:'Application Gateway',d:'L7 (HTTP/HTTPS) load balancer and reverse proxy. SSL termination, URL path-based routing, multi-site hosting, cookie affinity, WebSocket support. Optional WAF v2.',w:'Routes traffic based on URL patterns (/api → backend pool A, /web → pool B). WAF v2 adds web attack protection at the app entry point.'},
+  {t:'Front Door',d:'Global L7 load balancer and CDN. Anycast routing to nearest edge POP. SSL offload, URL rewriting, session affinity, health probes across regions. Integrated WAF.',w:'Protects global apps with geo-distributed WAF and DDoS protection at the edge — attacks are mitigated before reaching your Azure region.'},
+  {t:'Zero Trust Networking',d:'Security model: never trust, always verify. In Azure networking: microsegment with NSGs/ASGs, verify identity at every layer, encrypt all traffic, assume breach and limit blast radius.',w:'Traditional perimeter security (firewall at the edge, trusted inside) fails in cloud. Zero Trust assumes attackers are already inside your network.'},
+  {t:'East-West Traffic',d:'Traffic flowing laterally between workloads (VM to VM, spoke to spoke) — as opposed to north-south (internet to workload). Often unmonitored in traditional networks.',w:'Most breaches involve lateral movement. If you only inspect north-south traffic, an attacker who compromises one VM moves freely.'},
+  {t:'Microsegmentation',d:'Dividing the network into granular security segments. In Azure: each subnet has its own NSG, ASGs group VMs by function, UDRs control routing. Limits blast radius of a breach.',w:'If an attacker compromises a web server, microsegmentation prevents them from reaching the database — even within the same VNet.'},
+  {t:'FQDN Tag',d:'Azure Firewall feature. Pre-defined tags for well-known FQDNs (WindowsUpdate, AzureBackup, etc.). One rule allows all required FQDNs without listing them individually.',w:'Manually maintaining FQDN lists is error-prone. Tags auto-update when Microsoft changes endpoints.'},
+  {t:'IP Group',d:'Reusable collection of IP addresses/ranges/subnets for Azure Firewall rules. Define once, reference in multiple rules. Supports up to 5,000 IP addresses.',w:'IP Groups keep firewall policies clean and maintainable — change one group, all referencing rules update.'},
+  {t:'DNS Proxy',d:'Azure Firewall acts as a DNS proxy — VMs point to the firewall for DNS, and the firewall forwards to your DNS server or Azure DNS. Required for FQDN-based network rules.',w:'Without DNS proxy, the firewall can\'t resolve FQDNs in network rules and they fail silently.'},
+  {t:'BGP (Border Gateway Protocol)',d:'Dynamic routing protocol used by VPN Gateway and ExpressRoute to exchange routes with on-premises networks. Automatically propagates route changes without manual UDR updates.',w:'Static routes break when networks change. BGP ensures Azure and on-prem always know how to reach each other.'},
+  {t:'Split Tunneling',d:'VPN configuration where only Azure-destined traffic goes through the VPN tunnel. Internet traffic exits locally. Reduces VPN bandwidth usage but bypasses corporate security controls.',w:'Trade-off: performance vs. security. Full tunnel = all traffic inspected. Split tunnel = faster but internet traffic isn\'t inspected by your corporate firewall.'},
+  {t:'Gateway Transit',d:'VNet peering setting that allows a spoke to use the hub\'s VPN/ExpressRoute gateway. Spoke doesn\'t need its own gateway — saves cost and centralizes connectivity.',w:'Without gateway transit, every spoke would need its own VPN gateway ($$$) or have no path to on-premises.'},
+  {t:'Traffic Analytics',d:'Network Watcher feature that processes NSG flow logs with ML. Visualizes traffic patterns, identifies top talkers, detects anomalies, maps traffic by geography.',w:'Turns raw flow logs into actionable insights — shows you WHO is talking to WHAT and helps spot unusual patterns.'},
+  {t:'DNAT (Destination NAT)',d:'Azure Firewall rule type that translates a public IP:port to a private IP:port. Used to expose internal services (e.g., map firewall public IP:443 → internal web server:443).',w:'DNAT lets you publish services without giving VMs public IPs — the firewall is the only public-facing endpoint.'},
+  {t:'SNAT (Source NAT)',d:'Azure Firewall automatically SNATs all outbound traffic to its public IP(s). Outbound connections from any spoke VM appear to come from the firewall\'s IP.',w:'SNAT hides internal IP addresses from external destinations and gives you a predictable outbound IP for allowlisting.'},
+  {t:'Packet Capture',d:'Network Watcher feature that captures packets on a VM\'s NIC. Filter by protocol, port, direction. Output to .pcap file for Wireshark analysis.',w:'When you need to see exactly what\'s on the wire — headers, payloads, timing — packet capture is the definitive diagnostic tool.'},
+];
+
+function searchTerms() {
+  const q = document.getElementById('chatSearch').value.toLowerCase().trim();
+  const r = document.getElementById('chatResults');
+  if (!q) { r.innerHTML = '<div class="chatbox-empty">Type a term to search 100+ networking & security definitions</div>'; return; }
+  const matches = terms.filter(t => t.t.toLowerCase().includes(q) || t.d.toLowerCase().includes(q));
+  if (!matches.length) { r.innerHTML = '<div class="chatbox-empty">No matches for "' + q + '"</div>'; return; }
+  r.innerHTML = matches.map(t => `<div class="chatbox-item"><h4>${t.t}</h4><p>${t.d}</p><div class="wim-mini">🔒 Why It Matters: ${t.w}</div></div>`).join('');
+}
+</script>
+</body>
+</html>

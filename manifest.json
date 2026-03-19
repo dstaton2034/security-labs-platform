@@ -1,0 +1,119 @@
+{
+  "platform": {
+    "name": "Security Labs Platform",
+    "description": "Interactive security training & architecture deep-dives",
+    "version": "1.0.0",
+    "author": "dstaton"
+  },
+  "labs": [
+    {
+      "id": "mde",
+      "title": "Microsoft Defender for Endpoint",
+      "shortTitle": "MDE",
+      "icon": "🛡️",
+      "category": "endpoint",
+      "color": "#00e5ff",
+      "description": "Architecture deep-dive: sensors, detection engines, data flow, and response actions",
+      "tags": ["mde", "endpoint", "defender", "edr"],
+      "path": "labs/mde",
+      "status": "migrate"
+    },
+    {
+      "id": "mdc",
+      "title": "Microsoft Defender for Cloud",
+      "shortTitle": "MDC",
+      "icon": "☁️",
+      "category": "cloud",
+      "color": "#3b82f6",
+      "description": "CNAPP architecture: CSPM, CWPP, DevSecOps, attack paths, and integrations",
+      "tags": ["mdc", "cloud", "cnapp", "cspm", "cwpp"],
+      "path": "labs/mdc",
+      "status": "migrate"
+    },
+    {
+      "id": "sentinel",
+      "title": "Microsoft Sentinel",
+      "shortTitle": "Sentinel",
+      "icon": "🔭",
+      "category": "siem",
+      "color": "#a855f7",
+      "description": "SIEM architecture: data connectors, analytics rules, playbooks, and hunting",
+      "tags": ["sentinel", "siem", "soar", "log-analytics"],
+      "path": "labs/sentinel",
+      "status": "migrate"
+    },
+    {
+      "id": "agent365-vs-foundry",
+      "title": "Agent 365 vs Azure AI Foundry",
+      "shortTitle": "Agent 365 vs Foundry",
+      "icon": "🤖",
+      "category": "comparison",
+      "color": "#00e5ff",
+      "colorSecondary": "#a855f7",
+      "description": "Side-by-side comparison of Microsoft's AI agent management and development platforms",
+      "tags": ["agent-365", "foundry", "ai", "governance", "comparison"],
+      "path": "labs/agent365-vs-foundry",
+      "status": "ready"
+    },
+    {
+      "id": "unified-security",
+      "title": "Microsoft Security — Unified Backend",
+      "shortTitle": "Unified Security",
+      "icon": "🕸️",
+      "category": "siem",
+      "color": "#a855f7",
+      "description": "How all Microsoft security products connect: signal flow, Intelligence Security Graph, XDR",
+      "tags": ["xdr", "unified", "signal-flow", "security-graph"],
+      "path": "labs/unified-security",
+      "status": "migrate"
+    },
+    {
+      "id": "ai-security",
+      "title": "AI in Microsoft Security",
+      "shortTitle": "AI Security",
+      "icon": "🧠",
+      "category": "ai",
+      "color": "#ec4899",
+      "description": "AI FOR security, security FOR AI, Security Copilot, and Microsoft Foundry",
+      "tags": ["ai", "copilot", "foundry", "security-copilot"],
+      "path": "labs/ai-security",
+      "status": "migrate"
+    },
+    {
+      "id": "azure-networking",
+      "title": "Azure Networking & Security",
+      "shortTitle": "Azure Networking",
+      "icon": "🌐",
+      "category": "networking",
+      "color": "#14b8a6",
+      "description": "Hub-spoke architecture, NSGs, Azure Firewall, traffic simulation, and security overlay",
+      "tags": ["networking", "firewall", "nsg", "hub-spoke", "vnet"],
+      "path": "labs/azure-networking",
+      "status": "migrate"
+    },
+    {
+      "id": "az500-simulator",
+      "title": "AZ-500 Exam Simulator",
+      "shortTitle": "AZ-500",
+      "icon": "📝",
+      "category": "certification",
+      "color": "#f97316",
+      "description": "Interactive practice exam with questions, explanations, and score tracking",
+      "tags": ["az-500", "certification", "exam", "practice"],
+      "path": "labs/az500-simulator",
+      "status": "migrate"
+    },
+    {
+      "id": "xdr-meeting-sim",
+      "title": "XDR Customer Meeting Simulator",
+      "shortTitle": "XDR Sim",
+      "icon": "🎙️",
+      "category": "practice",
+      "color": "#22c55e",
+      "description": "AI-powered meeting simulator — practice XDR & Defender conversations with graded personas. Coming soon with Azure AI Foundry integration.",
+      "tags": ["xdr", "mde", "practice", "simulator", "ai"],
+      "path": "labs/xdr-meeting-sim",
+      "status": "draft"
+    }
+  ]
+}

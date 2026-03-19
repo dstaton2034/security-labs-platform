@@ -1,0 +1,186 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Security Lab Content Schema",
+  "description": "Defines the content structure for an interactive security training lab page",
+  "type": "object",
+  "required": ["meta", "hero", "sections"],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["id", "title", "icon", "category", "color"],
+      "properties": {
+        "id": { "type": "string", "description": "Unique lab identifier (kebab-case)" },
+        "title": { "type": "string", "description": "Full display title" },
+        "shortTitle": { "type": "string", "description": "Short title for nav/cards" },
+        "icon": { "type": "string", "description": "Emoji icon" },
+        "category": { "type": "string", "enum": ["endpoint", "cloud", "identity", "siem", "ai", "networking", "comparison", "certification"] },
+        "color": { "type": "string", "description": "Primary accent CSS color, e.g. #00e5ff" },
+        "colorSecondary": { "type": "string", "description": "Optional secondary accent color" },
+        "updated": { "type": "string", "format": "date", "description": "Last updated date" },
+        "description": { "type": "string", "description": "One-line summary for portal cards" },
+        "tags": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "hero": {
+      "type": "object",
+      "required": ["title", "subtitle"],
+      "properties": {
+        "badge": { "type": "string", "description": "Badge text above title" },
+        "title": {
+          "type": "array",
+          "description": "Title segments with optional accent styling",
+          "items": {
+            "type": "object",
+            "properties": {
+              "text": { "type": "string" },
+              "accent": { "type": "boolean", "default": false },
+              "accentIndex": { "type": "integer", "description": "0=primary, 1=secondary color" }
+            }
+          }
+        },
+        "subtitle": { "type": "string" },
+        "stats": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "value": { "type": "string" },
+              "label": { "type": "string" },
+              "accentIndex": { "type": "integer", "default": 0 }
+            }
+          }
+        }
+      }
+    },
+    "sections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "title"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": {
+            "type": "string",
+            "enum": ["cards-grid", "dual-compare", "head-to-head", "flow-diagram", "decision-guide", "pricing", "why-box", "expandable-cards", "timeline", "custom-html"]
+          },
+          "label": { "type": "string", "description": "Section label (uppercase tag)" },
+          "labelIcon": { "type": "string" },
+          "labelColor": { "type": "string", "description": "CSS color for section label" },
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "content": {
+            "description": "Content varies by section type — see below"
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "card": {
+      "type": "object",
+      "properties": {
+        "icon": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "color": { "type": "string" },
+        "expandable": { "type": "boolean" },
+        "details": { "type": "string", "description": "Expanded detail HTML/text" },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "icon": { "type": "string" },
+              "label": { "type": "string" },
+              "value": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "compareColumn": {
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "icon": { "type": "string" },
+        "color": { "type": "string" },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "icon": { "type": "string" },
+              "title": { "type": "string" },
+              "description": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "h2hCategory": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "label": { "type": "string" },
+        "left": {
+          "type": "object",
+          "properties": {
+            "title": { "type": "string" },
+            "description": { "type": "string" },
+            "score": { "type": "integer", "minimum": 0, "maximum": 100 },
+            "scoreLabel": { "type": "string" }
+          }
+        },
+        "right": {
+          "type": "object",
+          "properties": {
+            "title": { "type": "string" },
+            "description": { "type": "string" },
+            "score": { "type": "integer", "minimum": 0, "maximum": 100 },
+            "scoreLabel": { "type": "string" }
+          }
+        }
+      }
+    },
+    "flowNode": {
+      "type": "object",
+      "properties": {
+        "icon": { "type": "string" },
+        "name": { "type": "string" },
+        "sub": { "type": "string" },
+        "style": { "type": "string", "enum": ["primary", "secondary", "shared"] }
+      }
+    },
+    "decisionCard": {
+      "type": "object",
+      "properties": {
+        "question": { "type": "string" },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "label": { "type": "string" },
+              "sublabel": { "type": "string" },
+              "type": { "type": "string", "enum": ["primary", "secondary", "both"] },
+              "dimmed": { "type": "boolean", "default": false }
+            }
+          }
+        }
+      }
+    },
+    "priceCard": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "icon": { "type": "string" },
+        "price": { "type": "string" },
+        "period": { "type": "string" },
+        "accentIndex": { "type": "integer" },
+        "featured": { "type": "boolean" },
+        "features": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

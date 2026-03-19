@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Microsoft Security — Unified Backend Architecture</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0e1a;--bg2:#111827;
+  --cyan:#00e5ff;--blue:#3b82f6;--purple:#a855f7;--green:#22c55e;--red:#ef4444;
+  --orange:#f97316;--yellow:#eab308;--pink:#ec4899;--teal:#14b8a6;
+  --text:#e2e8f0;--text-dim:#94a3b8;
+  --glass:rgba(255,255,255,.04);--border:rgba(255,255,255,.08);
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.6;overflow-x:hidden}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:rgba(168,85,247,.3);border-radius:3px}
+nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(10,14,26,.92);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:0 2rem}
+nav .nav-inner{max-width:1400px;margin:0 auto;display:flex;align-items:center;gap:2rem;height:60px}
+nav .logo{font-size:1.05rem;font-weight:700;color:var(--purple);white-space:nowrap}
+nav .nav-links{display:flex;gap:.25rem;overflow-x:auto;flex:1}
+nav .nav-links a{color:var(--text-dim);text-decoration:none;font-size:.78rem;padding:.4rem .7rem;border-radius:6px;white-space:nowrap;transition:all .2s}
+nav .nav-links a:hover,nav .nav-links a.active{color:var(--purple);background:rgba(168,85,247,.15)}
+section{padding:5rem 2rem;position:relative;z-index:1}
+.section-inner{max-width:1300px;margin:0 auto}
+.section-label{display:inline-flex;align-items:center;gap:.5rem;padding:.35rem .85rem;border-radius:99px;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:1rem}
+.section-title{font-size:clamp(1.6rem,3.5vw,2.4rem);font-weight:700;margin-bottom:.75rem}
+.section-desc{font-size:1rem;color:var(--text-dim);max-width:750px;margin-bottom:3rem}
+.card{background:var(--glass);border:1px solid var(--border);border-radius:16px;padding:1.5rem;transition:all .3s;overflow:hidden}
+.card:hover{border-color:rgba(168,85,247,.3);transform:translateY(-2px);box-shadow:0 8px 32px rgba(168,85,247,.08)}
+.why-box{background:linear-gradient(135deg,rgba(249,115,22,.04),rgba(234,179,8,.04));border:1px solid rgba(249,115,22,.2);border-radius:14px;padding:1.5rem;margin-top:2.5rem;position:relative;z-index:1}
+.why-box.fade-in{opacity:1;transform:translateY(0)}
+.why-box::before{content:'💡';position:absolute;top:-8px;right:16px;font-size:2.5rem;opacity:.15}
+.why-box .why-title{font-size:.85rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--orange);margin-bottom:.75rem}
+.why-box .why-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+@media(max-width:768px){.why-box .why-grid{grid-template-columns:1fr}}
+.why-item{display:flex;gap:.6rem;align-items:flex-start}
+.why-item .why-icon{font-size:1.1rem;flex-shrink:0;margin-top:2px}
+.why-item .why-content h4{font-size:.85rem;font-weight:600;color:var(--text);margin-bottom:.15rem}
+.why-item .why-content p{font-size:.78rem;color:var(--text-dim);line-height:1.5}
+.fade-in{opacity:0;transform:translateY(30px);transition:opacity .6s,transform .6s}
+.fade-in.visible{opacity:1;transform:translateY(0)}
+#particles-canvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;opacity:.35}
+footer{text-align:center;padding:3rem 2rem;border-top:1px solid var(--border);font-size:.8rem;color:var(--text-dim)}
+footer a{color:var(--purple);text-decoration:none}
+
+/* HERO */
+.hero{min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:8rem 2rem 4rem;position:relative;z-index:1}
+.hero::before{content:'';position:absolute;top:-200px;left:50%;transform:translateX(-50%);width:800px;height:800px;background:radial-gradient(circle,rgba(168,85,247,.08) 0%,transparent 70%);pointer-events:none}
+.hero h1{font-size:clamp(2rem,5vw,3.2rem);font-weight:800;line-height:1.15;margin-bottom:1rem}
+.hero h1 .accent{background:linear-gradient(135deg,var(--purple),var(--pink));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hero p{font-size:1.1rem;color:var(--text-dim);max-width:750px;margin-bottom:2rem}
+.hero .badge{display:inline-flex;align-items:center;gap:.5rem;padding:.5rem 1rem;border-radius:99px;background:var(--glass);border:1px solid var(--border);font-size:.85rem;color:var(--text-dim);margin-bottom:1.5rem}
+.hero .badge .dot{width:8px;height:8px;background:var(--green);border-radius:50%;animation:pulse-dot 2s infinite}
+@keyframes pulse-dot{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(34,197,94,.4)}50%{opacity:.7;box-shadow:0 0 0 8px rgba(34,197,94,0)}}
+.stats-bar{display:flex;justify-content:center;gap:3rem;flex-wrap:wrap;margin:2rem 0}
+.stat{text-align:center}
+.stat .stat-value{font-size:1.8rem;font-weight:800;background:linear-gradient(135deg,var(--purple),var(--pink));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.stat .stat-label{font-size:.78rem;color:var(--text-dim);margin-top:.15rem}
+
+/* SIGNAL FLOW GRAPH */
+.signal-graph{position:relative;width:100%;max-width:1100px;margin:0 auto;min-height:700px}
+.sg-node{position:absolute;width:130px;text-align:center;cursor:pointer;transition:all .3s;z-index:2}
+.sg-node:hover{transform:scale(1.08)}
+.sg-node .sg-circle{width:80px;height:80px;border-radius:50%;margin:0 auto .5rem;display:flex;align-items:center;justify-content:center;font-size:1.8rem;border:2px solid;transition:all .3s}
+.sg-node:hover .sg-circle{box-shadow:0 0 30px rgba(168,85,247,.3)}
+.sg-node .sg-name{font-size:.72rem;font-weight:700;line-height:1.2}
+.sg-node .sg-desc{font-size:.6rem;color:var(--text-dim);margin-top:.15rem}
+.sg-node.selected .sg-circle{box-shadow:0 0 40px rgba(168,85,247,.4);transform:scale(1.05)}
+.sg-detail-panel{position:absolute;bottom:0;left:0;right:0;background:var(--glass);border:1px solid var(--border);border-radius:16px;padding:1.5rem;min-height:160px;backdrop-filter:blur(10px);transition:all .3s}
+.sg-detail-panel h3{font-size:1rem;font-weight:700;margin-bottom:.5rem;display:flex;align-items:center;gap:.5rem}
+.sg-detail-panel p{font-size:.85rem;color:var(--text-dim);margin-bottom:.5rem}
+.sg-detail-panel .sg-signals{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.5rem}
+.sg-detail-panel .sg-signal{padding:.2rem .5rem;border-radius:4px;font-size:.7rem;font-weight:600}
+
+/* SIGNAL LINES (SVG) */
+.signal-lines{position:absolute;inset:0;z-index:1;pointer-events:none}
+.signal-line{stroke:var(--border);stroke-width:1;fill:none;transition:stroke .3s}
+.signal-line.active{stroke:var(--purple);stroke-width:2;filter:drop-shadow(0 0 4px rgba(168,85,247,.4))}
+.signal-dot{fill:var(--purple);opacity:0}
+.signal-dot.active{opacity:1}
+
+/* COMPARISON TABLE */
+.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:2rem;margin-top:2rem}
+@media(max-width:800px){.compare-grid{grid-template-columns:1fr}}
+.compare-col{border-radius:16px;padding:2rem;position:relative}
+.compare-col h3{font-size:1.1rem;font-weight:700;margin-bottom:1.25rem;display:flex;align-items:center;gap:.5rem}
+.compare-item{display:flex;gap:.6rem;align-items:flex-start;padding:.5rem 0;border-bottom:1px solid var(--border)}
+.compare-item:last-child{border-bottom:none}
+.compare-item .ci-icon{font-size:1rem;flex-shrink:0;margin-top:2px}
+.compare-item .ci-text{flex:1}
+.compare-item .ci-text strong{font-size:.85rem;display:block;margin-bottom:.1rem}
+.compare-item .ci-text span{font-size:.78rem;color:var(--text-dim)}
+
+/* BLOCKER CARDS */
+.blocker-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.25rem;margin-top:2rem}
+.blocker-card{border-left:3px solid var(--red);padding:1.25rem}
+.blocker-card h3{font-size:.95rem;color:var(--red);margin-bottom:.35rem}
+.blocker-card p{font-size:.82rem;color:var(--text-dim)}
+.blocker-card .workaround{margin-top:.5rem;padding:.5rem;background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.15);border-radius:6px;font-size:.78rem;color:var(--green)}
+
+.expandable{cursor:pointer}
+.expandable .expand-content{max-height:0;overflow:hidden;transition:max-height .4s ease}
+.expandable.open .expand-content{max-height:800px}
+.expandable .expand-toggle{font-size:.75rem;color:var(--purple);margin-top:.5rem;display:flex;align-items:center;gap:.25rem}
+.expandable .expand-toggle::after{content:'▼';font-size:.6rem;transition:transform .3s}
+.expandable.open .expand-toggle::after{transform:rotate(180deg)}
+.expand-content .detail-list{padding:.75rem 0 0 0;font-size:.82rem;color:var(--text-dim)}
+.expand-content .detail-list li{margin-bottom:.35rem;list-style:none;padding-left:1rem;position:relative}
+.expand-content .detail-list li::before{content:'›';position:absolute;left:0;color:var(--purple);font-weight:700}
+/* CHATBOX */
+.chat-toggle{position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#a855f7,#ec4899);border:none;color:white;font-size:1.5rem;cursor:pointer;z-index:200;box-shadow:0 4px 20px rgba(168,85,247,.3);transition:all .2s;display:flex;align-items:center;justify-content:center}
+.chat-toggle:hover{transform:scale(1.1)}.chat-toggle.open{border-radius:12px;width:44px;height:44px;font-size:1.1rem;bottom:470px}
+.chat-panel{position:fixed;bottom:24px;right:24px;width:380px;height:440px;background:#111827;border:1px solid rgba(255,255,255,.08);border-radius:16px;z-index:199;display:none;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,.5);overflow:hidden}
+.chat-panel.open{display:flex}
+.chat-header{padding:.75rem 1rem;background:rgba(168,85,247,.08);border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:.5rem}
+.chat-header .ch-title{font-size:.85rem;font-weight:700;color:#a855f7}.chat-header .ch-sub{font-size:.7rem;color:#94a3b8;margin-left:auto}
+.chat-messages{flex:1;overflow-y:auto;padding:.75rem;display:flex;flex-direction:column;gap:.5rem;scrollbar-width:thin}
+.chat-msg{max-width:90%;padding:.6rem .85rem;border-radius:12px;font-size:.82rem;line-height:1.5;animation:msg-in .3s ease}
+@keyframes msg-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.chat-msg.bot{background:rgba(168,85,247,.06);border:1px solid rgba(168,85,247,.12);color:#e2e8f0;align-self:flex-start;border-bottom-left-radius:4px}
+.chat-msg.user{background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.2);color:white;align-self:flex-end;border-bottom-right-radius:4px}
+.chat-msg .term-name{color:#a855f7;font-weight:700;display:block;margin-bottom:.25rem}
+.chat-msg .term-category{font-size:.65rem;color:#94a3b8;background:rgba(255,255,255,.04);padding:.1rem .35rem;border-radius:3px;display:inline-block;margin-bottom:.35rem}
+.chat-input-row{padding:.5rem;border-top:1px solid rgba(255,255,255,.08);display:flex;gap:.35rem}
+.chat-input{flex:1;height:36px;border:1px solid rgba(255,255,255,.08);border-radius:8px;background:#0a0e1a;color:#e2e8f0;padding:0 .75rem;font-size:.82rem;font-family:inherit}
+.chat-input:focus{outline:none;border-color:#a855f7}.chat-input::placeholder{color:#94a3b8}
+.chat-send{width:36px;height:36px;border-radius:8px;border:1px solid #a855f7;background:rgba(168,85,247,.1);color:#a855f7;font-size:.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.chat-suggestions{padding:.35rem .75rem;display:flex;gap:.35rem;flex-wrap:wrap;border-top:1px solid rgba(255,255,255,.08)}
+.chat-sug{padding:.2rem .5rem;border-radius:99px;border:1px solid rgba(255,255,255,.08);font-size:.68rem;color:#94a3b8;cursor:pointer;transition:all .15s;background:none}
+.chat-sug:hover{border-color:#a855f7;color:#a855f7}
+</style>
+</head>
+<body>
+<canvas id="particles-canvas"></canvas>
+
+<nav><div class="nav-inner">
+  <div class="logo">🔮 MS Security Unified Architecture</div>
+  <div class="nav-links">
+    <a href="#signalgraph">Signal Graph</a>
+    <a href="#isg">Intel Graph</a>
+    <a href="#copilot">Security Copilot</a>
+    <a href="#compare">MS vs 3rd Party</a>
+    <a href="#blockers">3rd Party Blockers</a>
+  </div>
+</div></nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="badge"><span class="dot"></span> The backend most people never see</div>
+  <h1>The <span class="accent">Unified Backend</span> of Microsoft Security</h1>
+  <p>How 10+ security products share signals in real-time through the Intelligent Security Graph. Why unified Microsoft beats bolted-on third-party. And the real blockers when you go non-Microsoft.</p>
+  <div class="stats-bar">
+    <div class="stat"><div class="stat-value">78T+</div><div class="stat-label">Daily Signals</div></div>
+    <div class="stat"><div class="stat-value">10+</div><div class="stat-label">Products Connected</div></div>
+    <div class="stat"><div class="stat-value"><1s</div><div class="stat-label">Cross-Product Signal Sharing</div></div>
+    <div class="stat"><div class="stat-value">1</div><div class="stat-label">Unified Portal</div></div>
+  </div>
+</section>
+
+<!-- SECTION 1: INTERACTIVE SIGNAL FLOW GRAPH -->
+<section id="signalgraph">
+  <div class="section-inner">
+    <div class="section-label" style="background:rgba(168,85,247,.15);color:var(--purple)">🕸️ Signal Flow</div>
+    <h2 class="section-title fade-in">Click Any Product — See What Signals Flow Where</h2>
+    <p class="section-desc fade-in">Every Microsoft security product feeds signals into the Intelligent Security Graph. Click a product to see what data it sends, what it receives, and how it connects to the others.</p>
+
+    <div class="signal-graph fade-in" id="signal-graph">
+      <svg class="signal-lines" id="signal-lines" viewBox="0 0 1100 520"></svg>
+
+      <!-- Center: XDR -->
+      <div class="sg-node" style="top:200px;left:485px" data-product="xdr" onclick="selectNode('xdr')">
+        <div class="sg-circle" style="background:rgba(168,85,247,.15);border-color:var(--purple);width:100px;height:100px;font-size:2.2rem">🔮</div>
+        <div class="sg-name" style="color:var(--purple)">Defender XDR</div>
+        <div class="sg-desc">Correlation Engine</div>
+      </div>
+
+      <!-- Top row -->
+      <div class="sg-node" style="top:20px;left:80px" data-product="mdo" onclick="selectNode('mdo')">
+        <div class="sg-circle" style="background:rgba(59,130,246,.15);border-color:var(--blue)">📧</div>
+        <div class="sg-name" style="color:var(--blue)">Defender for Office</div>
+        <div class="sg-desc">Email & Collab</div>
+      </div>
+      <div class="sg-node" style="top:20px;left:330px" data-product="mdi" onclick="selectNode('mdi')">
+        <div class="sg-circle" style="background:rgba(168,85,247,.15);border-color:var(--purple)">🆔</div>
+        <div class="sg-name" style="color:var(--purple)">Defender for Identity</div>
+        <div class="sg-desc">On-prem AD</div>
+      </div>
+      <div class="sg-node" style="top:20px;left:600px" data-product="entra" onclick="selectNode('entra')">
+        <div class="sg-circle" style="background:rgba(234,179,8,.15);border-color:var(--yellow)">🔑</div>
+        <div class="sg-name" style="color:var(--yellow)">Entra ID</div>
+        <div class="sg-desc">Identity Platform</div>
+      </div>
+      <div class="sg-node" style="top:20px;left:880px" data-product="intune" onclick="selectNode('intune')">
+        <div class="sg-circle" style="background:rgba(0,229,255,.15);border-color:var(--cyan)">📱</div>
+        <div class="sg-name" style="color:var(--cyan)">Intune</div>
+        <div class="sg-desc">Device Mgmt</div>
+      </div>
+
+      <!-- Bottom row -->
+      <div class="sg-node" style="top:400px;left:80px" data-product="mde" onclick="selectNode('mde')">
+        <div class="sg-circle" style="background:rgba(0,229,255,.15);border-color:var(--cyan)">🛡️</div>
+        <div class="sg-name" style="color:var(--cyan)">Defender for Endpoint</div>
+        <div class="sg-desc">EDR + AV</div>
+      </div>
+      <div class="sg-node" style="top:400px;left:330px" data-product="mcas" onclick="selectNode('mcas')">
+        <div class="sg-circle" style="background:rgba(236,72,153,.15);border-color:var(--pink)">☁️</div>
+        <div class="sg-name" style="color:var(--pink)">Cloud Apps</div>
+        <div class="sg-desc">CASB / SaaS</div>
+      </div>
+      <div class="sg-node" style="top:400px;left:600px" data-product="mdc" onclick="selectNode('mdc')">
+        <div class="sg-circle" style="background:rgba(34,197,94,.15);border-color:var(--green)">🏗️</div>
+        <div class="sg-name" style="color:var(--green)">Defender for Cloud</div>
+        <div class="sg-desc">CSPM + CWPP</div>
+      </div>
+      <div class="sg-node" style="top:400px;left:880px" data-product="sentinel" onclick="selectNode('sentinel')">
+        <div class="sg-circle" style="background:rgba(20,184,166,.15);border-color:var(--teal)">🔭</div>
+        <div class="sg-name" style="color:var(--teal)">Sentinel</div>
+        <div class="sg-desc">SIEM + SOAR</div>
+      </div>
+
+      <!-- Detail panel -->
+      <div class="sg-detail-panel" id="sg-detail">
+        <h3 id="sg-detail-title">👆 Click any product above</h3>
+        <p id="sg-detail-desc">Select a product to see what signals it sends, receives, and how it connects to the Microsoft Intelligent Security Graph.</p>
+        <div class="sg-signals" id="sg-detail-signals"></div>
+      </div>
+    </div>
+
+    <div class="why-box fade-in">
+      <div class="why-title">💡 Why Unified Signal Sharing Matters</div>
+      <div class="why-grid">
+        <div class="why-item"><div class="why-icon">⚡</div><div class="why-content"><h4>Sub-Second Cross-Product Sharing</h4><p>A malicious URL detected in an email by Defender for Office is blocked on every endpoint by MDE within seconds. No API polling, no SIEM correlation delay — it's native backend signal sharing.</p></div></div>
+        <div class="why-item"><div class="why-icon">🧬</div><div class="why-content"><h4>Automatic Attack Disruption</h4><p>XDR can disable a compromised user (Entra ID), isolate their device (MDE), AND block the phishing email campaign (MDO) — all automatically, in seconds, without human intervention.</p></div></div>
+        <div class="why-item"><div class="why-icon">🔗</div><div class="why-content"><h4>Context That No Single Tool Has</h4><p>MDE knows the device. Entra ID knows the user. MDO knows the email. MCAS knows the cloud apps. Individually, each sees a fragment. XDR sees the full story because they all share signals natively.</p></div></div>
+        <div class="why-item"><div class="why-icon">📊</div><div class="why-content"><h4>78 Trillion Signals/Day</h4><p>Microsoft sees signals from Windows, Office, Azure, Xbox, Bing, LinkedIn, GitHub — a global threat intelligence network no third-party can match. Every product benefits from this shared intelligence.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 2: INTELLIGENT SECURITY GRAPH -->
+<section id="isg" style="background:var(--bg2)">
+  <div class="section-inner">
+    <div class="section-label" style="background:rgba(168,85,247,.15);color:var(--purple)">🧠 The Brain</div>
+    <h2 class="section-title fade-in">The Microsoft Intelligent Security Graph</h2>
+    <p class="section-desc fade-in">This is the invisible backend that powers everything. It's not a product you buy — it's the <em>infrastructure</em> connecting all Microsoft security products, processing 78 trillion signals daily.</p>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem" class="fade-in">
+      <div class="card" style="border-top:3px solid var(--purple)">
+        <h3 style="color:var(--purple)">📡 What Feeds Into It</h3>
+        <p style="font-size:.85rem;margin-bottom:.75rem">Every Microsoft product and service generates signals:</p>
+        <div style="font-size:.8rem;color:var(--text-dim);line-height:2">
+          <div>• <strong>1.5B+ Windows devices</strong> — process, file, network, registry telemetry</div>
+          <div>• <strong>400M+ Entra ID authentications/day</strong> — sign-in patterns, risk signals</div>
+          <div>• <strong>300M+ Office 365 users</strong> — email URLs, attachments, phishing signals</div>
+          <div>• <strong>Azure infrastructure</strong> — resource operations, network flows, API calls</div>
+          <div>• <strong>Bing/Edge/SmartScreen</strong> — URL and file reputation from billions of web requests</div>
+          <div>• <strong>GitHub</strong> — malware samples, vulnerability intelligence, developer signals</div>
+          <div>• <strong>Microsoft Threat Intelligence Center (MSTIC)</strong> — nation-state actor tracking</div>
+        </div>
+      </div>
+      <div class="card" style="border-top:3px solid var(--green)">
+        <h3 style="color:var(--green)">⚡ What It Does With Them</h3>
+        <p style="font-size:.85rem;margin-bottom:.75rem">The graph processes, correlates, and distributes intelligence:</p>
+        <div style="font-size:.8rem;color:var(--text-dim);line-height:2">
+          <div>• <strong>URL reputation</strong> — phishing URL seen in email → blocked on every endpoint globally</div>
+          <div>• <strong>File reputation</strong> — new malware hash → cloud protection blocks it everywhere in seconds</div>
+          <div>• <strong>IP reputation</strong> — C2 server IP → blocked by network protection across all tenants</div>
+          <div>• <strong>Behavioral patterns</strong> — attack technique seen in one org → ML models updated for all</div>
+          <div>• <strong>Identity risk</strong> — compromised credential detected → risk signal to Conditional Access</div>
+          <div>• <strong>Cross-product correlation</strong> — email + identity + endpoint signals → XDR incident</div>
+          <div>• <strong>Threat actor tracking</strong> — MSTIC attributes attacks to specific groups (Midnight Blizzard, etc.)</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card fade-in" style="margin-top:2rem;border-left:3px solid var(--purple);padding:2rem">
+      <h3 style="color:var(--purple);margin-bottom:1rem">🔥 Real-World Example: How a Phishing URL Gets Blocked Everywhere in Seconds</h3>
+      <div style="font-family:'Cascadia Code',monospace;font-size:.78rem;line-height:2.2;color:var(--text-dim)">
+        <div><span style="color:var(--blue)">14:22:01</span> — User in Japan reports phishing email. <strong style="color:var(--blue)">Defender for Office</strong> detonates the URL in a sandbox.</div>
+        <div><span style="color:var(--blue)">14:22:03</span> — Sandbox verdict: <strong style="color:var(--red)">MALICIOUS</strong>. URL added to the Intelligent Security Graph.</div>
+        <div><span style="color:var(--blue)">14:22:04</span> — <strong style="color:var(--yellow)">SmartScreen</strong> updated: URL blocked in Edge/Chrome for all Microsoft customers globally.</div>
+        <div><span style="color:var(--blue)">14:22:05</span> — <strong style="color:var(--cyan)">MDE Network Protection</strong>: URL blocked at the network layer on 1.5B+ devices.</div>
+        <div><span style="color:var(--blue)">14:22:05</span> — <strong style="color:var(--blue)">Defender for Office</strong>: All copies of this email retroactively ZAP'd (removed) from all mailboxes globally.</div>
+        <div><span style="color:var(--blue)">14:22:06</span> — <strong style="color:var(--pink)">Defender for Cloud Apps</strong>: URL blocked in sanctioned cloud app sessions.</div>
+        <div><span style="color:var(--blue)">14:22:06</span> — <strong style="color:var(--green)">Entra ID Conditional Access</strong>: Sessions from users who clicked the URL are flagged for re-auth + MFA.</div>
+        <div style="margin-top:.5rem;color:var(--purple);font-weight:700">⏱️ Total time from detection to global protection: ~5 seconds.</div>
+      </div>
+    </div>
+
+    <div class="why-box fade-in">
+      <div class="why-title">💡 Why the Intelligent Security Graph Is Unmatched</div>
+      <div class="why-grid">
+        <div class="why-item"><div class="why-icon">🌍</div><div class="why-content"><h4>Global Scale No One Else Has</h4><p>1.5B Windows devices, 400M Entra ID auths/day, 300M Office users. CrowdStrike sees endpoints. Okta sees identity. Proofpoint sees email. Only Microsoft sees ALL THREE simultaneously, plus cloud, plus web browsing.</p></div></div>
+        <div class="why-item"><div class="why-icon">⚡</div><div class="why-content"><h4>Real-Time, Not Batch</h4><p>Third-party threat intel feeds update hourly or daily. The ISG updates in seconds. A phishing URL detected at 14:22:01 is blocked globally by 14:22:05. That's 4 seconds vs. 4 hours.</p></div></div>
+        <div class="why-item"><div class="why-icon">🤖</div><div class="why-content"><h4>ML Models Trained on All Signals</h4><p>Every ML model (Fusion, file classification, behavioral detection) is trained on the full 78T signal corpus. No third-party has access to this training data — their models are trained on a fraction.</p></div></div>
+        <div class="why-item"><div class="why-icon">🔗</div><div class="why-content"><h4>It's Infrastructure, Not a Product</h4><p>You don't buy the ISG. You get it automatically when you use ANY Microsoft security product. Every product you add makes the graph smarter and your protection stronger — network effects.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION: SECURITY COPILOT -->
+<section id="copilot">
+  <div class="section-inner">
+    <div class="section-label" style="background:rgba(168,85,247,.15);color:var(--purple)">🤖 AI Layer</div>
+    <h2 class="section-title fade-in">Microsoft Security Copilot — The AI on Top of Everything</h2>
+    <p class="section-desc fade-in">Security Copilot isn't a separate security product — it's an <strong>AI reasoning layer</strong> that sits on top of the entire Microsoft security ecosystem. It doesn't have its own data. It queries all your existing products via plugins and synthesizes answers using GPT-4.</p>
+
+    <!-- HOW IT WORKS VISUAL -->
+    <div class="card fade-in" style="padding:2rem;border-left:3px solid var(--purple);margin-bottom:2rem">
+      <h3 style="color:var(--purple);margin-bottom:1.25rem;font-size:1.15rem">🔄 How a Security Copilot Query Actually Works</h3>
+      <div style="font-family:'Cascadia Code',monospace;font-size:.78rem;line-height:2.2;color:var(--text-dim)">
+        <div><span style="color:var(--purple)">Step 1</span> — <strong style="color:var(--text)">You ask:</strong> "Summarize incident INC-4821 and tell me if the attacker IP is known"</div>
+        <div><span style="color:var(--purple)">Step 2</span> — <strong style="color:var(--yellow)">Orchestrator</strong> reads your prompt → decides it needs the <strong>Defender XDR plugin</strong> (for the incident) + <strong>Threat Intel plugin</strong> (for the IP)</div>
+        <div><span style="color:var(--purple)">Step 3</span> — <strong style="color:var(--cyan)">Grounding engine</strong> adds YOUR organizational context — your tenant's users, devices, policies</div>
+        <div><span style="color:var(--purple)">Step 4</span> — <strong style="color:var(--green)">Plugins execute:</strong> XDR plugin pulls incident details, alerts, entities. TI plugin checks IP against Microsoft Threat Intelligence</div>
+        <div><span style="color:var(--purple)">Step 5</span> — <strong style="color:var(--blue)">GPT-4 model</strong> synthesizes everything into a natural language response with citations</div>
+        <div><span style="color:var(--purple)">Step 6</span> — <strong style="color:var(--text)">You get:</strong> <em>"INC-4821 is a brute-force attack from 185.220.101.42 targeting jsmith@contoso.com. This IP is associated with Midnight Blizzard (Russian state actor). 340 files were exfiltrated..."</em></div>
+      </div>
+    </div>
+
+    <!-- PLUGINS = DATA SOURCES -->
+    <h3 class="fade-in" style="color:var(--purple);margin-bottom:1.25rem;font-size:1.1rem">🔌 Where Copilot Gets Its Data — The Plugin System</h3>
+    <p class="fade-in" style="color:var(--text-dim);font-size:.9rem;margin-bottom:1.5rem">Each plugin is a connection to a data source. When you ask a question, the orchestrator picks which plugins to call. The more plugins enabled, the more context Copilot has.</p>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.25rem">
+      <div class="card expandable fade-in" style="border-left:3px solid var(--purple)">
+        <div style="display:flex;gap:.75rem;align-items:center"><div style="font-size:1.4rem">🔮</div><div><strong>Defender XDR Plugin</strong></div></div>
+        <p style="font-size:.8rem;margin-top:.35rem">Incidents, alerts, device timelines, advanced hunting, automatic attack disruption actions</p>
+        <span class="tag" style="background:rgba(168,85,247,.1);color:var(--purple)">Preinstalled</span>
+        <div class="expand-toggle">What it can do →</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li>Summarize any incident with full entity context</li>
+          <li>Generate KQL hunting queries from natural language</li>
+          <li>Analyze suspicious scripts and decode obfuscated code</li>
+          <li>Recommend response actions based on investigation</li>
+          <li>Create incident reports for stakeholders</li>
+        </ul></div>
+      </div>
+
+      <div class="card expandable fade-in" style="border-left:3px solid var(--teal)">
+        <div style="display:flex;gap:.75rem;align-items:center"><div style="font-size:1.4rem">🔭</div><div><strong>Sentinel Plugin</strong></div></div>
+        <p style="font-size:.8rem;margin-top:.35rem">Incidents, hunting queries, analytics rules, watchlists, automation rules, workspaces</p>
+        <span class="tag" style="background:rgba(20,184,166,.1);color:var(--teal)">Preinstalled</span>
+        <div class="expand-toggle">What it can do →</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li>Generate KQL queries from "find all failed logins from Russia"</li>
+          <li>Explain existing analytics rules in plain language</li>
+          <li>Summarize Sentinel incidents with all correlated alerts</li>
+          <li>Suggest new detection rules based on threat descriptions</li>
+          <li>Query across all workspace tables with natural language</li>
+        </ul></div>
+      </div>
+
+      <div class="card expandable fade-in" style="border-left:3px solid var(--yellow)">
+        <div style="display:flex;gap:.75rem;align-items:center"><div style="font-size:1.4rem">🔑</div><div><strong>Entra ID Plugin</strong></div></div>
+        <p style="font-size:.8rem;margin-top:.35rem">Sign-in logs, risky users, Conditional Access policies, role assignments, audit logs</p>
+        <span class="tag" style="background:rgba(234,179,8,.1);color:var(--yellow)">Preinstalled</span>
+        <div class="expand-toggle">What it can do →</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li>"Show me all risky sign-ins for this user in the last 7 days"</li>
+          <li>"What Conditional Access policies apply to this user?"</li>
+          <li>"Who has Global Admin role in my tenant?"</li>
+          <li>Summarize user risk profile with sign-in anomalies</li>
+          <li>Explain why a sign-in was blocked by Conditional Access</li>
+        </ul></div>
+      </div>
+
+      <div class="card expandable fade-in" style="border-left:3px solid var(--cyan)">
+        <div style="display:flex;gap:.75rem;align-items:center"><div style="font-size:1.4rem">📱</div><div><strong>Intune Plugin</strong></div></div>
+        <p style="font-size:.8rem;margin-top:.35rem">Device compliance, app protection policies, configuration profiles, managed device inventory</p>
+        <span class="tag" style="background:rgba(0,229,255,.1);color:var(--cyan)">Preinstalled</span>
+        <div class="expand-toggle">What it can do →</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li>"Is this device compliant? What policies does it fail?"</li>
+          <li>"Show me all devices running outdated OS versions"</li>
+          <li>Compare device configuration across policy profiles</li>
+          <li>Troubleshoot why a policy isn't applying to a device</li>
+          <li>Summarize device posture for an incident investigation</li>
+        </ul></div>
+      </div>
+
+      <div class="card expandable fade-in" style="border-left:3px solid var(--green)">
+        <div style="display:flex;gap:.75rem;align-items:center"><div style="font-size:1.4rem">🏗️</div><div><strong>Defender for Cloud Plugin</strong></div></div>
+        <p style="font-size:.8rem;margin-top:.35rem">Recommendations, secure score, cloud alerts, regulatory compliance, attack paths</p>
+        <span class="tag" style="background:rgba(34,197,94,.1);color:var(--green)">Preinstalled</span>
+        <div class="expand-toggle">What it can do →</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li>"What are my top security recommendations?"</li>
+          <li>"Summarize my compliance posture against CIS benchmarks"</li>
+          <li>"Explain this attack path in plain language"</li>
+          <li>Prioritize remediation based on risk context</li>
+          <li>Generate executive summary of cloud security posture</li>
+        </ul></div>
+      </div>
+
+      <div class="card expandable fade-in" style="border-left:3px solid var(--red)">
+        <div style="display:flex;gap:.75rem;align-items:center"><div style="font-size:1.4rem">🌐</div><div><strong>Threat Intelligence Plugin</strong></div></div>
+        <p style="font-size:.8rem;margin-top:.35rem">MDTI threat actor profiles, IOC intel, vulnerability articles, infrastructure analysis, reputation data</p>
+        <span class="tag" style="background:rgba(239,68,68,.1);color:var(--red)">Preinstalled</span>
+        <div class="expand-toggle">What it can do →</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li>"Is this IP associated with any known threat actor?"</li>
+          <li>"What do we know about Midnight Blizzard's TTPs?"</li>
+          <li>"What vulnerabilities are being actively exploited right now?"</li>
+          <li>Reputation lookup for IPs, domains, file hashes, URLs</li>
+          <li>Map IOCs to MITRE ATT&CK techniques automatically</li>
+        </ul></div>
+      </div>
+
+      <div class="card expandable fade-in" style="border-left:3px solid var(--pink)">
+        <div style="display:flex;gap:.75rem;align-items:center"><div style="font-size:1.4rem">🔒</div><div><strong>Purview Plugin</strong></div></div>
+        <p style="font-size:.8rem;margin-top:.35rem">DLP alerts, insider risk signals, information protection labels, eDiscovery, data governance</p>
+        <span class="tag" style="background:rgba(236,72,153,.1);color:var(--pink)">Preinstalled</span>
+        <div class="expand-toggle">What it can do →</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li>"What DLP violations has this user triggered?"</li>
+          <li>"What sensitivity labels are on the exfiltrated files?"</li>
+          <li>Summarize insider risk score and contributing activities</li>
+          <li>Identify data exposure scope during an incident</li>
+        </ul></div>
+      </div>
+
+      <div class="card expandable fade-in" style="border-left:3px solid var(--orange)">
+        <div style="display:flex;gap:.75rem;align-items:center"><div style="font-size:1.4rem">🔧</div><div><strong>Third-Party Plugins</strong></div></div>
+        <p style="font-size:.8rem;margin-top:.35rem">ServiceNow, Red Canary, Jamf, CrowdStrike, custom API plugins built by your team</p>
+        <span class="tag" style="background:rgba(249,115,22,.1);color:var(--orange)">Installable</span>
+        <div class="expand-toggle">What they can do →</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li>ServiceNow: "Create a ticket for this incident with remediation steps"</li>
+          <li>Jamf: "Is this Mac managed and compliant?"</li>
+          <li>CrowdStrike: "What detections does CrowdStrike have for this device?"</li>
+          <li>Custom plugins: call any REST API your org exposes</li>
+          <li>Extensible: developers can build and publish custom plugins</li>
+        </ul></div>
+      </div>
+    </div>
+
+    <!-- TWO MODES -->
+    <h3 class="fade-in" style="color:var(--purple);margin:2.5rem 0 1rem;font-size:1.1rem">💻 Two Ways to Use It</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem" class="fade-in">
+      <div class="card" style="border-top:3px solid var(--purple);text-align:center;padding:2rem">
+        <div style="font-size:2.5rem;margin-bottom:.75rem">🖥️</div>
+        <h3 style="color:var(--purple)">Standalone Experience</h3>
+        <p style="font-size:.85rem;margin-top:.5rem">Full chat interface at security.microsoft.com/copilot. Multi-turn conversations, promptbooks (saved prompt sequences), sessions you can share with colleagues. Best for deep investigations and report generation.</p>
+      </div>
+      <div class="card" style="border-top:3px solid var(--cyan);text-align:center;padding:2rem">
+        <div style="font-size:2.5rem;margin-bottom:.75rem">🔗</div>
+        <h3 style="color:var(--cyan)">Embedded Experiences</h3>
+        <p style="font-size:.85rem;margin-top:.5rem">Context-aware buttons inside XDR, Sentinel, Intune, and Entra. Click "Summarize" on an incident → Copilot generates a summary without leaving the page. Click "Generate KQL" in hunting → natural language to query. Zero context-switching.</p>
+      </div>
+    </div>
+
+    <!-- BILLING -->
+    <div class="card fade-in" style="margin-top:2rem;text-align:center;padding:1.5rem;border-left:3px solid var(--yellow)">
+      <h3 style="color:var(--yellow);margin-bottom:.5rem">💰 Billing: Security Compute Units (SCUs)</h3>
+      <p style="font-size:.88rem;color:var(--text-dim);max-width:800px;margin:0 auto">Security Copilot uses <strong>pay-per-use pricing</strong> based on Security Compute Units. Each prompt and plugin call consumes SCUs. No per-user licensing — you provision a capacity (e.g., 3 SCUs/hour) and the entire SOC team shares it. Scale up for incidents, scale down during quiet periods.</p>
+    </div>
+
+    <div class="why-box fade-in">
+      <div class="why-title">💡 Why Security Copilot Changes the Game</div>
+      <div class="why-grid">
+        <div class="why-item"><div class="why-icon">⏱️</div><div class="why-content"><h4>Incident Summary: 30 Minutes → 30 Seconds</h4><p>Instead of reading through 15 alerts, 3 device timelines, and 200 sign-in logs — Copilot synthesizes it all into a narrative summary with root cause, scope, and recommended actions.</p></div></div>
+        <div class="why-item"><div class="why-icon">📝</div><div class="why-content"><h4>KQL Without KQL Knowledge</h4><p>"Find all devices that connected to this C2 IP in the last 30 days" → Copilot writes the KQL, runs it, and explains the results. Your Tier 1 analyst just did what used to require Tier 3 skills.</p></div></div>
+        <div class="why-item"><div class="why-icon">🔗</div><div class="why-content"><h4>Cross-Product Context in One Question</h4><p>"Tell me everything about this user — sign-ins, device health, DLP violations, and active incidents" → One prompt queries Entra, Intune, Purview, and XDR simultaneously. No console-hopping.</p></div></div>
+        <div class="why-item"><div class="why-icon">🌍</div><div class="why-content"><h4>Grounded in YOUR Data</h4><p>This isn't generic ChatGPT. Every response is grounded in your tenant's actual data — your users, your devices, your incidents, your policies. The answers are specific to your organization.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 3: UNIFIED MS vs 3RD PARTY -->
+<section id="compare">
+  <div class="section-inner">
+    <div class="section-label" style="background:rgba(59,130,246,.15);color:var(--blue)">⚖️ The Real Difference</div>
+    <h2 class="section-title fade-in">Unified Microsoft vs. Best-of-Breed Third Party</h2>
+    <p class="section-desc fade-in">This isn't "Microsoft good, others bad." It's about understanding what you gain with a unified stack and what you lose. Use this to have informed conversations.</p>
+
+    <div class="compare-grid fade-in">
+      <div class="compare-col" style="background:rgba(168,85,247,.04);border:1px solid rgba(168,85,247,.2);border-radius:16px">
+        <h3 style="color:var(--purple)">🟣 Unified Microsoft Stack</h3>
+        <div class="compare-item"><div class="ci-icon">⚡</div><div class="ci-text"><strong>Native Signal Sharing</strong><span>Products share signals via the ISG backend in sub-second. No API calls, no SIEM as middleware. The email product TALKS to the endpoint product natively.</span></div></div>
+        <div class="compare-item"><div class="ci-icon">🤖</div><div class="ci-text"><strong>Automatic Attack Disruption</strong><span>XDR can disable user + isolate device + block email campaign in seconds. Only works because XDR has native control over all three products.</span></div></div>
+        <div class="compare-item"><div class="ci-icon">📊</div><div class="ci-text"><strong>One Incident Queue</strong><span>All alerts from all products in security.microsoft.com. One portal, one investigation graph, one timeline per entity. No context-switching.</span></div></div>
+        <div class="compare-item"><div class="ci-icon">🧬</div><div class="ci-text"><strong>Fusion ML Correlation</strong><span>ML correlates LOW-fidelity alerts across products into HIGH-confidence incidents. This only works when the ML can see signals from email + identity + endpoint + cloud simultaneously.</span></div></div>
+        <div class="compare-item"><div class="ci-icon">💰</div><div class="ci-text"><strong>Bundled Licensing</strong><span>M365 E5 includes MDE, MDO, MDI, MCAS, Entra ID P2, and Sentinel credits. Separate tools = separate contracts, separate renewals, separate negotiations.</span></div></div>
+        <div class="compare-item"><div class="ci-icon">🔧</div><div class="ci-text"><strong>Zero Integration Work</strong><span>Toggle on a connector, data flows. No custom parsers, no API maintenance, no broken integrations after vendor updates. It just works.</span></div></div>
+      </div>
+      <div class="compare-col" style="background:rgba(249,115,22,.04);border:1px solid rgba(249,115,22,.2);border-radius:16px">
+        <h3 style="color:var(--orange)">🟠 Best-of-Breed (3rd Party Mix)</h3>
+        <div class="compare-item"><div class="ci-icon">🔌</div><div class="ci-text"><strong>API-Based Integration</strong><span>Products communicate via APIs, webhooks, and SIEM as the correlation layer. There's inherent latency — minutes to hours depending on polling intervals and SIEM rule schedules.</span></div></div>
+        <div class="compare-item"><div class="ci-icon">🧑‍💻</div><div class="ci-text"><strong>Manual Playbook Orchestration</strong><span>Attack disruption requires SOAR playbooks calling each vendor's API separately. You build it, you maintain it, you fix it when APIs change. Fragile.</span></div></div>
+        <div class="compare-item"><div class="ci-icon">🖥️</div><div class="ci-text"><strong>Multiple Consoles</strong><span>CrowdStrike console + Proofpoint console + Okta console + Splunk console. Each has its own UI, own terminology, own learning curve. Context-switching kills SOC efficiency.</span></div></div>
+        <div class="compare-item"><div class="ci-icon">📋</div><div class="ci-text"><strong>SIEM-Dependent Correlation</strong><span>The SIEM (Splunk, QRadar) is the only place that sees signals from all tools. Correlation quality depends on your log parsing, your rules, your tuning. No vendor-managed ML.</span></div></div>
+        <div class="compare-item"><div class="ci-icon">💸</div><div class="ci-text"><strong>Per-Product Licensing</strong><span>CrowdStrike + Proofpoint + Okta + Splunk = 4 contracts, 4 renewal cycles, 4 vendor relationships. Typically 2-3x total cost of M365 E5 for equivalent coverage.</span></div></div>
+        <div class="compare-item"><div class="ci-icon">🔧</div><div class="ci-text"><strong>Integration Maintenance</strong><span>Custom parsers, API connectors, data normalization — you build and maintain it. When Splunk updates their API or CrowdStrike changes their data format, YOUR integration breaks.</span></div></div>
+      </div>
+    </div>
+
+    <div class="card fade-in" style="margin-top:2rem;text-align:center;padding:1.5rem;border-left:3px solid var(--yellow)">
+      <h3 style="color:var(--yellow);margin-bottom:.5rem">⚠️ The Honest Caveat</h3>
+      <p style="font-size:.88rem;color:var(--text-dim);max-width:800px;margin:0 auto">Third-party tools can be deeper in their specific domain — CrowdStrike's threat hunting UX, Splunk's query flexibility, Okta's identity governance. Microsoft's strength is the <em>unified picture</em>. The right answer for many orgs is <strong>Microsoft as the backbone + selective third-party for specific gaps</strong>. Sentinel supports 300+ third-party connectors for exactly this reason.</p>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 4: 3RD PARTY BLOCKERS -->
+<section id="blockers" style="background:var(--bg2)">
+  <div class="section-inner">
+    <div class="section-label" style="background:rgba(239,68,68,.15);color:var(--red)">🚧 Real Talk</div>
+    <h2 class="section-title fade-in">Third-Party Blockers — What Breaks When You Go Non-Microsoft</h2>
+    <p class="section-desc fade-in">These are the specific things that DON'T work (or work poorly) when you replace a Microsoft component with a third-party alternative. Use this to have honest conversations about trade-offs.</p>
+
+    <div class="blocker-grid fade-in">
+      <div class="card blocker-card expandable">
+        <h3>🚫 Replace MDE with CrowdStrike</h3>
+        <p>You lose: Automatic Attack Disruption (XDR can't isolate a device it doesn't control), Defender for Servers integration in MDC, TVM data feeding attack paths, native Intune compliance signals.</p>
+        <div class="workaround">🔧 <strong>Workaround:</strong> CrowdStrike → Sentinel via API connector. Manual playbook for isolation. TVM replaced by CrowdStrike Spotlight. But no native XDR correlation — SIEM becomes the correlation layer.</div>
+        <div class="expand-toggle">Impact details →</div>
+        <div class="expand-content"><ul class="detail-list" style="color:var(--text-dim)">
+          <li>Automatic Attack Disruption can't isolate devices — requires SOAR playbook calling CrowdStrike API</li>
+          <li>Fusion ML loses endpoint signals — can't correlate email + identity + endpoint natively</li>
+          <li>Defender for Servers can't auto-provision — must deploy CrowdStrike agent separately</li>
+          <li>Device risk score doesn't flow to Entra ID Conditional Access without custom integration</li>
+          <li>Advanced Hunting loses DeviceProcessEvents, DeviceNetworkEvents tables</li>
+        </ul></div>
+      </div>
+
+      <div class="card blocker-card expandable">
+        <h3>🚫 Replace Entra ID with Okta</h3>
+        <p>You lose: Native Conditional Access integration with MDE/MDC device risk, Identity Protection risk signals in XDR, Entra ID sign-in data in Fusion ML, native PIM/PAM integration.</p>
+        <div class="workaround">🔧 <strong>Workaround:</strong> Okta → Sentinel via SSO connector. Conditional Access partially replaced by Okta policies. But MDE device risk can't natively feed Okta authentication decisions.</div>
+        <div class="expand-toggle">Impact details →</div>
+        <div class="expand-content"><ul class="detail-list" style="color:var(--text-dim)">
+          <li>Conditional Access loses MDE device compliance signals — can't block unhealthy devices at login</li>
+          <li>Identity Protection risk signals don't exist in Okta's format — custom mapping needed</li>
+          <li>Fusion ML loses SigninLogs and AADSignInEventsBeta — can't correlate identity + endpoint</li>
+          <li>Attack paths in MDC lose identity nodes — can't show "over-privileged identity → resource"</li>
+          <li>Passwordless auth (FIDO2, Windows Hello) integration is more complex</li>
+        </ul></div>
+      </div>
+
+      <div class="card blocker-card expandable">
+        <h3>🚫 Replace Sentinel with Splunk</h3>
+        <p>You lose: Native XDR bi-directional incident sync, Fusion ML, unified hunting across Defender tables, built-in automation rules, one-click Microsoft connectors.</p>
+        <div class="workaround">🔧 <strong>Workaround:</strong> Splunk ingests via Defender XDR API + Azure Event Hub. Custom Splunk apps for Microsoft data. But Fusion ML doesn't exist in Splunk — you build every correlation rule manually.</div>
+        <div class="expand-toggle">Impact details →</div>
+        <div class="expand-content"><ul class="detail-list" style="color:var(--text-dim)">
+          <li>No Fusion ML — you manually write every cross-product correlation rule</li>
+          <li>XDR incident sync is one-way (alerts to Splunk) — no bi-directional status sync</li>
+          <li>Advanced Hunting tables (Device*, Email*, Identity*) not available in Splunk natively</li>
+          <li>Microsoft connector updates may break Splunk add-ons — maintenance burden</li>
+          <li>SOAR is separate (Splunk SOAR/Phantom) — another product to license and manage</li>
+          <li>Cost: Splunk ingestion pricing can be 3-10x higher than Sentinel for same data volume</li>
+        </ul></div>
+      </div>
+
+      <div class="card blocker-card expandable">
+        <h3>🚫 Replace MDO with Proofpoint</h3>
+        <p>You lose: ZAP (Zero-hour Auto Purge) retroactive email removal, Safe Links/Attachments sharing with the ISG, native XDR correlation of email → endpoint kill chains.</p>
+        <div class="workaround">🔧 <strong>Workaround:</strong> Proofpoint → Sentinel via API. URL/attachment threat intel shared manually or via TAXII. But phishing URL detected by Proofpoint doesn't auto-block on endpoints — requires manual IOC push.</div>
+        <div class="expand-toggle">Impact details →</div>
+        <div class="expand-content"><ul class="detail-list" style="color:var(--text-dim)">
+          <li>Phishing URL detected in email doesn't auto-block on endpoints via SmartScreen/Network Protection</li>
+          <li>ZAP (retroactive email removal) only works with Defender for Office + Exchange Online</li>
+          <li>Email → endpoint kill chain correlation requires SIEM rules, not native XDR</li>
+          <li>Safe Links click data doesn't flow to XDR incident timeline</li>
+          <li>Attack simulation training loses native integration with email protection metrics</li>
+        </ul></div>
+      </div>
+    </div>
+
+    <div class="why-box fade-in">
+      <div class="why-title">💡 The Key Takeaway for Conversations</div>
+      <div class="why-grid">
+        <div class="why-item"><div class="why-icon">🎯</div><div class="why-content"><h4>It's About Signal Density</h4><p>Every Microsoft product you add increases the signal density in the ISG. Every third-party replacement creates a gap that must be bridged with APIs, parsers, and manual rules. More gaps = more blind spots = more risk.</p></div></div>
+        <div class="why-item"><div class="why-icon">💰</div><div class="why-content"><h4>TCO Is More Than License Cost</h4><p>Third-party looks cheaper per-product, but add integration engineering, SIEM ingestion costs, custom SOAR playbooks, and the SOC hours for multi-console investigation — unified Microsoft is typically 30-50% lower TCO.</p></div></div>
+        <div class="why-item"><div class="why-icon">⚖️</div><div class="why-content"><h4>The Honest Position</h4><p>"Microsoft provides the deepest integration and best cross-product correlation. If you have a specific capability gap, supplement with a third-party tool — but keep Microsoft as the backbone and Sentinel as the correlation layer."</p></div></div>
+        <div class="why-item"><div class="why-icon">🔗</div><div class="why-content"><h4>Sentinel Is the Bridge</h4><p>Even in a mixed environment, Sentinel ingests from 300+ sources including CrowdStrike, Splunk, Okta, Proofpoint. It's designed to be the unifying layer — but Fusion ML works best with native Microsoft data.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<button class="chat-toggle" id="chat-toggle" onclick="toggleChat()">💬</button>
+<div class="chat-panel" id="chat-panel">
+  <div class="chat-header"><span>🔍</span><span class="ch-title">MS Security Ecosystem</span><span class="ch-sub">100+ terms</span></div>
+  <div class="chat-messages" id="chat-messages"><div class="chat-msg bot">👋 Ask about any Microsoft security product, concept, or integration. Try: <strong>XDR</strong>, <strong>ISG</strong>, <strong>attack disruption</strong>, <strong>Security Copilot</strong>, <strong>SCU</strong></div></div>
+  <div class="chat-suggestions">
+    <span class="chat-sug" onclick="chatAsk('XDR')">XDR</span>
+    <span class="chat-sug" onclick="chatAsk('ISG')">ISG</span>
+    <span class="chat-sug" onclick="chatAsk('attack disruption')">Attack Disruption</span>
+    <span class="chat-sug" onclick="chatAsk('Security Copilot')">Security Copilot</span>
+    <span class="chat-sug" onclick="chatAsk('SCU')">SCU</span>
+    <span class="chat-sug" onclick="chatAsk('Fusion')">Fusion</span>
+  </div>
+  <div class="chat-input-row"><input class="chat-input" id="chat-input" placeholder="Ask about MS security ecosystem..." onkeydown="if(event.key==='Enter')sendChat()"><button class="chat-send" onclick="sendChat()">→</button></div>
+</div>
+<footer>
+  <p>Built for security professionals • Content validated against <a href="https://learn.microsoft.com/en-us/security/" target="_blank">Microsoft Learn</a> • March 2026</p>
+  <p style="margin-top:.5rem">For informed conversations, not sales pitches.</p>
+</footer>
+
+<script>
+// Particles
+(function(){const c=document.getElementById('particles-canvas'),ctx=c.getContext('2d');let w,h,pts=[];function resize(){w=c.width=innerWidth;h=c.height=innerHeight}resize();addEventListener('resize',resize);class P{constructor(){this.reset()}reset(){this.x=Math.random()*w;this.y=Math.random()*h;this.vx=(Math.random()-.5)*.3;this.vy=(Math.random()-.5)*.3;this.r=Math.random()*1.5+.5;this.a=Math.random()*.3+.1}update(){this.x+=this.vx;this.y+=this.vy;if(this.x<0||this.x>w)this.vx*=-1;if(this.y<0||this.y>h)this.vy*=-1}draw(){ctx.beginPath();ctx.arc(this.x,this.y,this.r,0,Math.PI*2);ctx.fillStyle=`rgba(168,85,247,${this.a})`;ctx.fill()}}for(let i=0;i<80;i++)pts.push(new P);function loop(){ctx.clearRect(0,0,w,h);pts.forEach(p=>{p.update();p.draw()});for(let i=0;i<pts.length;i++)for(let j=i+1;j<pts.length;j++){const dx=pts[i].x-pts[j].x,dy=pts[i].y-pts[j].y,d=Math.sqrt(dx*dx+dy*dy);if(d<150){ctx.beginPath();ctx.moveTo(pts[i].x,pts[i].y);ctx.lineTo(pts[j].x,pts[j].y);ctx.strokeStyle=`rgba(168,85,247,${.06*(1-d/150)})`;ctx.stroke()}}requestAnimationFrame(loop)}loop()})();
+// Scroll
+const obs=new IntersectionObserver(e=>{e.forEach(x=>{if(x.isIntersecting){x.target.classList.add('visible');obs.unobserve(x.target)}})},{threshold:.15});document.querySelectorAll('.fade-in').forEach(el=>obs.observe(el));
+// Nav
+const secs=document.querySelectorAll('section[id]'),navs=document.querySelectorAll('nav .nav-links a');addEventListener('scroll',()=>{let c='';secs.forEach(s=>{if(scrollY>=s.offsetTop-100)c=s.id});navs.forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+c))});
+// Expandable
+document.querySelectorAll('.expandable').forEach(el=>el.addEventListener('click',()=>el.classList.toggle('open')));
+
+// Signal Graph interactive
+const productData={
+  xdr:{name:'Defender XDR',color:'var(--purple)',icon:'🔮',desc:'The correlation engine at the center. XDR receives alerts from ALL Defender products and correlates them into unified incidents. It\'s the only component that can perform Automatic Attack Disruption — taking response actions across email, identity, AND endpoint simultaneously.',signals:['Receives alerts from: MDE, MDO, MDI, MCAS, MDC','Correlates into unified incidents','Automatic Attack Disruption across products','Provides unified hunting (Advanced Hunting)','Bi-directional sync with Sentinel','Feeds 78T signals into the Intelligent Security Graph'],connections:['mde','mdo','mdi','mcas','mdc','sentinel','entra']},
+  mde:{name:'Defender for Endpoint',color:'var(--cyan)',icon:'🛡️',desc:'Sends: process telemetry, file events, network connections, vulnerability data, device risk score. Receives: malicious URL/file blocklists from ISG, threat intel IOCs, isolation commands from XDR. Feeds device compliance to Intune → Entra ID Conditional Access.',signals:['Sends → XDR: endpoint alerts, process trees, device timeline','Sends → Entra ID: device risk score for Conditional Access','Sends → Intune: device compliance status','Sends → MDC: vulnerability data for attack paths','Receives ← ISG: URL/file/IP reputation blocks in sub-second','Receives ← XDR: isolation commands for Attack Disruption'],connections:['xdr','entra','intune','mdc','sentinel']},
+  mdo:{name:'Defender for Office 365',color:'var(--blue)',icon:'📧',desc:'Sends: phishing URLs, malicious attachment hashes, email metadata, Safe Links click data. Receives: endpoint context (did the user actually run the attachment?), identity risk (is this a compromised sender?). Powers ZAP — retroactive email purge across all mailboxes.',signals:['Sends → ISG: phishing URLs blocked globally in seconds','Sends → XDR: email alerts correlated with endpoint/identity','Sends → SmartScreen: malicious URLs for browser blocking','ZAP: retroactively removes malicious emails from all mailboxes','Receives ← MDE: did the user execute the attachment?','Receives ← Entra ID: is the sender a compromised account?'],connections:['xdr','entra','sentinel']},
+  mdi:{name:'Defender for Identity',color:'var(--purple)',icon:'🆔',desc:'Monitors on-premises Active Directory domain controllers. Sends: lateral movement detections, LDAP reconnaissance, credential theft alerts, DCSync attacks. Receives: endpoint context from MDE to correlate identity attacks with device activity.',signals:['Sends → XDR: AD-based identity alerts (pass-the-hash, DCSync)','Sends → Entra ID: on-prem risk signals for Conditional Access','Detects: lateral movement paths in Active Directory','Detects: LDAP reconnaissance, brute force, honey tokens','Receives ← MDE: device context for identity-based attacks','Receives ← Entra ID: cloud identity signals for hybrid correlation'],connections:['xdr','entra','mde','sentinel']},
+  entra:{name:'Entra ID',color:'var(--yellow)',icon:'🔑',desc:'The identity backbone. EVERY authentication flows through it. Sends: sign-in logs, risk signals, user context. Receives: device risk from MDE, on-prem AD risk from MDI, app risk from MCAS. Conditional Access uses ALL these signals to make real-time auth decisions.',signals:['Sends → ALL products: user identity context and group membership','Sends → Sentinel: SigninLogs, AuditLogs, RiskyUsers','Identity Protection: risky sign-in detection + auto-remediation','Conditional Access: uses MDE device risk + MDI identity risk + MCAS app risk','Receives ← MDE: device compliance and risk score','Receives ← MDI: on-prem AD risk signals for hybrid identity'],connections:['xdr','mde','mdi','mcas','intune','sentinel','mdc']},
+  mcas:{name:'Defender for Cloud Apps',color:'var(--pink)',icon:'☁️',desc:'CASB / SaaS security. Monitors sessions to cloud apps (Salesforce, Box, Dropbox, etc). Sends: impossible travel, mass download, suspicious OAuth app alerts. Receives: identity context from Entra ID, endpoint signals from MDE. Powers session controls that block downloads in real-time.',signals:['Sends → XDR: cloud app alerts (impossible travel, mass download)','Sends → Entra ID: app risk signals for Conditional Access','Session controls: block/monitor downloads in real-time via proxy','Shadow IT discovery: finds unsanctioned cloud apps','Receives ← Entra ID: user identity for session correlation','Receives ← MDE: endpoint context (which device accessed which app)'],connections:['xdr','entra','mde','sentinel']},
+  mdc:{name:'Defender for Cloud',color:'var(--green)',icon:'🏗️',desc:'CSPM + CWPP for Azure, AWS, GCP. Sends: cloud resource alerts (VM exploitation, storage exfil, container escape), posture recommendations, attack paths. Receives: MDE telemetry for Defender for Servers, identity context from Entra ID for attack paths.',signals:['Sends → XDR: cloud workload alerts (VMs, storage, containers)','Sends → Sentinel: CSPM recommendations, compliance data, alerts','Attack paths: identity + resource + network + data connections','Defender for Servers: auto-deploys MDE on all VMs','Receives ← MDE: vulnerability data feeding attack path analysis','Receives ← Entra ID: managed identity context for resource access'],connections:['xdr','mde','entra','sentinel']},
+  sentinel:{name:'Microsoft Sentinel',color:'var(--teal)',icon:'🔭',desc:'SIEM + SOAR. Ingests data from ALL Microsoft products AND 300+ third-party sources. Provides long-term storage, Fusion ML correlation, hunting, and playbook automation. The unifying layer — even in mixed Microsoft/third-party environments.',signals:['Ingests: ALL Defender XDR alerts + raw tables (Device*, Email*, Identity*)','Ingests: 300+ third-party connectors (CrowdStrike, Palo Alto, Okta, etc.)','Fusion ML: correlates Microsoft + third-party signals into incidents','SOAR: playbooks automate response across any service via Logic Apps','Hunting: KQL across ALL ingested data — Microsoft and third-party','Bi-directional sync: incidents sync between Sentinel ↔ XDR'],connections:['xdr','mde','mdo','mdi','entra','mcas','mdc']},
+  intune:{name:'Microsoft Intune',color:'var(--cyan)',icon:'📱',desc:'Device management and compliance. Sends: device compliance status (is the OS patched? is encryption on? is the device jailbroken?). Receives: MDE device risk score. Together, they feed Conditional Access — "only compliant + healthy devices can access corporate data."',signals:['Sends → Entra ID: device compliance status for Conditional Access','Sends → MDE: configuration profiles, security baselines','Deploys: MDE sensor, security baselines, encryption policies','Receives ← MDE: device risk score and vulnerability status','App protection: MAM policies for mobile without full MDM','Compliance policies: enforce OS version, encryption, PIN, jailbreak detection'],connections:['entra','mde']}
+};
+
+let selectedNode=null;
+function selectNode(id){
+  const data=productData[id];if(!data)return;
+  document.querySelectorAll('.sg-node').forEach(n=>n.classList.remove('selected'));
+  document.querySelector(`[data-product="${id}"]`).classList.add('selected');
+  document.getElementById('sg-detail-title').innerHTML=`${data.icon} ${data.name}`;
+  document.getElementById('sg-detail-title').style.color=data.color;
+  document.getElementById('sg-detail-desc').textContent=data.desc;
+  const sigEl=document.getElementById('sg-detail-signals');
+  sigEl.innerHTML=data.signals.map(s=>{
+    let bg='rgba(168,85,247,.1)',col='var(--purple)';
+    if(s.startsWith('Sends'))bg='rgba(0,229,255,.1)',col='var(--cyan)';
+    if(s.startsWith('Receives'))bg='rgba(249,115,22,.1)',col='var(--orange)';
+    if(s.startsWith('Ingests')||s.startsWith('Fusion')||s.startsWith('SOAR')||s.startsWith('Hunting'))bg='rgba(20,184,166,.1)',col='var(--teal)';
+    return `<span class="sg-signal" style="background:${bg};color:${col}">${s}</span>`;
+  }).join('');
+  selectedNode=id;
+}
+// Auto-select XDR on load
+setTimeout(()=>selectNode('xdr'),1000);
+// ===== ECOSYSTEM CHATBOX =====
+const TERMS={
+'xdr':{n:'XDR (Extended Detection & Response)',c:'Microsoft Product',d:'Extends EDR across email, identity, cloud, and network. Correlates alerts from MDE + MDO + MDI + MCAS + MDC into unified incidents.<br><br>⚙️ <strong>Key capability:</strong> Automatic Attack Disruption — XDR can disable a user (Entra ID) + isolate a device (MDE) + block an email campaign (MDO) simultaneously, in seconds, without human intervention.<br><br>⚠️ <strong>Requires:</strong> Only works with native Microsoft products. If you replace MDE with CrowdStrike, XDR can\'t isolate that device.'},
+'isg':{n:'Intelligent Security Graph (ISG)',c:'Microsoft Backend',d:'The invisible infrastructure connecting ALL Microsoft security products. Processes 78T+ signals daily from Windows, Office, Azure, Edge, Bing, Xbox, LinkedIn, GitHub.<br><br>💡 <strong>What it does:</strong> A phishing URL detected in email → blocked on every endpoint globally in ~5 seconds. A malware hash seen on one device → blocked on 1.5B+ Windows devices instantly. You don\'t buy the ISG — you get it automatically with any Microsoft security product.'},
+'attack disruption':{n:'Automatic Attack Disruption',c:'XDR Feature',d:'AI-driven automatic containment of in-progress attacks. XDR decides and acts in seconds without human approval.<br><br>⚙️ <strong>Actions it takes:</strong><br>• Disable compromised user account (Entra ID)<br>• Isolate compromised device (MDE)<br>• Block malicious email campaign (MDO)<br>• Suspend compromised OAuth app (MCAS)<br><br>⚠️ <strong>Key blocker:</strong> Only works with native Microsoft products. XDR can\'t isolate a CrowdStrike-managed device or disable an Okta user.'},
+'security copilot':{n:'Microsoft Security Copilot',c:'AI Product',d:'AI reasoning layer on top of the entire MS security ecosystem. Queries all products via plugins and synthesizes answers using GPT-4.<br><br>⚙️ <strong>How it works:</strong> You ask a question → Orchestrator picks plugins (XDR, Sentinel, Entra, Intune, TI, MDC, Purview) → Grounding engine adds your org context → GPT-4 synthesizes → You get a contextual answer.<br><br>💰 <strong>Billing:</strong> Security Compute Units (SCUs) — pay per use, not per user. Provision capacity, entire SOC shares it.'},
+'scu':{n:'SCU (Security Compute Unit)',c:'Billing Concept',d:'The billing unit for Security Copilot. Each prompt/plugin call consumes SCUs. You provision a capacity (e.g., 3 SCUs/hour) and your team shares it.<br><br>💡 <strong>Tip:</strong> Scale up during major incidents, scale down during quiet periods. No per-user licensing — one capacity pool for the whole SOC.'},
+'fusion':{n:'Fusion ML Detection',c:'Sentinel/XDR Feature',d:'Microsoft\'s ML engine that auto-correlates low-fidelity alerts from multiple products into high-confidence multi-stage attack detections. 150+ built-in patterns. No tuning needed.<br><br>⚠️ <strong>Key insight:</strong> Fusion only works when it sees signals from multiple sources. More Microsoft connectors = more correlation = better detection. This is the #1 technical reason for a unified Microsoft stack.'},
+'mde':{n:'Defender for Endpoint (MDE)',c:'Microsoft Product',d:'Endpoint Detection & Response platform. Sensor (MsSense.exe) collects behavioral telemetry from kernel. 8 hybrid detection engines (4 client + 4 cloud). Advanced Hunting with KQL. Live Response for remote forensics.<br><br>🔗 <strong>Sends to XDR:</strong> Endpoint alerts, device timelines, vulnerability data<br><strong>Receives from ISG:</strong> URL/file/IP reputation blocks in sub-second'},
+'mdo':{n:'Defender for Office 365 (MDO)',c:'Microsoft Product',d:'Email and collaboration security. Phishing detection, Safe Links, Safe Attachments, ZAP (retroactive email removal).<br><br>🔗 <strong>Sends to ISG:</strong> Phishing URLs blocked globally. Malicious attachment hashes.<br><strong>Unique capability:</strong> ZAP removes malicious emails from ALL mailboxes retroactively after detection.'},
+'mdi':{n:'Defender for Identity (MDI)',c:'Microsoft Product',d:'Monitors on-premises Active Directory domain controllers. Detects: lateral movement, LDAP recon, Kerberoasting, DCSync, pass-the-hash, credential theft.<br><br>🔗 <strong>Sends to XDR:</strong> Identity-based alerts. On-prem risk signals to Entra ID Conditional Access.'},
+'mcas':{n:'Defender for Cloud Apps (MCAS)',c:'Microsoft Product',d:'CASB — Cloud Access Security Broker. Monitors SaaS app usage (Salesforce, Box, Dropbox). Session controls can block downloads in real-time via reverse proxy.<br><br>🔗 <strong>Detects:</strong> Impossible travel, mass downloads, suspicious OAuth app grants, shadow IT discovery.'},
+'mdc':{n:'Defender for Cloud (MDC)',c:'Microsoft Product',d:'CNAPP — Cloud Native Application Protection. CSPM (posture) + CWPP (workload protection) for Azure, AWS, GCP, on-premises.<br><br>🔗 <strong>Sends to XDR:</strong> Cloud workload alerts (VM exploitation, storage exfil). Sends to Sentinel: recommendations, compliance data.'},
+'entra id':{n:'Microsoft Entra ID',c:'Identity Platform',d:'The identity backbone. Every authentication flows through it. Conditional Access uses signals from MDE (device risk), MDI (identity risk), MCAS (app risk), and Intune (compliance) to make real-time auth decisions.<br><br>⚠️ <strong>If you replace Entra with Okta:</strong> You lose native Conditional Access integration with device risk, identity protection risk signals in XDR, and identity nodes in MDC attack paths.'},
+'intune':{n:'Microsoft Intune',c:'Device Management',d:'MDM/MAM — device compliance and configuration management. Sends device compliance status to Entra ID for Conditional Access. Receives device risk from MDE.<br><br>🔗 <strong>Key integration:</strong> MDE sensor auto-deploys via Intune. Device compliance + device risk = Conditional Access can block unhealthy devices from accessing corporate data.'},
+'sentinel':{n:'Microsoft Sentinel',c:'SIEM + SOAR',d:'Cloud-native SIEM. 300+ connectors. 4 analytics rule types. Fusion ML. Playbook automation. The unifying layer for Microsoft + third-party security data.<br><br>🔗 <strong>Unique role:</strong> Even in a mixed environment, Sentinel ingests from everything (CrowdStrike, Palo Alto, Okta, Splunk forwarding). It\'s the bridge between Microsoft and non-Microsoft tools.'},
+'graph api':{n:'Microsoft Graph API',c:'API',d:'The unified API for all Microsoft 365 services. Security API subset provides: alerts, incidents, secure score, threat indicators, hunting.<br><br>⚙️ <strong>For automation:</strong> Query incidents, update alert status, push IOCs, run hunting queries — all via REST API with Entra ID OAuth2 authentication.'},
+'zero trust':{n:'Zero Trust',c:'Security Framework',d:'"Never trust, always verify." Every access request is authenticated, authorized, and encrypted regardless of network location.<br><br>⚙️ <strong>Microsoft implementation:</strong> Entra ID (identity verification) + Conditional Access (policy engine) + Intune (device compliance) + MDE (device health) + Information Protection (data classification). All signals feed into every access decision.'},
+'m365 e5':{n:'Microsoft 365 E5',c:'License',d:'The premium license bundle that includes: MDE P2, MDO P2, MDI, MCAS, Entra ID P2, Intune P2, Purview, and Sentinel ingestion credits.<br><br>💰 <strong>Value proposition:</strong> Buying these products individually from separate vendors typically costs 2-3x more. E5 also enables native integrations that don\'t work with third-party alternatives.'},
+};
+function toggleChat(){const p=document.getElementById('chat-panel'),b=document.getElementById('chat-toggle');const o=p.classList.toggle('open');b.classList.toggle('open');b.textContent=o?'✕':'💬';if(o)document.getElementById('chat-input').focus()}
+function sendChat(){const i=document.getElementById('chat-input');const q=i.value.trim();if(!q)return;i.value='';chatAsk(q)}
+function chatAsk(q){const msgs=document.getElementById('chat-messages');const u=document.createElement('div');u.className='chat-msg user';u.textContent=q;msgs.appendChild(u);const key=q.toLowerCase().replace(/[^a-z0-9\.\s&]/g,'').trim();let found=TERMS[key];if(!found){for(const k of Object.keys(TERMS)){if(k.includes(key)||TERMS[k].n.toLowerCase().includes(key)||TERMS[k].d.toLowerCase().includes(key)){found=TERMS[k];break}}}const b=document.createElement('div');b.className='chat-msg bot';if(found){b.innerHTML=`<span class="term-name">${found.n}</span><span class="term-category">${found.c}</span>${found.d}`}else{b.innerHTML=`I don't have "<strong>${q}</strong>" yet. Try: <strong>XDR</strong>, <strong>ISG</strong>, <strong>attack disruption</strong>, <strong>Security Copilot</strong>, <strong>Fusion</strong>, or <strong>zero trust</strong>.`}msgs.appendChild(b);msgs.scrollTop=msgs.scrollHeight;if(!document.getElementById('chat-panel').classList.contains('open'))toggleChat()}
+</script>
+</body>
+</html>

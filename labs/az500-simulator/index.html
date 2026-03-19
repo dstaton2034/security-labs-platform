@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AZ-500 Portal Simulator — Azure Security Technologies</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--azure:#0078d4;--azure-dark:#005a9e;--azure-light:#deecf9;--bg:#1e1e1e;--bg2:#252526;--bg3:#2d2d30;--sidebar-bg:#333333;--text:#cccccc;--text-bright:#ffffff;--text-dim:#969696;--green:#4ec9b0;--red:#f14c4c;--yellow:#dcdcaa;--orange:#ce9178;--border:#404040;--success:#22c55e;--error:#ef4444;--warning:#f97316}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.5;overflow-x:hidden}
+
+/* PORTAL LAYOUT */
+.portal{display:flex;height:100vh;flex-direction:column}
+.portal-header{background:var(--azure);color:white;height:44px;display:flex;align-items:center;padding:0 1rem;font-size:.85rem;gap:1rem;flex-shrink:0}
+.portal-header .ph-logo{font-weight:700;display:flex;align-items:center;gap:.5rem}
+.portal-header .ph-search{flex:1;max-width:500px;height:28px;border-radius:4px;border:none;padding:0 .75rem;font-size:.8rem;background:rgba(255,255,255,.15);color:white}
+.portal-header .ph-search::placeholder{color:rgba(255,255,255,.6)}
+.portal-header .ph-user{margin-left:auto;display:flex;align-items:center;gap:.5rem;font-size:.8rem}
+.portal-body{display:flex;flex:1;overflow:hidden}
+
+/* SIDEBAR */
+.sidebar{width:260px;background:var(--bg2);border-right:1px solid var(--border);overflow-y:auto;flex-shrink:0;display:flex;flex-direction:column}
+.sidebar-section{padding:.75rem 0}
+.sidebar-section-title{padding:.25rem 1rem;font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim)}
+.sidebar-item{padding:.45rem 1rem .45rem 1.5rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.5rem;transition:background .15s;color:var(--text);border-left:3px solid transparent}
+.sidebar-item:hover{background:rgba(255,255,255,.05)}
+.sidebar-item.active{background:rgba(0,120,212,.15);border-left-color:var(--azure);color:var(--text-bright)}
+.sidebar-item .si-icon{font-size:1rem;width:20px;text-align:center}
+.sidebar-item .si-badge{margin-left:auto;background:var(--azure);color:white;font-size:.65rem;padding:.1rem .35rem;border-radius:99px;font-weight:700}
+
+/* MAIN CONTENT */
+.main-content{flex:1;overflow-y:auto;padding:0}
+.blade{max-width:1000px;margin:0 auto;padding:2rem}
+.blade-header{margin-bottom:2rem}
+.blade-header h1{font-size:1.5rem;font-weight:600;color:var(--text-bright);margin-bottom:.35rem}
+.blade-header p{font-size:.88rem;color:var(--text-dim)}
+.blade-header .domain-tag{display:inline-block;padding:.2rem .6rem;border-radius:4px;font-size:.7rem;font-weight:700;margin-bottom:.5rem}
+
+/* SCENARIO */
+.scenario{background:var(--bg2);border:1px solid var(--border);border-radius:8px;margin-bottom:1.5rem;overflow:hidden}
+.scenario-header{padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.scenario-header h3{font-size:1rem;font-weight:600;color:var(--text-bright);display:flex;align-items:center;gap:.5rem}
+.scenario-header .scenario-status{font-size:.75rem;font-weight:600;padding:.2rem .5rem;border-radius:4px}
+.scenario-header .status-pending{background:rgba(150,150,150,.15);color:var(--text-dim)}
+.scenario-header .status-correct{background:rgba(34,197,94,.15);color:var(--success)}
+.scenario-header .status-wrong{background:rgba(239,68,68,.15);color:var(--error)}
+.scenario-body{padding:1.25rem}
+.scenario-context{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:1rem;margin-bottom:1rem;font-size:.85rem;color:var(--text-dim)}
+.scenario-context strong{color:var(--text-bright)}
+.scenario-question{font-size:.95rem;font-weight:600;color:var(--text-bright);margin-bottom:1rem}
+
+/* AZURE-STYLE FORM CONTROLS */
+.az-form-group{margin-bottom:1rem}
+.az-form-group label{display:block;font-size:.82rem;font-weight:600;color:var(--text);margin-bottom:.35rem}
+.az-form-group .az-hint{font-size:.75rem;color:var(--text-dim);margin-top:.2rem}
+.az-select,.az-input{width:100%;max-width:400px;height:32px;border:1px solid var(--border);border-radius:2px;background:var(--bg3);color:var(--text-bright);padding:0 .5rem;font-size:.82rem;font-family:inherit}
+.az-select:focus,.az-input:focus{outline:none;border-color:var(--azure)}
+.az-checkbox-group{display:flex;flex-direction:column;gap:.5rem}
+.az-checkbox{display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.85rem;padding:.3rem .5rem;border-radius:4px;transition:background .15s}
+.az-checkbox:hover{background:rgba(255,255,255,.05)}
+.az-checkbox input{accent-color:var(--azure);width:16px;height:16px;cursor:pointer}
+.az-radio-group{display:flex;flex-direction:column;gap:.5rem}
+.az-radio{display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.85rem;padding:.3rem .5rem;border-radius:4px;transition:background .15s}
+.az-radio:hover{background:rgba(255,255,255,.05)}
+.az-radio input{accent-color:var(--azure);width:16px;height:16px;cursor:pointer}
+.az-toggle{display:flex;align-items:center;gap:.75rem;cursor:pointer;font-size:.85rem}
+.az-toggle-switch{width:40px;height:20px;border-radius:10px;background:var(--border);position:relative;transition:background .2s;flex-shrink:0}
+.az-toggle-switch::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--text-dim);transition:all .2s}
+.az-toggle-switch.on{background:var(--azure)}
+.az-toggle-switch.on::after{left:22px;background:white}
+
+/* BUTTONS */
+.az-btn{padding:.4rem 1rem;border-radius:2px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-size:.82rem;cursor:pointer;transition:all .15s;font-family:inherit}
+.az-btn:hover{background:var(--border)}
+.az-btn-primary{background:var(--azure);color:white;border-color:var(--azure)}
+.az-btn-primary:hover{background:var(--azure-dark)}
+.btn-group{display:flex;gap:.5rem;margin-top:1.5rem}
+
+/* FEEDBACK */
+.feedback{padding:1rem;border-radius:6px;margin-top:1rem;font-size:.85rem;display:none}
+.feedback.show{display:block}
+.feedback.correct{background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);color:var(--success)}
+.feedback.wrong{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);color:var(--error)}
+.feedback h4{font-weight:700;margin-bottom:.35rem}
+.feedback p{color:var(--text-dim)}
+.feedback .correct-answer{color:var(--success);font-weight:600;margin-top:.5rem}
+
+/* SCORE BAR */
+.score-bar{background:var(--bg2);border-top:1px solid var(--border);padding:.5rem 1.5rem;display:flex;align-items:center;gap:1.5rem;font-size:.82rem;flex-shrink:0}
+.score-bar .score-label{color:var(--text-dim)}
+.score-bar .score-value{color:var(--text-bright);font-weight:700}
+.score-bar .score-progress{flex:1;max-width:300px;height:6px;background:var(--border);border-radius:3px;overflow:hidden}
+.score-bar .score-fill{height:100%;background:var(--azure);border-radius:3px;transition:width .5s}
+.score-bar .domain-scores{margin-left:auto;display:flex;gap:1rem}
+.score-bar .ds{font-size:.75rem;color:var(--text-dim)}
+.score-bar .ds span{color:var(--text-bright);font-weight:600}
+
+/* PORTAL TABS */
+.az-tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:1.5rem}
+.az-tab{padding:.5rem 1rem;font-size:.82rem;cursor:pointer;color:var(--text-dim);border-bottom:2px solid transparent;transition:all .15s}
+.az-tab:hover{color:var(--text)}
+.az-tab.active{color:var(--azure);border-bottom-color:var(--azure)}
+</style>
+</head>
+<body>
+
+<div class="portal">
+  <!-- HEADER -->
+  <div class="portal-header">
+    <div class="ph-logo">☁️ Microsoft Azure — AZ-500 Simulator</div>
+    <input class="ph-search" placeholder="Search scenarios..." oninput="filterScenarios(this.value)">
+    <div class="ph-user">👤 SecurityEngineer@contoso.com</div>
+  </div>
+
+  <div class="portal-body">
+    <!-- SIDEBAR -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Domain 1 — Identity & Access (15-20%)</div>
+        <div class="sidebar-item" data-scenario="ca" onclick="loadScenario('ca')"><span class="si-icon">🔑</span>Conditional Access<span class="si-badge" id="badge-ca">⬤</span></div>
+        <div class="sidebar-item" data-scenario="pim" onclick="loadScenario('pim')"><span class="si-icon">👑</span>PIM Configuration<span class="si-badge" id="badge-pim">⬤</span></div>
+        <div class="sidebar-item" data-scenario="mi" onclick="loadScenario('mi')"><span class="si-icon">🤖</span>Managed Identities<span class="si-badge" id="badge-mi">⬤</span></div>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Domain 2 — Networking (20-25%)</div>
+        <div class="sidebar-item" data-scenario="nsg" onclick="loadScenario('nsg')"><span class="si-icon">🌐</span>NSG Rules<span class="si-badge" id="badge-nsg">⬤</span></div>
+        <div class="sidebar-item" data-scenario="pe" onclick="loadScenario('pe')"><span class="si-icon">🔒</span>Private Endpoints<span class="si-badge" id="badge-pe">⬤</span></div>
+        <div class="sidebar-item" data-scenario="waf" onclick="loadScenario('waf')"><span class="si-icon">🛡️</span>WAF + App Gateway<span class="si-badge" id="badge-waf">⬤</span></div>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Domain 3 — Compute, Storage & DBs (20-25%)</div>
+        <div class="sidebar-item" data-scenario="kv" onclick="loadScenario('kv')"><span class="si-icon">🗝️</span>Key Vault Access<span class="si-badge" id="badge-kv">⬤</span></div>
+        <div class="sidebar-item" data-scenario="storage" onclick="loadScenario('storage')"><span class="si-icon">💾</span>Storage Security<span class="si-badge" id="badge-storage">⬤</span></div>
+        <div class="sidebar-item" data-scenario="sql" onclick="loadScenario('sql')"><span class="si-icon">🗄️</span>SQL Security<span class="si-badge" id="badge-sql">⬤</span></div>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Domain 4 — Defender & Sentinel (30-35%)</div>
+        <div class="sidebar-item" data-scenario="mdc" onclick="loadScenario('mdc')"><span class="si-icon">🏗️</span>Defender for Cloud<span class="si-badge" id="badge-mdc">⬤</span></div>
+        <div class="sidebar-item" data-scenario="sentinel" onclick="loadScenario('sentinel')"><span class="si-icon">🔭</span>Sentinel Setup<span class="si-badge" id="badge-sentinel">⬤</span></div>
+      </div>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main-content" id="main-content">
+      <div class="blade" id="blade">
+        <div class="blade-header">
+          <h1>☁️ AZ-500 Portal Configuration Simulator</h1>
+          <p>Select a scenario from the sidebar to practice configuring Azure security settings. Each scenario mimics the Azure portal — configure the settings, submit, and get instant feedback with explanations.</p>
+          <div style="margin-top:1.5rem;display:grid;grid-template-columns:repeat(4,1fr);gap:1rem">
+            <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:1rem;text-align:center;border-top:3px solid var(--azure)">
+              <div style="font-size:1.5rem;margin-bottom:.25rem">🔑</div>
+              <div style="font-weight:700;font-size:.9rem;color:var(--text-bright)">Identity & Access</div>
+              <div style="font-size:.75rem;color:var(--text-dim)">15-20% of exam</div>
+              <div style="font-size:.75rem;color:var(--text-dim)">3 scenarios</div>
+            </div>
+            <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:1rem;text-align:center;border-top:3px solid var(--green)">
+              <div style="font-size:1.5rem;margin-bottom:.25rem">🌐</div>
+              <div style="font-weight:700;font-size:.9rem;color:var(--text-bright)">Networking</div>
+              <div style="font-size:.75rem;color:var(--text-dim)">20-25% of exam</div>
+              <div style="font-size:.75rem;color:var(--text-dim)">3 scenarios</div>
+            </div>
+            <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:1rem;text-align:center;border-top:3px solid var(--orange)">
+              <div style="font-size:1.5rem;margin-bottom:.25rem">💾</div>
+              <div style="font-weight:700;font-size:.9rem;color:var(--text-bright)">Compute & Storage</div>
+              <div style="font-size:.75rem;color:var(--text-dim)">20-25% of exam</div>
+              <div style="font-size:.75rem;color:var(--text-dim)">3 scenarios</div>
+            </div>
+            <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:1rem;text-align:center;border-top:3px solid #a855f7">
+              <div style="font-size:1.5rem;margin-bottom:.25rem">🛡️</div>
+              <div style="font-weight:700;font-size:.9rem;color:var(--text-bright)">Defender & Sentinel</div>
+              <div style="font-size:.75rem;color:var(--text-dim)">30-35% of exam</div>
+              <div style="font-size:.75rem;color:var(--text-dim)">2 scenarios</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCORE BAR -->
+  <div class="score-bar">
+    <span class="score-label">Score:</span>
+    <span class="score-value" id="score-text">0 / 11</span>
+    <div class="score-progress"><div class="score-fill" id="score-fill" style="width:0%"></div></div>
+    <div class="domain-scores">
+      <div class="ds">D1: <span id="d1-score">0/3</span></div>
+      <div class="ds">D2: <span id="d2-score">0/3</span></div>
+      <div class="ds">D3: <span id="d3-score">0/3</span></div>
+      <div class="ds">D4: <span id="d4-score">0/2</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SCENARIOS={
+  // ===== DOMAIN 1: IDENTITY & ACCESS — HARD =====
+  ca:{
+    id:'ca',domain:1,title:'🔴 Troubleshoot: Users Bypassing MFA',domainTag:'Domain 1 — Identity & Access',color:'#0078d4',
+    context:'<strong>Incident Report:</strong> A security audit reveals that 14 users accessed the Azure portal from personal devices WITHOUT completing MFA in the last 30 days — despite a Conditional Access policy requiring MFA for all Azure portal access.<br><br><strong>Current Configuration:</strong><br>• Policy name: "Require MFA - Azure Portal"<br>• Users: Include = "All users"<br>• Exclude = Group "CA-Exclusions" (contains 3 break-glass accounts + 14 IT admins who complained about MFA)<br>• Cloud apps: "All cloud apps"<br>• Conditions: None configured<br>• Grant: "Require multi-factor authentication"<br>• Session: None<br>• Policy state: Enabled<br><br>Your CISO wants this fixed immediately. Some IT admins travel internationally and say MFA is "too annoying." The break-glass accounts must remain excluded.',
+    question:'Identify the misconfigurations and fix them. There are MULTIPLE issues.',
+    fields:[
+      {id:'ca-issue1',type:'select',label:'Issue #1: Why are 14 users bypassing MFA?',options:['Select...','The policy is in Report-only mode','The 14 IT admins are in the CA-Exclusions group alongside break-glass accounts','MFA is not supported for Azure portal','The policy targets All cloud apps instead of Azure Management'],correct:'The 14 IT admins are in the CA-Exclusions group alongside break-glass accounts'},
+      {id:'ca-fix1',type:'select',label:'Fix #1: How to resolve the exclusion issue?',options:['Select...','Delete the CA-Exclusions group entirely','Remove the 14 IT admins from CA-Exclusions, keep only break-glass accounts','Create a separate policy to exclude IT admins','Disable break-glass accounts'],correct:'Remove the 14 IT admins from CA-Exclusions, keep only break-glass accounts'},
+      {id:'ca-issue2',type:'select',label:'Issue #2: The policy targets "All cloud apps." What\'s the risk?',options:['Select...','No risk — this is best practice','It could block access to the Entra portal needed to manage Conditional Access itself, causing lockout','It only affects Azure portal so the scope is fine','All cloud apps is required for MFA policies'],correct:'It could block access to the Entra portal needed to manage Conditional Access itself, causing lockout'},
+      {id:'ca-fix2',type:'select',label:'Fix #2: What should the target be for Azure portal MFA?',options:['Select...','All cloud apps (keep as-is)','Microsoft Azure Management (API/portal only)','Office 365 only','Microsoft Graph'],correct:'Microsoft Azure Management (API/portal only)'},
+      {id:'ca-issue3',type:'select',label:'Issue #3: IT admins travel internationally and complain about MFA. What\'s the SECURE solution?',options:['Select...','Exempt them from MFA entirely','Create a Named Location for corporate offices, require MFA only outside those locations','Disable MFA for the IT admin group','Switch to SMS-based MFA which works internationally'],correct:'Create a Named Location for corporate offices, require MFA only outside those locations'},
+      {id:'ca-issue4',type:'select',label:'Issue #4: No session controls are configured. What should be added for Azure portal from unmanaged devices?',options:['Select...','Nothing — session controls aren\'t needed','Sign-in frequency: 4 hours + persistent browser: disabled','Continuous access evaluation: disabled','App enforced restrictions only'],correct:'Sign-in frequency: 4 hours + persistent browser: disabled'},
+      {id:'ca-breakglass',type:'select',label:'Best practice: How should break-glass accounts be monitored since they bypass MFA?',options:['Select...','No monitoring needed — they\'re emergency only','Create a Sentinel analytics rule alerting on ANY sign-in by break-glass accounts','Check the sign-in logs monthly','Disable the accounts and only enable when needed'],correct:'Create a Sentinel analytics rule alerting on ANY sign-in by break-glass accounts'},
+    ],
+    explanation:'This is a common real-world mess: IT admins get added to exclusion groups "temporarily" and never removed. The fix: (1) Remove admins from CA-Exclusions — only break-glass accounts should be there. (2) Target "Microsoft Azure Management" not "All cloud apps" to avoid lockout scenarios. (3) Use Named Locations — MFA outside corporate offices, trusted inside — this solves the travel complaint without weakening security. (4) Sign-in frequency forces re-auth every 4 hours on unmanaged devices. (5) Break-glass accounts MUST be monitored — a Sentinel rule on SigninLogs where UserPrincipalName matches break-glass is essential since these accounts bypass all CA policies.'
+  },
+  pim:{
+    id:'pim',domain:1,title:'🔴 Investigation: Unauthorized Global Admin Activity',domainTag:'Domain 1 — Identity & Access',color:'#0078d4',
+    context:'<strong>Incident Report:</strong> At 2:47 AM last Tuesday, someone activated the Global Administrator role via PIM and made the following changes:<br>• Created 3 new guest user accounts<br>• Granted one guest "Owner" on the production subscription<br>• Disabled MFA for a Conditional Access policy<br>• Added a new OAuth app with Mail.ReadWrite.All permission<br><br><strong>Current PIM Configuration:</strong><br>• Global Admin: Eligible assignment, permanent (no expiration)<br>• Max activation: 24 hours<br>• MFA required on activation: Yes<br>• Approval required: No<br>• Justification required: No<br>• Notification on activation: Disabled<br><br>The account that activated was admin@contoso.com. The admin claims they were asleep and didn\'t activate the role.',
+    question:'Identify ALL the PIM misconfigurations that allowed this attack and fix them.',
+    fields:[
+      {id:'pim-issue1',type:'select',label:'What likely happened to the admin\'s account?',options:['Select...','Admin is lying and did it themselves','The account token/session was stolen — attacker used existing MFA-authenticated session to activate PIM','PIM has a bug that allows unauthorized activation','Another admin used the account'],correct:'The account token/session was stolen — attacker used existing MFA-authenticated session to activate PIM'},
+      {id:'pim-fix1',type:'select',label:'Fix: 24-hour activation is a major risk. What should max activation be?',options:['Select...','1 hour','4 hours','8 hours','Keep 24 hours but add approval'],correct:'4 hours'},
+      {id:'pim-fix2',type:'select',label:'Fix: Why did this attack succeed even with MFA required?',options:['Select...','MFA was bypassed because the attacker had the phone','The attacker stole a session token AFTER MFA was completed — token replay','MFA doesn\'t apply to PIM activations','The admin had an app password configured'],correct:'The attacker stole a session token AFTER MFA was completed — token replay'},
+      {id:'pim-fix3',type:'select',label:'Fix: What additional control should be enabled to prevent this?',options:['Select...','Require approval from Security Admins for Global Admin activation','Require a longer MFA timeout','Add IP-based restrictions only','Disable PIM entirely'],correct:'Require approval from Security Admins for Global Admin activation'},
+      {id:'pim-fix4',type:'select',label:'Fix: The eligible assignment is permanent. What should change?',options:['Select...','Keep permanent — Global Admin needs to always be available','Set 6-month expiration with access review','Set 12-month expiration with no review','Convert to active assignment instead'],correct:'Set 6-month expiration with access review'},
+      {id:'pim-fix5',type:'select',label:'Fix: Notifications were disabled. What\'s the correct setting?',options:['Select...','Notify admin only','Notify approver only','Notify admin + assignee + approver on activation AND assignment','Notifications aren\'t important if approval is enabled'],correct:'Notify admin + assignee + approver on activation AND assignment'},
+      {id:'pim-fix6',type:'select',label:'What Entra ID feature helps prevent token theft/replay attacks?',options:['Select...','Conditional Access: Continuous Access Evaluation (CAE) + Token protection','Longer session timeouts','Disable persistent browser sessions only','Azure MFA number matching'],correct:'Conditional Access: Continuous Access Evaluation (CAE) + Token protection'},
+      {id:'pim-fix7',type:'select',label:'Post-incident: The attacker created an OAuth app with Mail.ReadWrite.All. How do you detect this going forward?',options:['Select...','Check the Azure portal manually weekly','Create a Sentinel analytics rule on AuditLogs where OperationName == "Add app role assignment to service principal"','This can\'t be detected','Enable Defender for Identity'],correct:'Create a Sentinel analytics rule on AuditLogs where OperationName == "Add app role assignment to service principal"'},
+    ],
+    explanation:'This is a realistic PIM attack scenario — token theft is the #1 way attackers bypass MFA. The 24-hour activation window meant the stolen token had a long validity. Fixes: (1) 4-hour max activation reduces blast radius. (2) Approval from DIFFERENT role (Security Admin, not another Global Admin) adds separation of duties. (3) 6-month expiration + access review forces periodic validation. (4) Notifications to all parties create an immediate alert trail. (5) CAE + Token Protection are the specific Entra ID features that detect compromised tokens and enforce near-real-time revocation. (6) Monitoring AuditLogs for OAuth app permission grants catches the specific post-compromise technique used here.'
+  },
+  mi:{
+    id:'mi',domain:1,title:'🔴 Architecture Review: Over-Privileged App',domainTag:'Domain 1 — Identity & Access',color:'#0078d4',
+    context:'<strong>Security Review Finding:</strong> A development team deployed a web app on App Service that:<br>• Uses a user-assigned managed identity shared across 5 different apps<br>• The managed identity has "Contributor" role on the entire subscription<br>• The app only needs to: read secrets from Key Vault "kv-prod", write to a specific blob container "reports" in storage account "stprod", and query Azure SQL database "sqldb-customers"<br>• The Key Vault uses vault access policies (not RBAC)<br>• The app stores a SQL connection string with username/password in App Service Configuration (plaintext)<br><br>Your job: Fix EVERY security issue.',
+    question:'Identify all security violations and configure the correct least-privilege access.',
+    fields:[
+      {id:'mi-issue1',type:'select',label:'Issue #1: User-assigned MI shared across 5 apps. What\'s the problem?',options:['Select...','No problem — sharing is efficient','If one app is compromised, the attacker gets access to ALL 5 apps\' permissions. Blast radius is too large.','User-assigned MIs are not supported on App Service','Shared MIs have lower performance'],correct:'If one app is compromised, the attacker gets access to ALL 5 apps\' permissions. Blast radius is too large.'},
+      {id:'mi-fix1',type:'select',label:'Fix: What identity should this app use?',options:['Select...','Keep the shared user-assigned MI','Switch to system-assigned MI (unique per app, deleted with the app)','Create a service principal with a client secret','Use the App Service\'s default identity'],correct:'Switch to system-assigned MI (unique per app, deleted with the app)'},
+      {id:'mi-issue2',type:'select',label:'Issue #2: "Contributor" on the entire subscription. What\'s wrong?',options:['Select...','Contributor is fine for production apps','Massive over-privilege — Contributor can create/delete ANY resource in the subscription. App only needs 3 specific data-plane operations.','Contributor doesn\'t have enough permissions','The role should be Owner instead'],correct:'Massive over-privilege — Contributor can create/delete ANY resource in the subscription. App only needs 3 specific data-plane operations.'},
+      {id:'mi-fix2-kv',type:'select',label:'Fix: Key Vault role for reading secrets only',options:['Select...','Key Vault Administrator','Key Vault Secrets Officer','Key Vault Secrets User','Key Vault Contributor'],correct:'Key Vault Secrets User'},
+      {id:'mi-fix2-storage',type:'select',label:'Fix: Storage role for writing to a specific container',options:['Select...','Storage Account Contributor','Storage Blob Data Contributor (scoped to the container)','Storage Blob Data Owner','Contributor'],correct:'Storage Blob Data Contributor (scoped to the container)'},
+      {id:'mi-fix2-sql',type:'select',label:'Fix: SQL Database access method',options:['Select...','SQL authentication with password in Key Vault','Entra authentication using the managed identity (no password needed)','Embedded connection string in code','Shared access signature'],correct:'Entra authentication using the managed identity (no password needed)'},
+      {id:'mi-issue3',type:'select',label:'Issue #3: Key Vault uses vault access policies. What should change?',options:['Select...','Keep vault access policies — they work fine','Migrate to Azure RBAC permission model (Microsoft recommended, more granular, supports Conditional Access)','Switch to shared access signatures','Use Key Vault firewall rules only'],correct:'Migrate to Azure RBAC permission model (Microsoft recommended, more granular, supports Conditional Access)'},
+      {id:'mi-issue4',type:'select',label:'Issue #4: SQL connection string with password in App Service config. What\'s wrong AND what\'s the fix?',options:['Select...','It\'s fine if the config is encrypted','Plaintext credentials in config can be exposed via SSRF, backup, or portal access. Fix: Use managed identity auth (no password) + Key Vault references for any remaining secrets','Move the password to an environment variable','Encrypt the password with a custom key'],correct:'Plaintext credentials in config can be exposed via SSRF, backup, or portal access. Fix: Use managed identity auth (no password) + Key Vault references for any remaining secrets'},
+    ],
+    explanation:'This scenario is VERY common in real-world Azure. Every issue: (1) Shared user-assigned MI = shared blast radius. System-assigned is unique per app and auto-deleted. (2) Subscription-level Contributor is never appropriate for an app — scope roles to the specific resource AND use data-plane roles (Secrets User, Blob Data Contributor) not management-plane roles (Contributor). (3) RBAC scope to the container level, not the storage account. (4) Key Vault RBAC is Microsoft\'s current recommendation — it supports Conditional Access and is more granular than vault access policies. (5) Managed identity for SQL eliminates passwords entirely. (6) Never store credentials in App Service Configuration — use Key Vault references or managed identity to eliminate secrets from config.'
+  },
+
+  // ===== DOMAIN 2: NETWORKING — HARD =====
+  nsg:{
+    id:'nsg',domain:2,title:'🔴 Troubleshoot: Web App Can\'t Reach Database',domainTag:'Domain 2 — Networking',color:'#4ec9b0',
+    context:'<strong>Support Ticket:</strong> The web application in the App subnet (10.0.1.0/24) suddenly can\'t connect to the SQL database in the Data subnet (10.0.2.0/24) on port 1433. It was working yesterday.<br><br><strong>Current NSG on Data subnet (nsg-data):</strong><br>Priority 100: Allow TCP 1433 from 10.0.1.0/24 → ✅<br>Priority 150: Allow TCP 443 from AzureLoadBalancer → ✅<br>Priority 200: Deny ALL from VirtualNetwork → ⚠️ <em>(Added yesterday by a junior admin "for security")</em><br>Priority 65500: Deny ALL inbound (default) → ✅<br><br><strong>NSG on App subnet (nsg-app):</strong><br>Priority 100: Allow TCP 443 from Internet → ✅<br>Priority 200: Allow TCP 1433 outbound to 10.0.2.0/24 → ✅<br>Priority 65500: Allow ALL outbound (default) → ✅<br><br>The junior admin also created a UDR on the Data subnet pointing all traffic to an Azure Firewall (10.0.3.4) that doesn\'t have a rule allowing 1433.',
+    question:'Find ALL the issues blocking connectivity and fix them in the correct order.',
+    fields:[
+      {id:'nsg-issue1',type:'select',label:'Is the NSG rule at Priority 200 (Deny ALL from VirtualNetwork) the problem?',options:['Select...','Yes — it blocks ALL VNet traffic including the Allow rule at Priority 100','No — Priority 100 (Allow 1433) is evaluated BEFORE Priority 200 (Deny ALL), so SQL traffic should pass','The deny rule only affects internet traffic','NSG rules don\'t use priority ordering'],correct:'No — Priority 100 (Allow 1433) is evaluated BEFORE Priority 200 (Deny ALL), so SQL traffic should pass'},
+      {id:'nsg-issue2',type:'select',label:'If the NSG allows the traffic, what else could block it?',options:['Select...','The default deny rule at 65500','The UDR is routing traffic to Azure Firewall which doesn\'t have a rule for port 1433','The App subnet NSG is blocking outbound','Azure SQL has a built-in firewall blocking the connection'],correct:'The UDR is routing traffic to Azure Firewall which doesn\'t have a rule for port 1433'},
+      {id:'nsg-fix1',type:'select',label:'Fix: What\'s the CORRECT fix for the Azure Firewall issue?',options:['Select...','Delete the UDR entirely','Add a network rule on Azure Firewall: Allow TCP 1433 from 10.0.1.0/24 to 10.0.2.0/24','Add an application rule on Azure Firewall for SQL','Change the Firewall to bypass mode'],correct:'Add a network rule on Azure Firewall: Allow TCP 1433 from 10.0.1.0/24 to 10.0.2.0/24'},
+      {id:'nsg-issue3',type:'select',label:'The junior admin\'s Deny ALL rule at Priority 200 — should it stay?',options:['Select...','Yes — it\'s a good practice to have an explicit deny-all after specific allow rules','No — remove it because it blocks all traffic','Move it to Priority 50 so it runs first','Change it to Deny from Internet only'],correct:'Yes — it\'s a good practice to have an explicit deny-all after specific allow rules'},
+      {id:'nsg-trap',type:'select',label:'TRICK QUESTION: A colleague says "just use a Private Endpoint for SQL and bypass all this NSG/Firewall complexity." Is this good advice?',options:['Select...','No — Private Endpoints don\'t work with Azure SQL','Yes — Private Endpoints are the recommended approach for Azure SQL. Traffic goes over the Microsoft backbone, NSG rules on the PE subnet are simplified, and you can disable public access entirely.','Private Endpoints are only for storage accounts','Private Endpoints still require NSG and Firewall rules'],correct:'Yes — Private Endpoints are the recommended approach for Azure SQL. Traffic goes over the Microsoft backbone, NSG rules on the PE subnet are simplified, and you can disable public access entirely.'},
+      {id:'nsg-order',type:'select',label:'Correct troubleshooting order for Azure network connectivity?',options:['Select...','Check app logs → restart VM → call support','NSG effective rules → UDR/route table → Azure Firewall rules → target resource firewall → Network Watcher packet capture','Just check the NSG and nothing else','Azure Firewall logs → NSG → restart everything'],correct:'NSG effective rules → UDR/route table → Azure Firewall rules → target resource firewall → Network Watcher packet capture'},
+    ],
+    explanation:'This is a classic AZ-500 trick: the NSG looks like the problem, but Priority 100 (Allow) beats Priority 200 (Deny) because LOWER priority number = evaluated FIRST. The real blocker is the UDR routing traffic to Azure Firewall without a corresponding allow rule. Fix: add a network rule (not application rule — SQL is not HTTP/S) on the firewall. The deny-all at Priority 200 is actually best practice — explicit deny after allows. The BEST long-term solution is Private Endpoints — the colleague is right. Troubleshooting order: NSG effective rules → UDR → Firewall → resource-level firewall → Network Watcher. This is the methodology the exam tests.'
+  },
+  pe:{
+    id:'pe',domain:2,title:'🔴 Design: Secure Multi-Service Architecture',domainTag:'Domain 2 — Networking',color:'#4ec9b0',
+    context:'<strong>Architecture Request:</strong> Contoso is deploying a 3-tier app:<br>• Frontend: App Service (public-facing)<br>• Backend API: App Service (internal only)<br>• Database: Azure SQL<br>• Secrets: Azure Key Vault<br>• Files: Azure Storage (blob)<br><br><strong>Requirements:</strong><br>1. Frontend must be publicly accessible via HTTPS only<br>2. Backend API must NOT be accessible from the internet — only from Frontend<br>3. SQL, Key Vault, and Storage must NOT be accessible from the internet<br>4. All internal communication must stay on the Microsoft backbone (no public internet)<br>5. The solution must work without deploying any VMs<br><br>A junior architect proposed: "Just use IP-based firewall rules on each service to restrict access."',
+    question:'Design the correct network architecture. The junior architect\'s approach has critical flaws.',
+    fields:[
+      {id:'pe-flaw',type:'select',label:'Why is the junior architect\'s IP-based firewall approach flawed?',options:['Select...','It works fine — IP restrictions are sufficient','App Service outbound IPs are shared across tenants, change without notice, and traffic still crosses the public internet even with IP restrictions','IP restrictions are more secure than Private Endpoints','IP-based rules are not supported on Azure SQL'],correct:'App Service outbound IPs are shared across tenants, change without notice, and traffic still crosses the public internet even with IP restrictions'},
+      {id:'pe-frontend',type:'select',label:'Frontend App Service: How to make it publicly accessible securely?',options:['Select...','Just deploy with default settings','Azure Front Door with WAF → App Service with access restrictions (only allow Front Door)','Application Gateway only','Direct public access with IP restrictions'],correct:'Azure Front Door with WAF → App Service with access restrictions (only allow Front Door)'},
+      {id:'pe-backend',type:'select',label:'Backend API App Service: How to make it internal-only?',options:['Select...','IP restrictions on the Backend App Service','VNet Integration on Frontend + Private Endpoint on Backend API — Frontend connects over the VNet, no public access','Deploy Backend on a VM instead','Use Azure API Management as a proxy'],correct:'VNet Integration on Frontend + Private Endpoint on Backend API — Frontend connects over the VNet, no public access'},
+      {id:'pe-sql',type:'select',label:'Azure SQL: How to secure it?',options:['Select...','SQL Firewall with specific IPs','Private Endpoint in the VNet + disable public network access entirely','Service Endpoint only','VPN connection to SQL'],correct:'Private Endpoint in the VNet + disable public network access entirely'},
+      {id:'pe-kv',type:'select',label:'Key Vault: Network configuration?',options:['Select...','Allow all networks','Private Endpoint + allow trusted Microsoft services to bypass firewall','Service Endpoint only','Disable all network access including Private Endpoints'],correct:'Private Endpoint + allow trusted Microsoft services to bypass firewall'},
+      {id:'pe-dns',type:'select',label:'All Private Endpoints need DNS resolution. What\'s the recommended approach?',options:['Select...','Manual DNS entries on each service','Azure Private DNS Zones linked to the VNet (one zone per service type: privatelink.database.windows.net, privatelink.vaultcore.azure.net, etc.)','Use IP addresses directly instead of hostnames','Public DNS is sufficient'],correct:'Azure Private DNS Zones linked to the VNet (one zone per service type: privatelink.database.windows.net, privatelink.vaultcore.azure.net, etc.)'},
+      {id:'pe-monitoring',type:'select',label:'How do you verify traffic is actually using Private Endpoints and not going over public internet?',options:['Select...','Check the Azure portal — it shows connection status','Use Network Watcher Connection Monitor + DNS resolution test (nslookup should return 10.x.x.x private IP, not public IP)','You can\'t verify this','Check the billing — Private Endpoint traffic is free'],correct:'Use Network Watcher Connection Monitor + DNS resolution test (nslookup should return 10.x.x.x private IP, not public IP)'},
+    ],
+    explanation:'This tests deep Private Endpoint architecture knowledge. IP-based restrictions fail because: App Service shared IPs change, traffic still crosses public internet, and shared IPs mean other tenants\' apps could match. The correct architecture: Front Door + WAF → Frontend (access restrictions to Front Door only) → VNet Integration → Private Endpoint on Backend API → Private Endpoints on SQL/KV/Storage. Private DNS Zones are CRITICAL — without them, apps resolve the public IP and bypass the PE. Verification: nslookup should return a 10.x.x.x address, not the public IP. "Allow trusted Microsoft services" on Key Vault is needed for services like Backup, Defender for Cloud, etc.'
+  },
+  waf:{
+    id:'waf',domain:2,title:'🔴 Incident: WAF Blocking Legitimate Traffic',domainTag:'Domain 2 — Networking',color:'#4ec9b0',
+    context:'<strong>Urgent Ticket:</strong> After enabling WAF in Prevention mode on the Application Gateway, 30% of legitimate user requests are being blocked with 403 errors. The application is a financial services portal where users submit forms with SQL-like content (account numbers, formulas).<br><br><strong>Current WAF Config:</strong><br>• Mode: Prevention<br>• Rule set: OWASP 3.2<br>• Custom rules: None<br>• Exclusions: None<br>• Diagnostic logs: Not configured<br>• Blocked requests: Rule 942430 (SQL injection), Rule 942440 (SQL injection), Rule 941100 (XSS)<br><br>The business is demanding you fix this in 1 hour without disabling security.',
+    question:'Fix the false positive problem without weakening security.',
+    fields:[
+      {id:'waf-fix1',type:'select',label:'Step 1: What\'s the FIRST thing you should do?',options:['Select...','Disable WAF immediately','Switch to Detection mode temporarily to stop blocking while you investigate','Disable the triggering rules globally','Add exclusions blindly for all SQL rules'],correct:'Switch to Detection mode temporarily to stop blocking while you investigate'},
+      {id:'waf-fix2',type:'select',label:'Step 2: How do you identify exactly which requests are being falsely blocked?',options:['Select...','Ask users to describe the problem','Enable diagnostic logs → send to Log Analytics → query WAF logs for blocked requests with rule IDs and matched field names','Check the Application Gateway overview page','Review the OWASP rule documentation'],correct:'Enable diagnostic logs → send to Log Analytics → query WAF logs for blocked requests with rule IDs and matched field names'},
+      {id:'waf-fix3',type:'select',label:'Step 3: Logs show Rule 942430 triggers on the "accountFormula" request body field. What\'s the correct fix?',options:['Select...','Disable Rule 942430 globally','Create a WAF exclusion: Exclude request body field "accountFormula" from Rule 942430 only','Create a custom rule to allow all POST requests','Switch back to OWASP 2.2.9 which doesn\'t have this rule'],correct:'Create a WAF exclusion: Exclude request body field "accountFormula" from Rule 942430 only'},
+      {id:'waf-fix4',type:'select',label:'Should you upgrade from OWASP 3.2 to Microsoft Default Rule Set (DRS) 2.1?',options:['Select...','No — OWASP is the industry standard','Yes — DRS 2.1 has better false positive rates, anomaly scoring (individual rules contribute to a score vs immediate block), and is Microsoft\'s recommended ruleset','They\'re the same thing','OWASP 3.2 is newer than DRS 2.1'],correct:'Yes — DRS 2.1 has better false positive rates, anomaly scoring (individual rules contribute to a score vs immediate block), and is Microsoft\'s recommended ruleset'},
+      {id:'waf-fix5',type:'select',label:'After fixing exclusions, what mode should the WAF be in?',options:['Select...','Stay in Detection mode permanently','Switch back to Prevention mode after verifying exclusions resolve the false positives','Use a custom mode that only blocks some rules','Prevention mode with all SQL rules disabled'],correct:'Switch back to Prevention mode after verifying exclusions resolve the false positives'},
+      {id:'waf-fix6',type:'select',label:'How do you prevent this from happening again in the future?',options:['Select...','Never enable Prevention mode','Deploy WAF in Detection mode first for 2-4 weeks, analyze logs for false positives, create exclusions, THEN switch to Prevention','Only use custom rules, never managed rules','Disable WAF logging to reduce noise'],correct:'Deploy WAF in Detection mode first for 2-4 weeks, analyze logs for false positives, create exclusions, THEN switch to Prevention'},
+    ],
+    explanation:'This is the #1 real-world WAF problem. The fix flow: (1) Switch to Detection mode to stop the bleeding — this logs but doesn\'t block. (2) Enable diagnostic logs to Log Analytics — you NEED data to make decisions. (3) Create SPECIFIC exclusions (field-level, rule-level) — never disable rules globally. (4) DRS 2.1 uses anomaly scoring which dramatically reduces false positives vs OWASP\'s binary block/allow per rule. (5) Return to Prevention after verification. (6) The lesson: ALWAYS deploy WAF in Detection mode first, analyze for 2-4 weeks, fix false positives, THEN enforce. Going straight to Prevention is the mistake that caused this incident.'
+  },
+
+  // ===== DOMAIN 3: COMPUTE, STORAGE & DATABASES — HARD =====
+  kv:{
+    id:'kv',domain:3,title:'🔴 Incident: Key Vault Secrets Exfiltrated',domainTag:'Domain 3 — Compute, Storage & Databases',color:'#ce9178',
+    context:'<strong>Security Incident:</strong> Defender for Key Vault generated an alert: "Unusual access to Key Vault from a suspicious IP." Investigation reveals:<br>• A developer\'s personal laptop (non-corporate, no MDM) accessed the Key Vault at 11:47 PM<br>• They listed ALL secrets and downloaded 3 production database connection strings<br>• The developer had "Key Vault Administrator" role (assigned 14 months ago for a one-time migration)<br>• Key Vault networking: Allow access from all networks<br>• Key Vault permission model: Vault access policies<br>• Purge protection: Disabled<br>• Diagnostic logging: Disabled<br>• Key rotation: Never performed<br>• No alert was generated until Defender for Key Vault detected the anomaly',
+    question:'Fix ALL the security issues and implement controls to prevent this from recurring.',
+    fields:[
+      {id:'kv-fix1',type:'select',label:'Immediate action: The developer has Key Vault Administrator. What do you do NOW?',options:['Select...','Ask the developer to stop accessing the vault','Immediately revoke the role assignment + rotate ALL compromised secrets + review audit logs for other unauthorized access','Send the developer an email reminding them of security policies','Disable the developer\'s Entra account permanently'],correct:'Immediately revoke the role assignment + rotate ALL compromised secrets + review audit logs for other unauthorized access'},
+      {id:'kv-fix2',type:'select',label:'The developer had Administrator for 14 months. What process failed?',options:['Select...','Nothing — 14 months is acceptable for admin roles','No access review was in place. Fix: Implement PIM for Key Vault roles with time-limited eligible assignments + quarterly access reviews','The developer should have used a service account','The role should have been Owner instead'],correct:'No access review was in place. Fix: Implement PIM for Key Vault roles with time-limited eligible assignments + quarterly access reviews'},
+      {id:'kv-fix3',type:'select',label:'Vault access policies vs RBAC. What should change?',options:['Select...','Keep vault access policies — they\'re simpler','Migrate to Azure RBAC: supports Conditional Access (block unmanaged devices), PIM integration, granular scoping, and audit logging','Switch to shared access signatures','Use managed identity only — no human access'],correct:'Migrate to Azure RBAC: supports Conditional Access (block unmanaged devices), PIM integration, granular scoping, and audit logging'},
+      {id:'kv-fix4',type:'select',label:'Networking: "Allow access from all networks" is the biggest issue. Fix?',options:['Select...','Add IP restrictions for corporate IPs only','Private Endpoint + disable public access + allow trusted Microsoft services','Service Endpoint only','Keep open but add WAF'],correct:'Private Endpoint + disable public access + allow trusted Microsoft services'},
+      {id:'kv-fix5',type:'select',label:'The developer accessed from a personal laptop. How do you prevent this with Conditional Access?',options:['Select...','Conditional Access doesn\'t apply to Key Vault','Create a CA policy: Target "Azure Key Vault" app → Require compliant device (MDM-managed) + Require MFA → Block from non-compliant devices','Block all personal device access to Azure entirely','Require VPN only'],correct:'Create a CA policy: Target "Azure Key Vault" app → Require compliant device (MDM-managed) + Require MFA → Block from non-compliant devices'},
+      {id:'kv-fix6',type:'select',label:'Diagnostic logging was disabled. What should be enabled and where?',options:['Select...','Enable audit logging → send to Log Analytics workspace for Sentinel integration + configure Defender for Key Vault alerts','Enable logging to Storage Account only','Logging isn\'t necessary if Defender for Key Vault is enabled','Enable logging to Event Hub for third-party SIEM'],correct:'Enable audit logging → send to Log Analytics workspace for Sentinel integration + configure Defender for Key Vault alerts'},
+      {id:'kv-fix7',type:'select',label:'Key rotation was never done. What\'s the correct approach?',options:['Select...','Rotate manually once per year','Configure automatic key rotation policies with expiration notifications + use Key Vault references in App Service instead of copying secrets to app config','Rotation isn\'t needed for secrets','Create new secrets with different names'],correct:'Configure automatic key rotation policies with expiration notifications + use Key Vault references in App Service instead of copying secrets to app config'},
+    ],
+    explanation:'This scenario tests post-incident response AND hardening. The chain of failures: (1) Over-privileged role with no expiration or review. (2) Vault access policies don\'t support Conditional Access — can\'t block unmanaged devices. (3) Public network access meant any internet-connected device could reach the vault. (4) No diagnostic logging meant the incident was only caught by Defender for Key Vault\'s anomaly detection. Every fix addresses a real AZ-500 exam topic: RBAC migration, PIM for data-plane roles, Private Endpoints, Conditional Access for Azure resources, diagnostic logging to Log Analytics, and automatic key rotation.'
+  },
+  storage:{
+    id:'storage',domain:3,title:'🔴 Compliance Audit: Storage Account Failures',domainTag:'Domain 3 — Compute, Storage & Databases',color:'#ce9178',
+    context:'<strong>Compliance Audit Report:</strong> An auditor found the following issues on storage account "stfinance001":<br><br>❌ Finding 1: Anonymous/public access is enabled at the account level<br>❌ Finding 2: Encryption uses Microsoft-managed keys (MMK) — customer requires CMK for PCI-DSS<br>❌ Finding 3: Minimum TLS version is 1.0<br>❌ Finding 4: No soft delete configured on blob containers<br>❌ Finding 5: Storage account allows access from all networks<br>❌ Finding 6: Shared access keys are the primary authentication method<br>❌ Finding 7: No immutability policy for financial records (7-year retention required by regulation)<br>❌ Finding 8: Infrastructure encryption (double encryption) is not enabled<br><br>You have 48 hours to remediate ALL findings before the PCI-DSS audit deadline.',
+    question:'Fix each finding with the correct Azure configuration. Be careful — some fixes have dependencies and order matters.',
+    fields:[
+      {id:'st-fix1',type:'select',label:'Finding 1: Disable anonymous access. What\'s the catch?',options:['Select...','Just toggle it off — no impact','Disabling at account level may break apps using anonymous access. Check existing container access levels first, then disable. Containers set to "Blob" or "Container" access will lose anonymous access.','You can\'t disable anonymous access on existing storage accounts','This requires deleting and recreating the storage account'],correct:'Disabling at account level may break apps using anonymous access. Check existing container access levels first, then disable. Containers set to "Blob" or "Container" access will lose anonymous access.'},
+      {id:'st-fix2',type:'select',label:'Finding 2: Switch to CMK. Where should the CMK be stored?',options:['Select...','In the storage account itself','Azure Key Vault with soft delete and purge protection enabled (REQUIRED for CMK)','In Azure Active Directory','In a local HSM on-premises'],correct:'Azure Key Vault with soft delete and purge protection enabled (REQUIRED for CMK)'},
+      {id:'st-fix3',type:'select',label:'Finding 2 continued: What identity accesses the CMK in Key Vault?',options:['Select...','The storage account\'s system-assigned managed identity (wrap/unwrap key permissions)','A shared access signature','The subscription owner\'s credentials','An API key stored in the storage account'],correct:'The storage account\'s system-assigned managed identity (wrap/unwrap key permissions)'},
+      {id:'st-fix4',type:'select',label:'Finding 3: TLS 1.0. What\'s the minimum acceptable version?',options:['Select...','TLS 1.0 is fine for internal use','TLS 1.2 — required by PCI-DSS and Microsoft\'s recommendation. TLS 1.0/1.1 have known vulnerabilities.','TLS 1.1 is acceptable','TLS 1.3 — but it\'s not supported yet by Azure Storage'],correct:'TLS 1.2 — required by PCI-DSS and Microsoft\'s recommendation. TLS 1.0/1.1 have known vulnerabilities.'},
+      {id:'st-fix5',type:'select',label:'Finding 6: Shared access keys are the primary auth. What should replace them?',options:['Select...','Shared access signatures (SAS) only','Microsoft Entra ID + Azure RBAC (data-plane roles like Storage Blob Data Contributor) + disable shared key authorization on the storage account','Keep shared keys but rotate them more frequently','App passwords stored in Key Vault'],correct:'Microsoft Entra ID + Azure RBAC (data-plane roles like Storage Blob Data Contributor) + disable shared key authorization on the storage account'},
+      {id:'st-fix6',type:'select',label:'Finding 7: 7-year immutability for financial records. What policy type?',options:['Select...','Legal hold','Time-based retention policy with 7-year (2555 day) retention period','Soft delete with 7-year retention','Versioning only'],correct:'Time-based retention policy with 7-year (2555 day) retention period'},
+      {id:'st-fix7',type:'select',label:'Finding 8: Infrastructure encryption. Can it be enabled on an existing storage account?',options:['Select...','Yes — toggle it on in settings','NO — infrastructure encryption (double encryption) can only be enabled at storage account CREATION. You must create a new account with it enabled and migrate data.','It\'s enabled by default on all accounts','Infrastructure encryption is the same as CMK'],correct:'NO — infrastructure encryption (double encryption) can only be enabled at storage account CREATION. You must create a new account with it enabled and migrate data.'},
+      {id:'st-fix8',type:'select',label:'Finding 5: Network access. What\'s the correct configuration for PCI-DSS?',options:['Select...','Selected networks with corporate VNet service endpoints','Private Endpoints + disable public access + allow trusted Microsoft services','IP-based firewall rules only','Keep open but enable Defender for Storage'],correct:'Private Endpoints + disable public access + allow trusted Microsoft services'},
+    ],
+    explanation:'The infrastructure encryption question is the hardest — it\'s a gotcha that trips up many candidates. It can ONLY be set at creation time. If you need it on an existing account, you must create a new one and migrate. Other key points: CMK requires Key Vault with soft delete + purge protection (prerequisite). The storage account uses its managed identity to access the CMK (wrap/unwrap permissions). Disabling shared key auth is a real configuration option that forces Entra ID + RBAC only. Time-based retention (not legal hold) is for regulatory compliance — legal hold is for litigation. This scenario tests multiple AZ-500 objectives in a realistic compliance-driven context.'
+  },
+  sql:{
+    id:'sql',domain:3,title:'🔴 Architecture: Secure Healthcare Database',domainTag:'Domain 3 — Compute, Storage & Databases',color:'#ce9178',
+    context:'<strong>Design Review:</strong> A healthcare company is deploying Azure SQL for a system containing Protected Health Information (PHI). HIPAA requires:<br>• Data encrypted at rest AND the cloud provider cannot access plaintext data<br>• All database access must be audited<br>• PHI columns (SSN, medical record number) must be protected even from database admins<br>• Network access restricted to private connectivity only<br>• Threat detection for SQL injection and anomalous access<br><br>A developer proposed: "TDE with service-managed keys covers all encryption requirements." Is this correct?',
+    question:'Design the complete security configuration for HIPAA compliance.',
+    fields:[
+      {id:'sql-dev-wrong',type:'select',label:'Is the developer correct that TDE with service-managed keys is sufficient for HIPAA?',options:['Select...','Yes — TDE encrypts everything at rest','NO — TDE encrypts at rest but Microsoft manages the key (they COULD access data). HIPAA may require CMK. Also, TDE does NOT protect data from database admins who can query plaintext.','TDE is not available for Azure SQL','HIPAA doesn\'t require encryption'],correct:'NO — TDE encrypts at rest but Microsoft manages the key (they COULD access data). HIPAA may require CMK. Also, TDE does NOT protect data from database admins who can query plaintext.'},
+      {id:'sql-encryption1',type:'select',label:'TDE configuration for HIPAA:',options:['Select...','TDE with service-managed key','TDE with customer-managed key (CMK) stored in Key Vault','Disable TDE and use application-level encryption only','TDE is not needed if Always Encrypted is used'],correct:'TDE with customer-managed key (CMK) stored in Key Vault'},
+      {id:'sql-encryption2',type:'select',label:'PHI columns (SSN, medical record #) need protection FROM database admins. What technology?',options:['Select...','Dynamic Data Masking','Always Encrypted — encryption keys managed by the client app, database engine NEVER sees plaintext','Row-Level Security','Column-level permissions'],correct:'Always Encrypted — encryption keys managed by the client app, database engine NEVER sees plaintext'},
+      {id:'sql-mask',type:'select',label:'Should you ALSO use Dynamic Data Masking on PHI columns?',options:['Select...','No — Always Encrypted replaces masking','Yes — use BOTH. Always Encrypted for column-level encryption at rest. Dynamic Masking for non-admin users querying masked data in reports and non-PHI queries.','Masking is not compatible with Always Encrypted','Only use masking for non-PHI columns'],correct:'Yes — use BOTH. Always Encrypted for column-level encryption at rest. Dynamic Masking for non-admin users querying masked data in reports and non-PHI queries.'},
+      {id:'sql-audit',type:'select',label:'Auditing destination for HIPAA:',options:['Select...','Storage Account only (cheapest)','Log Analytics workspace (enables Sentinel integration + Defender for SQL analytics + KQL queries for audit reports)','Event Hub only','Auditing is optional for HIPAA'],correct:'Log Analytics workspace (enables Sentinel integration + Defender for SQL analytics + KQL queries for audit reports)'},
+      {id:'sql-network',type:'select',label:'Network access for HIPAA:',options:['Select...','Allow Azure services and resources','Private Endpoint + disable public network access','SQL Firewall with IP whitelist','VPN Gateway only'],correct:'Private Endpoint + disable public network access'},
+      {id:'sql-threat',type:'select',label:'Threat detection:',options:['Select...','Defender for SQL per-database','Enable Defender for SQL at subscription level via Defender for Cloud (consistent coverage + integration with Sentinel + vulnerability assessment)','Manual log review','Azure Firewall IDS/IPS'],correct:'Enable Defender for SQL at subscription level via Defender for Cloud (consistent coverage + integration with Sentinel + vulnerability assessment)'},
+      {id:'sql-auth',type:'select',label:'Authentication method for HIPAA:',options:['Select...','SQL authentication with strong passwords','Microsoft Entra authentication only — eliminates passwords, supports Conditional Access, integrates with PIM for admin access','Both SQL and Entra auth','Windows authentication via Active Directory'],correct:'Microsoft Entra authentication only — eliminates passwords, supports Conditional Access, integrates with PIM for admin access'},
+    ],
+    explanation:'The developer\'s answer is the classic AZ-500 trap. TDE encrypts at rest but with service-managed keys, Microsoft technically has access to the key. For HIPAA: use CMK so YOU control the key. But TDE alone doesn\'t protect PHI from admins who can query the data — that\'s where Always Encrypted comes in. Always Encrypted keys are managed by the client application — the database engine NEVER decrypts the data. Dynamic Masking provides an additional layer for non-admin access patterns. The combination: TDE (CMK) + Always Encrypted + Dynamic Masking + Entra-only auth + Private Endpoint + Defender for SQL + auditing to Log Analytics = comprehensive HIPAA compliance. This is the depth the AZ-500 exam expects.'
+  },
+
+  // ===== DOMAIN 4: DEFENDER & SENTINEL — HARD =====
+  mdc:{
+    id:'mdc',domain:4,title:'🔴 Assessment: Multicloud Security Gaps',domainTag:'Domain 4 — Defender for Cloud & Sentinel',color:'#a855f7',
+    context:'<strong>Security Posture Assessment:</strong> Contoso has a multicloud environment:<br>• Azure: 200 VMs, 50 storage accounts, 30 SQL databases, 15 AKS clusters<br>• AWS: 80 EC2 instances, 40 S3 buckets, 20 RDS instances<br>• On-premises: 100 Windows/Linux servers<br><br><strong>Current state:</strong><br>• Defender for Cloud: Foundational CSPM only (free)<br>• No CWPP plans enabled<br>• AWS not connected<br>• On-premises servers not onboarded<br>• Secure Score: 34/100<br>• No regulatory compliance standards configured<br>• No continuous export to Sentinel<br><br>The CISO wants a plan to reach Secure Score 70+ within 90 days and pass PCI-DSS compliance for the Azure + AWS environment.',
+    question:'Design the complete Defender for Cloud deployment strategy.',
+    fields:[
+      {id:'mdc-fix1',type:'select',label:'Step 1: Which CSPM plan and why?',options:['Select...','Keep Foundational CSPM — it\'s free','Upgrade to Defender CSPM — required for attack path analysis, regulatory compliance tracking, security explorer, agentless scanning, and governance rules','Defender CSPM is only needed for AWS, not Azure','Skip CSPM and just enable CWPP plans'],correct:'Upgrade to Defender CSPM — required for attack path analysis, regulatory compliance tracking, security explorer, agentless scanning, and governance rules'},
+      {id:'mdc-fix2',type:'select',label:'CWPP: Which Defender for Servers plan, and why does it matter for on-premises?',options:['Select...','Plan 1 — cheapest option','Plan 2 — includes agentless scanning, JIT VM access, FIM, adaptive app controls. For on-prem: servers must be onboarded via Azure Arc first, then P2 provides the same protection as Azure-native VMs.','No Defender for Servers needed — they have antivirus','Plan 1 for Azure, Plan 2 for on-premises'],correct:'Plan 2 — includes agentless scanning, JIT VM access, FIM, adaptive app controls. For on-prem: servers must be onboarded via Azure Arc first, then P2 provides the same protection as Azure-native VMs.'},
+      {id:'mdc-fix3',type:'select',label:'AWS: How to connect and what protection is available?',options:['Select...','AWS can\'t be connected to Defender for Cloud','Native multicloud connector — agentless. Provides CSPM for EC2/S3/RDS, Defender for Servers on EC2 (via Arc), Defender for Containers on EKS, and agentless vulnerability scanning.','Only CSPM is available for AWS, not CWPP','Requires installing agents on every EC2 instance manually'],correct:'Native multicloud connector — agentless. Provides CSPM for EC2/S3/RDS, Defender for Servers on EC2 (via Arc), Defender for Containers on EKS, and agentless vulnerability scanning.'},
+      {id:'mdc-fix4',type:'select',label:'AKS clusters: 15 clusters with no container security. What to enable?',options:['Select...','Defender for Servers covers containers','Defender for Containers — includes container image vulnerability scanning, Kubernetes runtime protection, cluster hardening recommendations, and agentless Kubernetes discovery','Deploy a third-party container scanner','Containers don\'t need security if they\'re behind a firewall'],correct:'Defender for Containers — includes container image vulnerability scanning, Kubernetes runtime protection, cluster hardening recommendations, and agentless Kubernetes discovery'},
+      {id:'mdc-fix5',type:'select',label:'Regulatory compliance: How to add PCI-DSS standard?',options:['Select...','PCI-DSS is automatically included','Add PCI-DSS as a compliance standard in Defender for Cloud regulatory compliance blade (requires Defender CSPM). Map controls to recommendations. Use the compliance dashboard to track progress.','Create custom Azure Policies for each PCI requirement','PCI-DSS is not supported in Defender for Cloud'],correct:'Add PCI-DSS as a compliance standard in Defender for Cloud regulatory compliance blade (requires Defender CSPM). Map controls to recommendations. Use the compliance dashboard to track progress.'},
+      {id:'mdc-fix6',type:'select',label:'Continuous export to Sentinel: What data should be exported?',options:['Select...','Security alerts only','Security alerts + recommendations + secure score + regulatory compliance data — all to Log Analytics workspace for Sentinel analytics rules, workbooks, and playbook automation','Recommendations only','Export to Storage Account for archive'],correct:'Security alerts + recommendations + secure score + regulatory compliance data — all to Log Analytics workspace for Sentinel analytics rules, workbooks, and playbook automation'},
+      {id:'mdc-fix7',type:'select',label:'How to operationalize remediation at scale across 200+ VMs and 50 storage accounts?',options:['Select...','Fix each recommendation manually in the portal','Use Governance rules: assign owners by resource type, set remediation deadlines (e.g., Critical=72hrs, High=2wks), track with compliance dashboard. Use Azure Policy "Deny" to prevent new misconfigurations.','Remediation isn\'t part of Defender for Cloud','Hire more security engineers'],correct:'Use Governance rules: assign owners by resource type, set remediation deadlines (e.g., Critical=72hrs, High=2wks), track with compliance dashboard. Use Azure Policy "Deny" to prevent new misconfigurations.'},
+    ],
+    explanation:'This is an executive-level deployment scenario the AZ-500 tests. Key points: Defender CSPM is required for regulatory compliance tracking and attack path analysis (free tier doesn\'t include these). Defender for Servers P2 is the full-featured plan — P1 is limited. AWS connects natively (agentless) — no manual agent deployment. Azure Arc bridges on-prem servers into the same management plane. Defender for Containers is a separate plan (not covered by Defender for Servers). Continuous export to Sentinel enables correlation with other security data. Governance rules operationalize remediation at scale — without them, recommendations just pile up with no accountability.'
+  },
+  sentinel:{
+    id:'sentinel',domain:4,title:'🔴 Build: Detection Engineering for Ransomware',domainTag:'Domain 4 — Defender for Cloud & Sentinel',color:'#a855f7',
+    context:'<strong>Scenario:</strong> After a ransomware incident at a competitor, your CISO wants Sentinel configured to detect and auto-respond to ransomware indicators. You need to:<br><br>1. Ensure the right data is being collected<br>2. Create detection rules for ransomware TTPs<br>3. Set up automated response<br>4. Build a monitoring workbook<br><br><strong>Current Sentinel state:</strong><br>• Workspace: Configured with 90-day retention<br>• Connected: Entra ID sign-in logs, Defender XDR connector<br>• NOT connected: Azure Activity, Azure Firewall, Defender for Cloud<br>• Analytics rules: Only built-in Microsoft rules (no custom)<br>• Automation: None configured<br>• Workbooks: None',
+    question:'Build the complete ransomware detection and response capability.',
+    fields:[
+      {id:'sen-fix1',type:'select',label:'Data gap #1: Azure Activity logs are not connected. Why does this matter for ransomware?',options:['Select...','Azure Activity isn\'t relevant to ransomware','Ransomware actors delete backups and snapshots before encrypting. Azure Activity logs capture resource deletion events (Delete VM snapshot, Delete Recovery Services vault item). Without this, you\'re blind to backup destruction.','Azure Activity only shows billing information','The Defender XDR connector already includes Azure Activity'],correct:'Ransomware actors delete backups and snapshots before encrypting. Azure Activity logs capture resource deletion events (Delete VM snapshot, Delete Recovery Services vault item). Without this, you\'re blind to backup destruction.'},
+      {id:'sen-fix2',type:'select',label:'Data gap #2: Defender for Cloud alerts are not flowing to Sentinel. Impact?',options:['Select...','MDC alerts are only relevant for CSPM, not threats','You miss alerts for: suspicious VM activity (crypto-mining as precursor), unusual storage access patterns (mass encryption), anomalous Resource Manager operations (mass resource deletion). These are ALL ransomware precursors.','Defender XDR already includes MDC alerts','MDC doesn\'t generate alerts for runtime threats'],correct:'You miss alerts for: suspicious VM activity (crypto-mining as precursor), unusual storage access patterns (mass encryption), anomalous Resource Manager operations (mass resource deletion). These are ALL ransomware precursors.'},
+      {id:'sen-fix3',type:'select',label:'Analytics rule for detecting mass file encryption. What rule type and why?',options:['Select...','Scheduled rule running every 24 hours','NRT (Near-Real-Time) rule — ransomware encrypts files in minutes, a 24-hour or even 5-minute scheduled rule is too slow. NRT runs every 1 minute.','Fusion rule — it will detect this automatically','Anomaly rule only'],correct:'NRT (Near-Real-Time) rule — ransomware encrypts files in minutes, a 24-hour or even 5-minute scheduled rule is too slow. NRT runs every 1 minute.'},
+      {id:'sen-fix4',type:'select',label:'What KQL data source detects mass file renames/encryption on endpoints?',options:['Select...','SigninLogs','DeviceFileEvents — query for high volume of file modifications with entropy changes (renamed to .encrypted, .locked, etc.) from a single process in a short time window','AzureActivity','SecurityEvent'],correct:'DeviceFileEvents — query for high volume of file modifications with entropy changes (renamed to .encrypted, .locked, etc.) from a single process in a short time window'},
+      {id:'sen-fix5',type:'select',label:'Automation: What should happen AUTOMATICALLY when the ransomware NRT rule fires?',options:['Select...','Send an email to the SOC','Automation rule → trigger playbook that: (1) Isolates the affected device via MDE API, (2) Disables the user account in Entra ID, (3) Posts critical alert to Teams SOC channel, (4) Creates P1 ServiceNow ticket','Just assign the incident to an analyst','Log the incident for later review'],correct:'Automation rule → trigger playbook that: (1) Isolates the affected device via MDE API, (2) Disables the user account in Entra ID, (3) Posts critical alert to Teams SOC channel, (4) Creates P1 ServiceNow ticket'},
+      {id:'sen-fix6',type:'select',label:'A Fusion detection fires: "Entra ID brute force → successful login → mass file encryption." What made this possible?',options:['Select...','A custom KQL rule','Fusion ML automatically correlated a sign-in alert (Entra ID) with a file encryption alert (MDE via XDR) across TWO different data sources — this is why connecting multiple data sources matters','Sentinel has a built-in ransomware rule','The analyst manually correlated the alerts'],correct:'Fusion ML automatically correlated a sign-in alert (Entra ID) with a file encryption alert (MDE via XDR) across TWO different data sources — this is why connecting multiple data sources matters'},
+      {id:'sen-fix7',type:'select',label:'Post-incident: How do you ensure backup destruction is detected going forward?',options:['Select...','Manually check backups daily','Create an analytics rule on AzureActivity: where OperationNameValue contains "delete" and ResourceType contains "recoveryservices" or "snapshot" — alert on ANY backup/snapshot deletion','Backups are managed by the backup team, not security','Azure automatically protects backups from deletion'],correct:'Create an analytics rule on AzureActivity: where OperationNameValue contains "delete" and ResourceType contains "recoveryservices" or "snapshot" — alert on ANY backup/snapshot deletion'},
+    ],
+    explanation:'This is the most realistic scenario — ransomware detection requires MULTIPLE data sources working together. Azure Activity catches backup destruction (a critical ransomware precursor the exam loves to test). NRT rules are essential for ransomware because encryption happens in minutes — a 5-minute scheduled rule might be too late. DeviceFileEvents from MDE (via XDR connector) is the key table for file encryption detection. The automated playbook response must be immediate: isolate device + disable user + notify SOC. Fusion correlation across Entra ID + MDE is exactly why connecting multiple data sources matters. The backup deletion detection query is a real-world detection that the exam tests — always monitor your recovery services vault for deletions.'
+  }
+};
+
+let scores={1:0,2:0,3:0,4:0};
+let answered={};
+const domainTotals={1:3,2:3,3:3,4:2};
+
+function loadScenario(id){
+  const s=SCENARIOS[id];if(!s)return;
+  document.querySelectorAll('.sidebar-item').forEach(i=>i.classList.remove('active'));
+  document.querySelector(`[data-scenario="${id}"]`).classList.add('active');
+  let html=`<div class="blade-header">
+    <div class="domain-tag" style="background:${s.color}22;color:${s.color}">${s.domainTag}</div>
+    <h1>${s.title}</h1>
+  </div>
+  <div class="scenario">
+    <div class="scenario-header">
+      <h3>📋 Scenario</h3>
+      <span class="scenario-status ${answered[id]?'status-'+(answered[id]?'correct':'wrong'):'status-pending'}" id="status-${id}">${answered[id]===true?'✅ Correct':answered[id]===false?'❌ Review':'⬤ Not submitted'}</span>
+    </div>
+    <div class="scenario-body">
+      <div class="scenario-context">${s.context}</div>
+      <div class="scenario-question">${s.question}</div>`;
+
+  s.fields.forEach(f=>{
+    if(f.type==='select'){
+      html+=`<div class="az-form-group"><label>${f.label}</label><select class="az-select" id="${f.id}">${f.options.map(o=>`<option>${o}</option>`).join('')}</select></div>`;
+    }else if(f.type==='input'){
+      html+=`<div class="az-form-group"><label>${f.label}</label><input class="az-input" id="${f.id}" placeholder="${f.placeholder||''}"></div>`;
+    }
+  });
+
+  html+=`<div class="btn-group">
+    <button class="az-btn az-btn-primary" onclick="submitScenario('${id}')">✓ Submit Configuration</button>
+    <button class="az-btn" onclick="resetScenario('${id}')">↺ Reset</button>
+  </div>
+  <div class="feedback" id="feedback-${id}"></div>
+  </div></div>`;
+  document.getElementById('blade').innerHTML=html;
+}
+
+function submitScenario(id){
+  const s=SCENARIOS[id];
+  let correct=0,total=0,wrongs=[];
+  s.fields.forEach(f=>{
+    if(!f.correct)return;
+    total++;
+    const el=document.getElementById(f.id);
+    if(!el)return;
+    const val=f.type==='input'?el.value.trim():el.value;
+    if(val===f.correct)correct++;
+    else wrongs.push({label:f.label,got:val||'(empty)',expected:f.correct});
+  });
+
+  const passed=correct===total;
+  const fb=document.getElementById('feedback-'+id);
+  fb.className='feedback show '+(passed?'correct':'wrong');
+
+  if(passed){
+    fb.innerHTML=`<h4>✅ Perfect — ${correct}/${total} correct!</h4><p>${s.explanation}</p>`;
+    if(!answered[id]){scores[s.domain]++;answered[id]=true}
+  }else{
+    let wrongHtml=wrongs.map(w=>`<div style="margin-top:.35rem">• <strong>${w.label}</strong>: You selected "${w.got}" → <span class="correct-answer">Correct: "${w.expected}"</span></div>`).join('');
+    fb.innerHTML=`<h4>❌ ${correct}/${total} correct — Review below:</h4>${wrongHtml}<p style="margin-top:1rem;border-top:1px solid rgba(239,68,68,.2);padding-top:.75rem">${s.explanation}</p>`;
+    answered[id]=false;
+  }
+  updateScores();
+  document.getElementById('badge-'+id).textContent=passed?'✅':'❌';
+  document.getElementById('badge-'+id).style.background=passed?'var(--success)':'var(--error)';
+}
+
+function resetScenario(id){
+  const s=SCENARIOS[id];
+  s.fields.forEach(f=>{const el=document.getElementById(f.id);if(el)el.type==='select'?el.selectedIndex=0:el.value=''});
+  const fb=document.getElementById('feedback-'+id);if(fb)fb.className='feedback';
+}
+
+function updateScores(){
+  const total=Object.values(scores).reduce((a,b)=>a+b,0);
+  const max=Object.values(domainTotals).reduce((a,b)=>a+b,0);
+  document.getElementById('score-text').textContent=`${total} / ${max}`;
+  document.getElementById('score-fill').style.width=(total/max*100)+'%';
+  for(let d=1;d<=4;d++)document.getElementById(`d${d}-score`).textContent=`${scores[d]}/${domainTotals[d]}`;
+}
+
+function filterScenarios(q){
+  q=q.toLowerCase();
+  document.querySelectorAll('.sidebar-item').forEach(i=>{
+    const name=i.textContent.toLowerCase();
+    i.style.display=name.includes(q)?'flex':'none';
+  });
+}
+</script>
+</body>
+</html>

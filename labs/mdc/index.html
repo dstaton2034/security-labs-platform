@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Microsoft Defender for Cloud — Architecture Deep Dive</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0e1a;--bg2:#111827;--bg3:#1a2236;
+  --cyan:#00e5ff;--cyan-dim:rgba(0,229,255,.15);
+  --blue:#3b82f6;--purple:#a855f7;--green:#22c55e;--red:#ef4444;
+  --orange:#f97316;--yellow:#eab308;--pink:#ec4899;
+  --text:#e2e8f0;--text-dim:#94a3b8;
+  --glass:rgba(255,255,255,.04);
+  --border:rgba(255,255,255,.08);
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;line-height:1.6;overflow-x:hidden}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--cyan-dim);border-radius:3px}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(10,14,26,.92);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:0 2rem}
+nav .nav-inner{max-width:1400px;margin:0 auto;display:flex;align-items:center;gap:2rem;height:60px}
+nav .logo{font-size:1.1rem;font-weight:700;color:var(--cyan);white-space:nowrap;display:flex;align-items:center;gap:.5rem}
+nav .logo .shield{font-size:1.4rem}
+nav .nav-links{display:flex;gap:.25rem;overflow-x:auto;flex:1}
+nav .nav-links a{color:var(--text-dim);text-decoration:none;font-size:.78rem;padding:.4rem .7rem;border-radius:6px;white-space:nowrap;transition:all .2s}
+nav .nav-links a:hover,nav .nav-links a.active{color:var(--cyan);background:var(--cyan-dim)}
+
+/* HERO */
+.hero{min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:8rem 2rem 4rem;position:relative;z-index:1;overflow:hidden}
+.hero::before{content:'';position:absolute;top:-200px;left:50%;transform:translateX(-50%);width:800px;height:800px;background:radial-gradient(circle,rgba(59,130,246,.08) 0%,transparent 70%);pointer-events:none}
+.hero h1{font-size:clamp(2rem,5vw,3.5rem);font-weight:800;line-height:1.15;margin-bottom:1rem}
+.hero h1 .accent{background:linear-gradient(135deg,var(--blue),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hero p{font-size:1.15rem;color:var(--text-dim);max-width:700px;margin-bottom:2rem}
+.hero .badge{display:inline-flex;align-items:center;gap:.5rem;padding:.5rem 1rem;border-radius:99px;background:var(--glass);border:1px solid var(--border);font-size:.85rem;color:var(--text-dim);margin-bottom:1.5rem}
+.hero .badge .dot{width:8px;height:8px;background:var(--green);border-radius:50%;animation:pulse-dot 2s infinite}
+@keyframes pulse-dot{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(34,197,94,.4)}50%{opacity:.7;box-shadow:0 0 0 8px rgba(34,197,94,0)}}
+.stats-bar{display:flex;justify-content:center;gap:3rem;flex-wrap:wrap;margin:2rem 0}
+.stat{text-align:center}
+.stat .stat-value{font-size:2rem;font-weight:800;background:linear-gradient(135deg,var(--blue),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.stat .stat-label{font-size:.78rem;color:var(--text-dim);margin-top:.15rem}
+
+/* SECTIONS */
+section{padding:5rem 2rem;position:relative;z-index:1}
+.section-inner{max-width:1300px;margin:0 auto}
+.section-label{display:inline-flex;align-items:center;gap:.5rem;padding:.35rem .85rem;border-radius:99px;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:1rem}
+.section-title{font-size:clamp(1.6rem,3.5vw,2.4rem);font-weight:700;margin-bottom:.75rem}
+.section-desc{font-size:1rem;color:var(--text-dim);max-width:700px;margin-bottom:3rem}
+
+/* CARDS */
+.card{background:var(--glass);border:1px solid var(--border);border-radius:16px;padding:1.5rem;transition:all .3s;position:relative;overflow:hidden}
+.card:hover{border-color:rgba(0,229,255,.3);transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,229,255,.08)}
+.card .card-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;margin-bottom:1rem;flex-shrink:0}
+.card h3{font-size:1.05rem;font-weight:600;margin-bottom:.5rem}
+.card p{font-size:.88rem;color:var(--text-dim);line-height:1.55}
+.card .tag{display:inline-block;padding:.15rem .5rem;border-radius:4px;font-size:.7rem;font-weight:600;margin-top:.5rem;margin-right:.25rem}
+
+/* EXPANDABLE */
+.expandable{cursor:pointer}
+.expandable .expand-content{max-height:0;overflow:hidden;transition:max-height .4s ease}
+.expandable.open .expand-content{max-height:800px}
+.expandable .expand-toggle{font-size:.75rem;color:var(--cyan);margin-top:.5rem;display:flex;align-items:center;gap:.25rem}
+.expandable .expand-toggle::after{content:'▼';font-size:.6rem;transition:transform .3s}
+.expandable.open .expand-toggle::after{transform:rotate(180deg)}
+.expand-content .detail-list{padding:.75rem 0 0 0;font-size:.82rem;color:var(--text-dim)}
+.expand-content .detail-list li{margin-bottom:.35rem;list-style:none;padding-left:1rem;position:relative}
+.expand-content .detail-list li::before{content:'›';position:absolute;left:0;color:var(--cyan);font-weight:700}
+
+/* WHY BOXES */
+.why-box{background:linear-gradient(135deg,rgba(249,115,22,.04),rgba(234,179,8,.04));border:1px solid rgba(249,115,22,.2);border-radius:14px;padding:1.5rem;margin-top:2.5rem;position:relative;z-index:1;overflow:hidden}
+.why-box.fade-in{opacity:1;transform:translateY(0)}
+.why-box::before{content:'💡';position:absolute;top:-8px;right:16px;font-size:2.5rem;opacity:.15}
+.why-box .why-title{font-size:.85rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--orange);margin-bottom:.75rem;display:flex;align-items:center;gap:.5rem}
+.why-box .why-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+@media(max-width:768px){.why-box .why-grid{grid-template-columns:1fr}}
+.why-item{display:flex;gap:.6rem;align-items:flex-start}
+.why-item .why-icon{font-size:1.1rem;flex-shrink:0;margin-top:2px}
+.why-item .why-content h4{font-size:.85rem;font-weight:600;color:var(--text);margin-bottom:.15rem}
+.why-item .why-content p{font-size:.78rem;color:var(--text-dim);line-height:1.5}
+
+/* FADE IN */
+.fade-in{opacity:0;transform:translateY(30px);transition:opacity .6s,transform .6s}
+.fade-in.visible{opacity:1;transform:translateY(0)}
+
+/* CWPP GRID */
+#cwpp{background:linear-gradient(180deg,var(--bg2) 0%,var(--bg) 100%)}
+.cwpp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.25rem}
+.cwpp-card .card-icon{background:rgba(34,197,94,.1);color:var(--green)}
+.cwpp-card .tag{background:rgba(34,197,94,.1);color:var(--green)}
+
+/* ATTACK PATHS */
+#attackpaths{background:var(--bg)}
+.ap-visual{display:flex;align-items:center;justify-content:center;gap:0;flex-wrap:wrap;margin:2rem 0;padding:1.5rem;background:var(--glass);border:1px solid var(--border);border-radius:16px}
+.ap-node{text-align:center;padding:1rem;min-width:120px}
+.ap-node .ap-icon{font-size:2rem;margin-bottom:.35rem}
+.ap-node .ap-label{font-size:.75rem;font-weight:600}
+.ap-node .ap-detail{font-size:.65rem;color:var(--text-dim)}
+.ap-arrow{color:var(--red);font-size:1.2rem;font-weight:700;animation:arrow-pulse 1.5s infinite;padding:0 .25rem}
+@keyframes arrow-pulse{0%,100%{opacity:.3}50%{opacity:1}}
+.ap-node.ap-danger{color:var(--red)}
+.ap-node.ap-warn{color:var(--orange)}
+.ap-node.ap-info{color:var(--cyan)}
+
+/* ARCHITECTURE/DATAFLOW */
+#dataflow{background:var(--bg2)}
+.flow-pipeline{display:flex;flex-direction:column;gap:0;align-items:center}
+.flow-stage{display:flex;align-items:center;gap:1.5rem;width:100%;max-width:1000px;padding:1.5rem}
+.flow-stage .stage-num{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.2rem;font-weight:800;flex-shrink:0}
+.flow-stage .stage-content{flex:1}
+.flow-stage .stage-content h3{font-size:1.05rem;font-weight:600;margin-bottom:.25rem}
+.flow-stage .stage-content p{font-size:.88rem;color:var(--text-dim)}
+.flow-connector{width:3px;height:50px;position:relative;overflow:hidden}
+.flow-connector .connector-line{width:100%;height:100%;background:linear-gradient(180deg,transparent,var(--blue),transparent)}
+.flow-connector .particle{position:absolute;width:3px;height:12px;background:var(--blue);border-radius:2px;animation:flow-down 1.5s infinite;box-shadow:0 0 8px var(--blue)}
+@keyframes flow-down{0%{top:-12px;opacity:0}20%{opacity:1}80%{opacity:1}100%{top:100%;opacity:0}}
+
+/* MULTICLOUD */
+#multicloud{background:linear-gradient(180deg,var(--bg) 0%,var(--bg2) 100%)}
+.cloud-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1.25rem}
+.cloud-card{text-align:center;padding:1.5rem}
+.cloud-card .cloud-icon{font-size:2.5rem;margin-bottom:.75rem}
+.cloud-card .cloud-name{font-size:1.1rem;font-weight:700;margin-bottom:.5rem}
+.cloud-card .cloud-features{text-align:left;font-size:.8rem;color:var(--text-dim)}
+.cloud-card .cloud-features li{margin-bottom:.3rem;list-style:none;padding-left:1rem;position:relative}
+.cloud-card .cloud-features li::before{content:'✓';position:absolute;left:0;color:var(--green);font-weight:700}
+
+/* INTEGRATIONS ORBIT */
+#integrations{background:var(--bg2)}
+.integrations-orbit{position:relative;width:500px;height:500px;margin:0 auto}
+.orbit-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:120px;height:120px;border-radius:50%;background:linear-gradient(135deg,rgba(59,130,246,.15),rgba(168,85,247,.15));border:2px solid rgba(59,130,246,.3);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;z-index:3;font-size:.75rem;font-weight:700;color:var(--blue)}
+.orbit-center .orbit-icon{font-size:2rem;margin-bottom:.25rem}
+.orbit-ring{position:absolute;top:50%;left:50%;border:1px dashed var(--border);border-radius:50%;animation:orbit-spin 60s linear infinite}
+.orbit-ring-1{width:300px;height:300px;margin:-150px 0 0 -150px}
+.orbit-ring-2{width:440px;height:440px;margin:-220px 0 0 -220px;animation-duration:90s;animation-direction:reverse}
+@keyframes orbit-spin{from{transform:translate(-50%,-50%) rotate(0deg)}to{transform:translate(-50%,-50%) rotate(360deg)}}
+.orbit-item{position:absolute;width:80px;height:80px;border-radius:12px;background:var(--glass);border:1px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font-size:.65rem;font-weight:600;color:var(--text);transition:all .3s;cursor:default}
+.orbit-item:hover{border-color:rgba(59,130,246,.4);transform:scale(1.1);z-index:5}
+.orbit-item .oi-icon{font-size:1.3rem;margin-bottom:.2rem}
+@media(max-width:600px){.integrations-orbit{width:100%;height:auto;display:grid;grid-template-columns:repeat(2,1fr);gap:1rem}.orbit-center{position:static;transform:none;width:auto;height:auto;border-radius:12px;grid-column:1/-1;padding:1rem}.orbit-ring{display:none}.orbit-item{position:static;width:auto;height:auto;padding:.75rem}}
+
+/* INTEGRATION CARDS */
+.integ-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.25rem}
+.integ-card{cursor:pointer;border-left:3px solid var(--border);transition:all .3s}
+.integ-card:hover{border-left-color:var(--blue)}
+.integ-card .integ-header{display:flex;align-items:center;gap:.75rem}
+.integ-card .integ-header .integ-icon{font-size:1.6rem;flex-shrink:0}
+.integ-card .integ-header .integ-name{font-size:1rem;font-weight:700}
+.integ-card .integ-how{font-size:.82rem;color:var(--text-dim);margin-top:.35rem}
+.integ-card .expand-content .detail-list li{font-size:.8rem}
+.integ-card .integ-tag{display:inline-block;padding:.12rem .4rem;border-radius:4px;font-size:.65rem;font-weight:600;margin-top:.5rem;margin-right:.25rem;background:rgba(59,130,246,.1);color:var(--blue)}
+
+/* SIMULATION */
+#simulation{background:linear-gradient(180deg,var(--bg) 0%,#0d1321 100%);padding:5rem 2rem 4rem;min-height:100vh}
+.sim-theater{max-width:1200px;margin:0 auto}
+.sim-controls{display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap}
+.sim-btn{padding:.5rem 1.25rem;border-radius:8px;border:1px solid var(--border);background:var(--glass);color:var(--text);font-size:.85rem;font-weight:600;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:.4rem}
+.sim-btn:hover{border-color:var(--blue);color:var(--blue)}
+.sim-btn.active{background:rgba(59,130,246,.15);border-color:var(--blue);color:var(--blue)}
+.sim-btn.paused{background:rgba(234,179,8,.15);border-color:var(--yellow);color:var(--yellow)}
+.sim-progress{flex:1;min-width:200px;height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden}
+.sim-progress-bar{height:100%;width:0%;background:linear-gradient(90deg,var(--blue),var(--purple));border-radius:3px;transition:width .5s ease}
+.sim-step-label{font-size:.8rem;color:var(--blue);font-weight:600;min-width:180px;text-align:right}
+.sim-speed-controls{display:flex;align-items:center;gap:.5rem}
+.sim-speed-controls label{font-size:.72rem;color:var(--text-dim);font-weight:600}
+.speed-btn{padding:.25rem .5rem;border-radius:4px;border:1px solid var(--border);background:var(--glass);color:var(--text-dim);font-size:.72rem;cursor:pointer;transition:all .2s}
+.speed-btn:hover,.speed-btn.active{border-color:var(--blue);color:var(--blue);background:rgba(59,130,246,.1)}
+.sim-grid{display:grid;grid-template-columns:280px 1fr 280px;grid-template-rows:auto auto;gap:1.25rem;min-height:550px}
+@media(max-width:1000px){.sim-grid{grid-template-columns:1fr;grid-template-rows:auto}}
+.sim-panel{background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:16px;padding:1.25rem;position:relative;overflow:hidden;transition:border-color .5s,box-shadow .5s}
+.sim-panel.highlight{border-color:rgba(59,130,246,.5);box-shadow:0 0 30px rgba(59,130,246,.08)}
+.sim-panel.alert-highlight{border-color:rgba(239,68,68,.5);box-shadow:0 0 30px rgba(239,68,68,.1)}
+.sim-panel.green-highlight{border-color:rgba(34,197,94,.5);box-shadow:0 0 30px rgba(34,197,94,.1)}
+.sim-panel-title{font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem}
+.sim-panel-title .panel-dot{width:8px;height:8px;border-radius:50%;animation:pulse-dot 2s infinite}
+.panel-attacker{grid-column:1;grid-row:1/3}.panel-attacker .sim-panel-title{color:var(--red)}.panel-attacker .panel-dot{background:var(--red)}
+.panel-cloud-env{grid-column:2;grid-row:1}.panel-cloud-env .sim-panel-title{color:var(--cyan)}.panel-cloud-env .panel-dot{background:var(--cyan)}
+.panel-mdc{grid-column:3;grid-row:1/3}.panel-mdc .sim-panel-title{color:var(--blue)}.panel-mdc .panel-dot{background:var(--blue)}
+.panel-soc{grid-column:2;grid-row:2}.panel-soc .sim-panel-title{color:var(--green)}.panel-soc .panel-dot{background:var(--green)}
+.sim-log{font-family:'Cascadia Code','Fira Code',monospace;font-size:.72rem;line-height:1.7;max-height:460px;overflow-y:auto;scrollbar-width:thin}
+.sim-log .log-entry{padding:.3rem .5rem;border-radius:4px;margin-bottom:2px;opacity:0;transform:translateY(8px);transition:opacity .4s,transform .4s;display:flex;align-items:flex-start;gap:.5rem}
+.sim-log .log-entry.visible{opacity:1;transform:translateY(0)}
+.log-time{color:var(--text-dim);flex-shrink:0;min-width:55px}
+.log-icon{flex-shrink:0;font-size:.8rem}
+.log-msg{flex:1;word-break:break-word}
+.log-entry.log-red{background:rgba(239,68,68,.06);color:var(--red)}
+.log-entry.log-cyan{background:rgba(0,229,255,.06);color:var(--cyan)}
+.log-entry.log-blue{background:rgba(59,130,246,.06);color:var(--blue)}
+.log-entry.log-green{background:rgba(34,197,94,.06);color:var(--green)}
+.log-entry.log-orange{background:rgba(249,115,22,.06);color:var(--orange)}
+.log-entry.log-yellow{background:rgba(234,179,8,.06);color:var(--yellow)}
+.log-entry.log-purple{background:rgba(168,85,247,.06);color:var(--purple)}
+.log-entry.log-dim{background:transparent;color:var(--text-dim)}
+.sim-narrative{background:rgba(59,130,246,.04);border:1px solid rgba(59,130,246,.15);border-radius:12px;padding:1rem 1.25rem;margin-top:1.5rem;text-align:center;min-height:80px;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:all .5s}
+.sim-narrative .narr-step{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--blue);margin-bottom:.25rem}
+.sim-narrative .narr-text{font-size:.92rem;color:var(--text)}
+.sim-narrative.narr-red{background:rgba(239,68,68,.04);border-color:rgba(239,68,68,.2)}.sim-narrative.narr-red .narr-step{color:var(--red)}
+.sim-narrative.narr-green{background:rgba(34,197,94,.04);border-color:rgba(34,197,94,.2)}.sim-narrative.narr-green .narr-step{color:var(--green)}
+
+/* GRID BG */
+.grid-bg{position:absolute;inset:0;overflow:hidden;pointer-events:none;opacity:.3}
+.grid-bg::before{content:'';position:absolute;inset:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:60px 60px}
+
+/* PILLAR CARDS (Section 1) */
+.pillars-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem}
+@media(max-width:900px){.pillars-grid{grid-template-columns:1fr}}
+.pillar-card{text-align:center;padding:2rem 1.5rem}
+.pillar-card .pillar-icon{font-size:3rem;margin-bottom:1rem}
+.pillar-card .pillar-name{font-size:1.15rem;font-weight:700;margin-bottom:.5rem}
+.pillar-card .pillar-full{font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.75rem}
+
+/* CSPM (Section 2) */
+#cspm{background:var(--bg2)}
+.cspm-columns{display:grid;grid-template-columns:1fr 1fr;gap:2rem}
+@media(max-width:800px){.cspm-columns{grid-template-columns:1fr}}
+.cspm-col h3{font-size:1.1rem;font-weight:700;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem}
+.cspm-feature{display:flex;gap:.75rem;align-items:flex-start;padding:.6rem .75rem;border-radius:8px;margin-bottom:.5rem;transition:background .2s}
+.cspm-feature:hover{background:rgba(255,255,255,.03)}
+.cspm-feature .feat-icon{font-size:1rem;flex-shrink:0;margin-top:2px}
+.cspm-feature .feat-text{flex:1}
+.cspm-feature .feat-text strong{font-size:.85rem;display:block;margin-bottom:.1rem}
+.cspm-feature .feat-text span{font-size:.78rem;color:var(--text-dim)}
+
+/* PARTICLES */
+#particles-canvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;opacity:.4}
+
+/* FOOTER */
+footer{text-align:center;padding:3rem 2rem;border-top:1px solid var(--border);font-size:.8rem;color:var(--text-dim)}
+footer a{color:var(--cyan);text-decoration:none}
+/* CHATBOX */
+.chat-toggle{position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#22c55e,#14b8a6);border:none;color:white;font-size:1.5rem;cursor:pointer;z-index:200;box-shadow:0 4px 20px rgba(34,197,94,.3);transition:all .2s;display:flex;align-items:center;justify-content:center}
+.chat-toggle:hover{transform:scale(1.1)}
+.chat-toggle.open{border-radius:12px;width:44px;height:44px;font-size:1.1rem;bottom:470px}
+.chat-panel{position:fixed;bottom:24px;right:24px;width:380px;height:440px;background:#111827;border:1px solid rgba(255,255,255,.08);border-radius:16px;z-index:199;display:none;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,.5);overflow:hidden}
+.chat-panel.open{display:flex}
+.chat-header{padding:.75rem 1rem;background:rgba(34,197,94,.08);border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:.5rem}
+.chat-header .ch-title{font-size:.85rem;font-weight:700;color:#22c55e}
+.chat-header .ch-sub{font-size:.7rem;color:#94a3b8;margin-left:auto}
+.chat-messages{flex:1;overflow-y:auto;padding:.75rem;display:flex;flex-direction:column;gap:.5rem;scrollbar-width:thin}
+.chat-msg{max-width:90%;padding:.6rem .85rem;border-radius:12px;font-size:.82rem;line-height:1.5;animation:msg-in .3s ease}
+@keyframes msg-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.chat-msg.bot{background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.12);color:#e2e8f0;align-self:flex-start;border-bottom-left-radius:4px}
+.chat-msg.user{background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.2);color:white;align-self:flex-end;border-bottom-right-radius:4px}
+.chat-msg .term-name{color:#22c55e;font-weight:700;display:block;margin-bottom:.25rem}
+.chat-msg .term-category{font-size:.65rem;color:#94a3b8;background:rgba(255,255,255,.04);padding:.1rem .35rem;border-radius:3px;display:inline-block;margin-bottom:.35rem}
+.chat-input-row{padding:.5rem;border-top:1px solid rgba(255,255,255,.08);display:flex;gap:.35rem}
+.chat-input{flex:1;height:36px;border:1px solid rgba(255,255,255,.08);border-radius:8px;background:#0a0e1a;color:#e2e8f0;padding:0 .75rem;font-size:.82rem;font-family:inherit}
+.chat-input:focus{outline:none;border-color:#22c55e}
+.chat-input::placeholder{color:#94a3b8}
+.chat-send{width:36px;height:36px;border-radius:8px;border:1px solid #22c55e;background:rgba(34,197,94,.1);color:#22c55e;font-size:.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.chat-suggestions{padding:.35rem .75rem;display:flex;gap:.35rem;flex-wrap:wrap;border-top:1px solid rgba(255,255,255,.08)}
+.chat-sug{padding:.2rem .5rem;border-radius:99px;border:1px solid rgba(255,255,255,.08);font-size:.68rem;color:#94a3b8;cursor:pointer;transition:all .15s;background:none}
+.chat-sug:hover{border-color:#22c55e;color:#22c55e}
+</style>
+</head>
+<body>
+
+<canvas id="particles-canvas"></canvas>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-inner">
+    <div class="logo"><span class="shield">☁️</span> MDC Architecture</div>
+    <div class="nav-links">
+      <a href="#simulation">▶ Live Sim</a>
+      <a href="#cnapp">CNAPP</a>
+      <a href="#cspm">CSPM</a>
+      <a href="#cwpp">CWPP</a>
+      <a href="#attackpaths">Attack Paths</a>
+      <a href="#dataflow">Architecture</a>
+      <a href="#multicloud">Multicloud</a>
+      <a href="#integrations">Integrations</a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="badge"><span class="dot"></span> Validated against Microsoft Learn docs — March 2026</div>
+  <h1>How <span class="accent">Microsoft Defender for Cloud</span> Actually Works</h1>
+  <p>A complete animated walkthrough of Defender for Cloud — the Cloud Native Application Protection Platform (CNAPP) that secures Azure, AWS, GCP, and on-premises environments.</p>
+  <div class="stats-bar">
+    <div class="stat"><div class="stat-value">CNAPP</div><div class="stat-label">Cloud Native App Protection</div></div>
+    <div class="stat"><div class="stat-value">3</div><div class="stat-label">Clouds (Azure, AWS, GCP)</div></div>
+    <div class="stat"><div class="stat-value">3</div><div class="stat-label">Pillars (CSPM + DevSecOps + CWPP)</div></div>
+    <div class="stat"><div class="stat-value">10+</div><div class="stat-label">Workload Protection Plans</div></div>
+  </div>
+</section>
+
+<!-- SIMULATION — FIRST THING AFTER HERO -->
+<section id="simulation">
+  <div class="sim-theater">
+    <div class="section-label" style="background:rgba(239,68,68,.15);color:var(--red)">▶ Live Simulation</div>
+    <h2 class="section-title">Defender for Cloud in Action — Cloud Breach Stopped</h2>
+    <p class="section-desc">Watch a cloud attack play out: attacker finds a misconfigured storage account, exploits a vulnerable VM, and tries to reach sensitive data. Defender for Cloud detects and stops it across CSPM + CWPP.</p>
+
+    <div class="sim-controls">
+      <button class="sim-btn" id="sim-play" onclick="startSim()">▶ Play</button>
+      <button class="sim-btn" id="sim-pause" onclick="togglePause()">⏸ Pause</button>
+      <button class="sim-btn" id="sim-next" onclick="nextStep()">⏭ Next Step</button>
+      <button class="sim-btn" id="sim-reset" onclick="resetSim()">↺ Reset</button>
+      <div class="sim-speed-controls">
+        <label>SPEED:</label>
+        <button class="speed-btn" onclick="setSpeed(0.5)" id="speed-slow">0.5×</button>
+        <button class="speed-btn active" onclick="setSpeed(1)" id="speed-normal">1×</button>
+        <button class="speed-btn" onclick="setSpeed(2)" id="speed-fast">2×</button>
+      </div>
+      <div class="sim-progress"><div class="sim-progress-bar" id="sim-progress-bar"></div></div>
+      <div class="sim-step-label" id="sim-step-label">Ready to start</div>
+    </div>
+
+    <div class="sim-grid">
+      <div class="sim-panel panel-attacker" id="panel-attacker">
+        <div class="sim-panel-title"><span class="panel-dot"></span> Attacker Actions</div>
+        <div class="sim-log" id="log-attacker"></div>
+      </div>
+      <div class="sim-panel panel-cloud-env" id="panel-cloud-env">
+        <div class="sim-panel-title"><span class="panel-dot"></span> Cloud Environment (Azure)</div>
+        <div class="sim-log" id="log-cloud-env"></div>
+      </div>
+      <div class="sim-panel panel-mdc" id="panel-mdc">
+        <div class="sim-panel-title"><span class="panel-dot"></span> Defender for Cloud</div>
+        <div class="sim-log" id="log-mdc"></div>
+      </div>
+      <div class="sim-panel panel-soc" id="panel-soc">
+        <div class="sim-panel-title"><span class="panel-dot"></span> SOC / Security Team</div>
+        <div class="sim-log" id="log-soc"></div>
+      </div>
+    </div>
+
+    <div class="sim-narrative" id="sim-narrative">
+      <div class="narr-step">Welcome</div>
+      <div class="narr-text">Press <strong>▶ Play</strong> to auto-play, or <strong>⏭ Next Step</strong> to advance manually for presentations.</div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 1: CNAPP — THE THREE PILLARS -->
+<section id="cnapp">
+  <div class="grid-bg"></div>
+  <div class="section-inner">
+    <div class="section-label" style="background:rgba(59,130,246,.15);color:var(--blue)">🏛️ Foundation</div>
+    <h2 class="section-title fade-in">CNAPP — The Three Pillars</h2>
+    <p class="section-desc fade-in">Defender for Cloud is a <strong>Cloud Native Application Protection Platform</strong> — a unified solution combining posture management, development security, and workload protection into a single platform that secures applications across their entire lifecycle.</p>
+
+    <div class="pillars-grid">
+      <div class="card pillar-card fade-in" style="border-top:3px solid var(--blue)">
+        <div class="pillar-icon">🛡️</div>
+        <div class="pillar-name" style="color:var(--blue)">CSPM</div>
+        <div class="pillar-full" style="color:var(--text-dim)">Cloud Security Posture Management</div>
+        <p>Continuously checks and improves the security posture of your cloud resources. Finds misconfigurations, tracks compliance, scores your security posture, and models attack paths.</p>
+        <span class="tag" style="background:rgba(59,130,246,.1);color:var(--blue)">Prevent</span>
+        <span class="tag" style="background:rgba(59,130,246,.1);color:var(--blue)">Posture</span>
+      </div>
+
+      <div class="card pillar-card fade-in" style="border-top:3px solid var(--purple)">
+        <div class="pillar-icon">💻</div>
+        <div class="pillar-name" style="color:var(--purple)">DevSecOps</div>
+        <div class="pillar-full" style="color:var(--text-dim)">Development Security Operations</div>
+        <p>Manages code-level security across multicloud and multi-pipeline environments. Scans IaC templates, detects secrets in code, and provides PR annotations — shifting security left into development.</p>
+        <span class="tag" style="background:rgba(168,85,247,.1);color:var(--purple)">Shift Left</span>
+        <span class="tag" style="background:rgba(168,85,247,.1);color:var(--purple)">Code</span>
+      </div>
+
+      <div class="card pillar-card fade-in" style="border-top:3px solid var(--green)">
+        <div class="pillar-icon">⚔️</div>
+        <div class="pillar-name" style="color:var(--green)">CWPP</div>
+        <div class="pillar-full" style="color:var(--text-dim)">Cloud Workload Protection Platform</div>
+        <p>Defends running workloads — VMs, containers, databases, storage, serverless, APIs — from active threats. Provides workload-specific security alerts and response capabilities at runtime.</p>
+        <span class="tag" style="background:rgba(34,197,94,.1);color:var(--green)">Detect</span>
+        <span class="tag" style="background:rgba(34,197,94,.1);color:var(--green)">Respond</span>
+      </div>
+    </div>
+
+    <div class="why-box fade-in">
+      <div class="why-title">💡 Why CNAPP Matters</div>
+      <div class="why-grid">
+        <div class="why-item"><div class="why-icon">🔗</div><div class="why-content"><h4>One Platform, Full Lifecycle</h4><p>Instead of separate tools for posture, code scanning, and runtime protection — CNAPP unifies them. A vulnerability found in code can be traced through deployment to the running workload in one console.</p></div></div>
+        <div class="why-item"><div class="why-icon">⬅️</div><div class="why-content"><h4>Shift Left, Not Just Shield Right</h4><p>Fixing a misconfiguration in an IaC template costs minutes. Fixing it in production after an attacker exploits it costs millions. DevSecOps catches issues before they deploy.</p></div></div>
+        <div class="why-item"><div class="why-icon">☁️</div><div class="why-content"><h4>Multicloud by Default</h4><p>Most organizations run Azure + AWS + GCP. Defender for Cloud provides a single pane of glass across all three — same recommendations, same policies, same compliance standards.</p></div></div>
+        <div class="why-item"><div class="why-icon">📊</div><div class="why-content"><h4>Posture + Protection Together</h4><p>CSPM tells you "this storage account is publicly accessible." CWPP tells you "someone is actively downloading data from it." Together, they give you context that neither provides alone.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 2: CSPM -->
+<section id="cspm">
+  <div class="section-inner">
+    <div class="section-label" style="background:rgba(59,130,246,.15);color:var(--blue)">🛡️ Pillar 1</div>
+    <h2 class="section-title fade-in">Cloud Security Posture Management (CSPM)</h2>
+    <p class="section-desc fade-in">Continuously assesses your cloud infrastructure against security standards. Two tiers: <strong>Foundational CSPM</strong> (free with any Azure subscription) and <strong>Defender CSPM</strong> (paid, with advanced features like attack paths and security explorer).</p>
+
+    <div class="cspm-columns">
+      <div class="cspm-col">
+        <h3 style="color:var(--cyan)">🆓 Foundational CSPM (Free)</h3>
+        <div class="cspm-feature fade-in"><div class="feat-icon">📦</div><div class="feat-text"><strong>Asset Inventory</strong><span>Complete view of all resources across Azure, AWS, GCP, and on-premises</span></div></div>
+        <div class="cspm-feature fade-in"><div class="feat-icon">📊</div><div class="feat-text"><strong>Secure Score</strong><span>0-100 score summarizing your security posture. Improves as you fix recommendations</span></div></div>
+        <div class="cspm-feature fade-in"><div class="feat-icon">📋</div><div class="feat-text"><strong>MCSB Recommendations</strong><span>Microsoft Cloud Security Benchmark — built-in security recommendations for all resources</span></div></div>
+        <div class="cspm-feature fade-in"><div class="feat-icon">☁️</div><div class="feat-text"><strong>Multicloud Coverage</strong><span>Agentless connectors for AWS and GCP provide posture insights without agents</span></div></div>
+        <div class="cspm-feature fade-in"><div class="feat-icon">⚡</div><div class="feat-text"><strong>Workflow Automation</strong><span>Trigger Logic Apps or Azure Functions when recommendations change state</span></div></div>
+        <div class="cspm-feature fade-in"><div class="feat-icon">📤</div><div class="feat-text"><strong>Data Exporting</strong><span>Stream security data to SIEM, Log Analytics, or Event Hub</span></div></div>
+      </div>
+
+      <div class="cspm-col">
+        <h3 style="color:var(--blue)">💎 Defender CSPM (Paid)</h3>
+        <div class="cspm-feature fade-in"><div class="feat-icon">🗺️</div><div class="feat-text"><strong>Attack Path Analysis</strong><span>Models how an attacker could traverse your environment — Internet → VM → Storage → Sensitive Data</span></div></div>
+        <div class="cspm-feature fade-in"><div class="feat-icon">🔎</div><div class="feat-text"><strong>Cloud Security Explorer</strong><span>Query-based tool to build custom risk queries across your entire security graph</span></div></div>
+        <div class="cspm-feature fade-in"><div class="feat-icon">🔍</div><div class="feat-text"><strong>Agentless VM Scanning</strong><span>Snapshots VM disks and scans externally for vulnerabilities and secrets — zero performance impact</span></div></div>
+        <div class="cspm-feature fade-in"><div class="feat-icon">🔐</div><div class="feat-text"><strong>Data Security Posture (DSPM)</strong><span>Automatically discovers datastores with sensitive data and helps reduce data breach risk</span></div></div>
+        <div class="cspm-feature fade-in"><div class="feat-icon">📜</div><div class="feat-text"><strong>Regulatory Compliance</strong><span>Assess against CIS, NIST 800-53, PCI-DSS, SOC 2, ISO 27001, and custom standards</span></div></div>
+        <div class="cspm-feature fade-in"><div class="feat-icon">🏛️</div><div class="feat-text"><strong>Governance Rules</strong><span>Assign remediation owners, set deadlines, and track progress at scale</span></div></div>
+        <div class="cspm-feature fade-in"><div class="feat-icon">🤖</div><div class="feat-text"><strong>AI Security Posture</strong><span>Discover generative AI workloads, identify their vulnerabilities, and map their attack surface</span></div></div>
+        <div class="cspm-feature fade-in"><div class="feat-icon">🌐</div><div class="feat-text"><strong>External Attack Surface</strong><span>See your organization's internet-facing resources from the attacker's perspective</span></div></div>
+        <div class="cspm-feature fade-in"><div class="feat-icon">⭐</div><div class="feat-text"><strong>Critical Asset Protection</strong><span>Identify and prioritize protection of your most business-critical assets</span></div></div>
+        <div class="cspm-feature fade-in"><div class="feat-icon">🔗</div><div class="feat-text"><strong>Risk Prioritization</strong><span>Contextual risk scoring — considers internet exposure, data sensitivity, blast radius, not just CVSS</span></div></div>
+      </div>
+    </div>
+
+    <div class="why-box fade-in">
+      <div class="why-title">💡 Why CSPM Matters</div>
+      <div class="why-grid">
+        <div class="why-item"><div class="why-icon">🔥</div><div class="why-content"><h4>Misconfiguration = #1 Cloud Risk</h4><p>Most cloud breaches aren't zero-days — they're open storage accounts, overly permissive IAM roles, and unencrypted databases. CSPM finds these before attackers do.</p></div></div>
+        <div class="why-item"><div class="why-icon">📈</div><div class="why-content"><h4>Secure Score for Leadership</h4><p>CISOs need a number they can report to the board. Secure Score provides a trackable, improvable metric that shows security posture trending over time.</p></div></div>
+        <div class="why-item"><div class="why-icon">⚖️</div><div class="why-content"><h4>Compliance on Autopilot</h4><p>Instead of manually mapping controls to CIS/NIST/PCI, Defender CSPM continuously assesses compliance and shows exactly which resources fail which control — with remediation steps.</p></div></div>
+        <div class="why-item"><div class="why-icon">🔍</div><div class="why-content"><h4>Agentless = Zero Friction</h4><p>Agentless scanning takes disk snapshots and analyzes them externally. No agent to deploy, no performance impact on workloads, no maintenance overhead. Security teams can scan everything without asking app owners for permission.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 3: CWPP -->
+<section id="cwpp">
+  <div class="section-inner">
+    <div class="section-label" style="background:rgba(34,197,94,.15);color:var(--green)">⚔️ Pillar 2</div>
+    <h2 class="section-title fade-in">Cloud Workload Protection (CWPP)</h2>
+    <p class="section-desc fade-in">Workload-specific threat detection and response plans. Each plan protects a different Azure/multicloud service with tailored security alerts and recommendations.</p>
+
+    <div class="cwpp-grid">
+      <div class="card cwpp-card expandable fade-in">
+        <div class="card-icon">🖥️</div>
+        <h3>Defender for Servers</h3>
+        <p>Threat detection for Windows/Linux VMs across Azure, AWS, GCP, and on-premises. Integrates Microsoft Defender for Endpoint.</p>
+        <span class="tag">VMs</span><span class="tag">Arc</span>
+        <div class="expand-toggle">Details</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li>Full MDE integration (EDR, AV, vulnerability assessment)</li>
+          <li>Just-in-time VM network access (close management ports)</li>
+          <li>File integrity monitoring (FIM)</li>
+          <li>Adaptive application controls (allowlisting)</li>
+          <li>Agentless or agent-based deployment</li>
+        </ul></div>
+      </div>
+
+      <div class="card cwpp-card expandable fade-in">
+        <div class="card-icon">📦</div>
+        <h3>Defender for Containers</h3>
+        <p>Kubernetes security — environment hardening, image vulnerability scanning, and runtime protection for nodes and clusters.</p>
+        <span class="tag">AKS</span><span class="tag">EKS</span><span class="tag">GKE</span>
+        <div class="expand-toggle">Details</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li>Container image vulnerability assessment (registry + runtime)</li>
+          <li>Kubernetes cluster hardening recommendations</li>
+          <li>Runtime threat detection for nodes and clusters</li>
+          <li>Agentless discovery for Kubernetes</li>
+          <li>Code-to-cloud container image mapping</li>
+        </ul></div>
+      </div>
+
+      <div class="card cwpp-card expandable fade-in">
+        <div class="card-icon">💾</div>
+        <h3>Defender for Storage</h3>
+        <p>Protects Azure Storage accounts from malware uploads, sensitive data leakage, and SAS token misuse.</p>
+        <span class="tag">Blob</span><span class="tag">Files</span>
+        <div class="expand-toggle">Details</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li>Near real-time malware scanning of uploaded blobs</li>
+          <li>Sensitive data threat detection</li>
+          <li>Anomalous access pattern detection</li>
+          <li>SAS token misuse detection</li>
+          <li>Unauthenticated access alerts</li>
+        </ul></div>
+      </div>
+
+      <div class="card cwpp-card expandable fade-in">
+        <div class="card-icon">🗄️</div>
+        <h3>Defender for Databases</h3>
+        <p>Attack detection for Azure SQL, SQL on machines, PostgreSQL, MySQL, MariaDB, and Cosmos DB.</p>
+        <span class="tag">SQL</span><span class="tag">CosmosDB</span>
+        <div class="expand-toggle">Details</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li>SQL injection detection</li>
+          <li>Brute force login attempt alerts</li>
+          <li>Anomalous database access patterns</li>
+          <li>Suspicious data export detection</li>
+          <li>Covers PaaS and IaaS-hosted databases</li>
+        </ul></div>
+      </div>
+
+      <div class="card cwpp-card expandable fade-in">
+        <div class="card-icon">🔑</div>
+        <h3>Defender for Key Vault</h3>
+        <p>Detects unusual and potentially harmful attempts to access or exploit Key Vault accounts.</p>
+        <span class="tag">Secrets</span><span class="tag">Keys</span>
+        <div class="expand-toggle">Details</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li>Unusual secret/key access patterns</li>
+          <li>Access from suspicious IP addresses or Tor</li>
+          <li>High volume of operations detection</li>
+          <li>Policy change monitoring</li>
+        </ul></div>
+      </div>
+
+      <div class="card cwpp-card expandable fade-in">
+        <div class="card-icon">🌐</div>
+        <h3>Defender for App Service</h3>
+        <p>Identifies attacks targeting web apps and APIs running on Azure App Service.</p>
+        <span class="tag">Web Apps</span><span class="tag">APIs</span>
+        <div class="expand-toggle">Details</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li>Web shell detection</li>
+          <li>Suspicious request pattern analysis</li>
+          <li>Command injection detection</li>
+          <li>Dangling DNS / subdomain takeover alerts</li>
+        </ul></div>
+      </div>
+
+      <div class="card cwpp-card expandable fade-in">
+        <div class="card-icon">⚙️</div>
+        <h3>Defender for Resource Manager</h3>
+        <p>Monitors Azure Resource Manager operations for suspicious or harmful activity.</p>
+        <span class="tag">ARM</span><span class="tag">Control Plane</span>
+        <div class="expand-toggle">Details</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li>Suspicious resource management operations</li>
+          <li>Lateral movement via ARM API</li>
+          <li>Crypto-mining resource deployment detection</li>
+          <li>Anomalous Azure management activity</li>
+        </ul></div>
+      </div>
+
+      <div class="card cwpp-card expandable fade-in">
+        <div class="card-icon">🤖</div>
+        <h3>AI Threat Protection</h3>
+        <p>Real-time threat detection for generative AI workloads including prompt injection and model manipulation.</p>
+        <span class="tag">Gen AI</span><span class="tag">LLMs</span>
+        <div class="expand-toggle">Details</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li>Prompt injection attack detection</li>
+          <li>Sensitive data exposure through AI</li>
+          <li>Anomalous AI API usage patterns</li>
+          <li>Integrates with AI security posture management</li>
+        </ul></div>
+      </div>
+    </div>
+
+    <div class="why-box fade-in">
+      <div class="why-title">💡 Why CWPP Matters</div>
+      <div class="why-grid">
+        <div class="why-item"><div class="why-icon">🎯</div><div class="why-content"><h4>Workload-Specific Beats Generic</h4><p>A SQL injection alert is meaningless for a VM. A crypto-mining alert is meaningless for a database. Each plan has detection models trained specifically for that workload type — far fewer false positives, far more relevant alerts.</p></div></div>
+        <div class="why-item"><div class="why-icon">🔄</div><div class="why-content"><h4>Posture + Runtime = Complete</h4><p>CSPM says "your storage is misconfigured." CWPP says "someone is actively exploiting that misconfiguration right now." You need both — prevention AND detection.</p></div></div>
+        <div class="why-item"><div class="why-icon">☁️</div><div class="why-content"><h4>IaaS + PaaS + Serverless</h4><p>Whether you run VMs, containers, managed databases, or serverless functions — there's a Defender plan for it. No gaps in coverage as you modernize your architecture.</p></div></div>
+        <div class="why-item"><div class="why-icon">💰</div><div class="why-content"><h4>Pay Only for What You Use</h4><p>Enable plans per-subscription, per-workload type. Protect your databases without paying for server protection if you don't need it. Granular cost control.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 4: ATTACK PATH ANALYSIS -->
+<section id="attackpaths">
+  <div class="section-inner">
+    <div class="section-label" style="background:rgba(239,68,68,.15);color:var(--red)">🗺️ Key Feature</div>
+    <h2 class="section-title fade-in">Attack Path Analysis & Security Explorer</h2>
+    <p class="section-desc fade-in">The Cloud Security Graph maps relationships between all your resources. Attack Path Analysis models how an attacker could traverse that graph to reach your critical assets.</p>
+
+    <h3 class="fade-in" style="color:var(--red);margin-bottom:1rem;font-size:1rem">Example Attack Path</h3>
+    <div class="ap-visual fade-in">
+      <div class="ap-node ap-danger"><div class="ap-icon">🌐</div><div class="ap-label">Internet</div><div class="ap-detail">Public exposure</div></div>
+      <div class="ap-arrow">→</div>
+      <div class="ap-node ap-danger"><div class="ap-icon">🖥️</div><div class="ap-label">VM (CVE-2024-*)</div><div class="ap-detail">Critical vuln, public IP</div></div>
+      <div class="ap-arrow">→</div>
+      <div class="ap-node ap-warn"><div class="ap-icon">🔑</div><div class="ap-label">Managed Identity</div><div class="ap-detail">Over-privileged role</div></div>
+      <div class="ap-arrow">→</div>
+      <div class="ap-node ap-warn"><div class="ap-icon">💾</div><div class="ap-label">Storage Account</div><div class="ap-detail">Public blob access</div></div>
+      <div class="ap-arrow">→</div>
+      <div class="ap-node ap-info"><div class="ap-icon">🔒</div><div class="ap-label">Sensitive Data</div><div class="ap-detail">PII / Financial</div></div>
+    </div>
+
+    <div class="cspm-columns" style="margin-top:2rem">
+      <div class="card fade-in" style="border-left:3px solid var(--red)">
+        <h3>🗺️ Attack Path Analysis</h3>
+        <p>Automatically discovers paths an attacker could take from an entry point (internet-facing resource with a vulnerability) to your crown jewels (sensitive data, critical workloads). Prioritizes paths by risk — not just individual vulnerabilities.</p>
+      </div>
+      <div class="card fade-in" style="border-left:3px solid var(--purple)">
+        <h3>🔎 Cloud Security Explorer</h3>
+        <p>Build custom graph queries: "Show me all VMs with public IPs that have critical vulnerabilities AND access to storage accounts containing sensitive data." Like KQL, but for your cloud architecture.</p>
+      </div>
+    </div>
+
+    <div class="why-box fade-in">
+      <div class="why-title">💡 Why Attack Paths Matter</div>
+      <div class="why-grid">
+        <div class="why-item"><div class="why-icon">👁️</div><div class="why-content"><h4>See the Attacker's Perspective</h4><p>Individual findings like "VM has a critical CVE" or "storage allows public access" seem unrelated. Attack path analysis connects them: that CVE is the entry point to your sensitive data. Context changes everything.</p></div></div>
+        <div class="why-item"><div class="why-icon">🎯</div><div class="why-content"><h4>Fix the Right Thing First</h4><p>You have 500 critical vulnerabilities. Which one matters? The one that's internet-facing, has a public exploit, and leads to your customer database. Attack paths answer "what should I fix NOW."</p></div></div>
+        <div class="why-item"><div class="why-icon">🕸️</div><div class="why-content"><h4>Graph-Based, Not List-Based</h4><p>Traditional tools give you a flat list of findings. The security graph shows relationships — identity → resource → data → network. You see blast radius, not just individual issues.</p></div></div>
+        <div class="why-item"><div class="why-icon">🔗</div><div class="why-content"><h4>Break One Link, Kill the Path</h4><p>You don't have to fix every finding in a path. Remove the public IP, or fix the over-privileged identity, or enable storage encryption — breaking any single link eliminates the entire attack path.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 5: ARCHITECTURE / DATA FLOW -->
+<section id="dataflow">
+  <div class="section-inner">
+    <div class="section-label" style="background:rgba(59,130,246,.15);color:var(--blue)">🔄 Architecture</div>
+    <h2 class="section-title fade-in">How Defender for Cloud Collects Data</h2>
+    <p class="section-desc fade-in">Multiple collection methods — agentless, agent-based, and connector-based — feed into the Cloud Security Graph for unified posture and protection.</p>
+
+    <div class="flow-pipeline">
+      <div class="flow-stage fade-in">
+        <div class="stage-num" style="background:rgba(59,130,246,.15);color:var(--blue);border:2px solid rgba(59,130,246,.3)">1</div>
+        <div class="stage-content">
+          <h3>🔌 Cloud Connectors</h3>
+          <p>Azure subscriptions auto-connect natively. AWS uses CloudTrail + SSM connector. GCP uses Security Command Center + service accounts. All configuration is agentless — no agents deployed in the target cloud.</p>
+        </div>
+      </div>
+      <div class="flow-connector"><div class="connector-line"><div class="particle"></div></div></div>
+
+      <div class="flow-stage fade-in">
+        <div class="stage-num" style="background:rgba(168,85,247,.15);color:var(--purple);border:2px solid rgba(168,85,247,.3)">2</div>
+        <div class="stage-content">
+          <h3>🔍 Agentless Scanning</h3>
+          <p>Takes snapshots of VM disks and scans them externally for vulnerabilities, secrets, and malware. Zero performance impact — the workload never knows it's being scanned. Works across Azure, AWS, and GCP.</p>
+        </div>
+      </div>
+      <div class="flow-connector"><div class="connector-line"><div class="particle" style="animation-delay:.5s"></div></div></div>
+
+      <div class="flow-stage fade-in">
+        <div class="stage-num" style="background:rgba(34,197,94,.15);color:var(--green);border:2px solid rgba(34,197,94,.3)">3</div>
+        <div class="stage-content">
+          <h3>🛡️ Agent-Based (Optional)</h3>
+          <p>For deep workload protection: Azure Monitor Agent or MDE sensor. Provides file integrity monitoring, adaptive application controls, just-in-time VM access, and full EDR capabilities.</p>
+        </div>
+      </div>
+      <div class="flow-connector"><div class="connector-line"><div class="particle" style="animation-delay:.3s"></div></div></div>
+
+      <div class="flow-stage fade-in">
+        <div class="stage-num" style="background:rgba(0,229,255,.15);color:var(--cyan);border:2px solid rgba(0,229,255,.3)">4</div>
+        <div class="stage-content">
+          <h3>🌐 Azure Arc (Hybrid)</h3>
+          <p>Projects on-premises and other-cloud machines as Azure resources. Extends Defender for Cloud to anywhere — your datacenter, edge, or other cloud providers. Same policies, same recommendations.</p>
+        </div>
+      </div>
+      <div class="flow-connector"><div class="connector-line"><div class="particle" style="animation-delay:.7s"></div></div></div>
+
+      <div class="flow-stage fade-in">
+        <div class="stage-num" style="background:rgba(249,115,22,.15);color:var(--orange);border:2px solid rgba(249,115,22,.3)">5</div>
+        <div class="stage-content">
+          <h3>💻 DevOps Connectors</h3>
+          <p>Connects to GitHub, Azure DevOps, and GitLab. Scans IaC templates for misconfigurations, detects secrets in code, provides PR annotations so developers fix issues before merge.</p>
+        </div>
+      </div>
+      <div class="flow-connector"><div class="connector-line"><div class="particle" style="animation-delay:.2s"></div></div></div>
+
+      <div class="flow-stage fade-in">
+        <div class="stage-num" style="background:rgba(236,72,153,.15);color:var(--pink);border:2px solid rgba(236,72,153,.3)">6</div>
+        <div class="stage-content">
+          <h3>🕸️ Cloud Security Graph</h3>
+          <p>All data feeds into the unified security graph — resource inventory, vulnerabilities, identities, network paths, sensitive data locations. Powers attack path analysis, security explorer, and risk prioritization.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="why-box fade-in">
+      <div class="why-title">💡 Why the Architecture Matters</div>
+      <div class="why-grid">
+        <div class="why-item"><div class="why-icon">⚡</div><div class="why-content"><h4>Agentless = Zero Friction</h4><p>Security teams can scan every VM without asking app owners for permission, deploying agents, or impacting performance. Disk snapshots are taken and analyzed externally — the workload never knows.</p></div></div>
+        <div class="why-item"><div class="why-icon">🔗</div><div class="why-content"><h4>Code → Cloud in One View</h4><p>A Terraform misconfiguration in GitHub becomes a finding that traces through deployment to the running resource. DevOps connectors close the loop between developers and security teams.</p></div></div>
+        <div class="why-item"><div class="why-icon">🌐</div><div class="why-content"><h4>True Multicloud, Not Bolted On</h4><p>AWS and GCP aren't afterthoughts — they have native connectors with agentless scanning, CSPM recommendations, and CWPP protection. Same depth across all three clouds.</p></div></div>
+        <div class="why-item"><div class="why-icon">📊</div><div class="why-content"><h4>Everything Feeds the Graph</h4><p>The cloud security graph is the secret weapon. Every data source — posture, vulnerabilities, identities, network, data sensitivity — becomes interconnected. This powers attack paths that no single data source could reveal.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 7: MULTICLOUD -->
+<section id="multicloud">
+  <div class="section-inner">
+    <div class="section-label" style="background:rgba(0,229,255,.15);color:var(--cyan)">☁️ Coverage</div>
+    <h2 class="section-title fade-in">Multicloud Coverage</h2>
+    <p class="section-desc fade-in">One console, consistent policies, same compliance standards across Azure, AWS, GCP, on-premises, and DevOps pipelines.</p>
+
+    <div class="cloud-grid">
+      <div class="card cloud-card fade-in" style="border-top:3px solid #0078d4">
+        <div class="cloud-icon">🔷</div>
+        <div class="cloud-name" style="color:#0078d4">Azure</div>
+        <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:.75rem">Full native integration — deepest coverage</p>
+        <ul class="cloud-features"><li>All CSPM + CWPP plans</li><li>Agentless VM scanning</li><li>Native resource assessment</li><li>Azure Policy integration</li><li>AKS container security</li><li>App Service + Functions protection</li></ul>
+      </div>
+      <div class="card cloud-card fade-in" style="border-top:3px solid #ff9900">
+        <div class="cloud-icon">🟠</div>
+        <div class="cloud-name" style="color:#ff9900">AWS</div>
+        <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:.75rem">CloudTrail + SSM connector</p>
+        <ul class="cloud-features"><li>EC2, S3, RDS protection</li><li>EKS container security</li><li>Agentless VM scanning</li><li>CSPM recommendations</li><li>Attack path analysis</li><li>Regulatory compliance</li></ul>
+      </div>
+      <div class="card cloud-card fade-in" style="border-top:3px solid #4285f4">
+        <div class="cloud-icon">🔵</div>
+        <div class="cloud-name" style="color:#4285f4">GCP</div>
+        <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:.75rem">Security Command Center integration</p>
+        <ul class="cloud-features"><li>Compute, Storage, Cloud SQL</li><li>GKE container security</li><li>Agentless VM scanning</li><li>CSPM recommendations</li><li>Attack path analysis</li><li>Regulatory compliance</li></ul>
+      </div>
+      <div class="card cloud-card fade-in" style="border-top:3px solid var(--purple)">
+        <div class="cloud-icon">🏢</div>
+        <div class="cloud-name" style="color:var(--purple)">On-Premises</div>
+        <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:.75rem">Azure Arc for hybrid servers</p>
+        <ul class="cloud-features"><li>Server protection via Arc</li><li>File integrity monitoring</li><li>Vulnerability assessment</li><li>Security recommendations</li><li>Same portal, same policies</li></ul>
+      </div>
+      <div class="card cloud-card fade-in" style="border-top:3px solid var(--green)">
+        <div class="cloud-icon">💻</div>
+        <div class="cloud-name" style="color:var(--green)">DevOps</div>
+        <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:.75rem">GitHub, Azure DevOps, GitLab</p>
+        <ul class="cloud-features"><li>IaC misconfiguration scanning</li><li>Secrets detection in code</li><li>PR annotations for developers</li><li>Code-to-cloud mapping</li><li>Container image mapping</li></ul>
+      </div>
+    </div>
+
+    <div class="why-box fade-in">
+      <div class="why-title">💡 Why Multicloud Matters</div>
+      <div class="why-grid">
+        <div class="why-item"><div class="why-icon">📊</div><div class="why-content"><h4>93% of Enterprises Are Multicloud</h4><p>If your security tool only covers Azure, you're blind to AWS and GCP risks. Attackers don't care which cloud you use — they exploit the weakest link across all of them.</p></div></div>
+        <div class="why-item"><div class="why-icon">📋</div><div class="why-content"><h4>One Policy, Three Clouds</h4><p>"All storage must be encrypted" — applied consistently across Azure Blob, AWS S3, and GCP Cloud Storage from a single console. No per-cloud tool sprawl.</p></div></div>
+        <div class="why-item"><div class="why-icon">🔗</div><div class="why-content"><h4>Cross-Cloud Attack Paths</h4><p>An attacker could pivot from a compromised AWS EC2 instance to an Azure storage account via a shared service principal. Only a multicloud tool sees that path.</p></div></div>
+        <div class="why-item"><div class="why-icon">💰</div><div class="why-content"><h4>Consolidation Saves Money</h4><p>Replace separate CSPM tools per cloud (Prisma, AWS Security Hub, GCP SCC) with one platform. Fewer vendors, fewer consoles, lower total cost.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 8: INTEGRATIONS -->
+<section id="integrations">
+  <div class="section-inner">
+    <div class="section-label" style="background:rgba(236,72,153,.15);color:var(--pink)">🔗 Ecosystem</div>
+    <h2 class="section-title fade-in" style="text-align:center">Defender for Cloud Ecosystem</h2>
+    <p class="section-desc fade-in" style="text-align:center;margin:0 auto 3rem">Integrates with the full Microsoft security stack and third-party tools for unified operations.</p>
+
+    <div class="integ-grid">
+      <div class="card integ-card expandable fade-in" style="border-left-color:var(--blue)">
+        <div class="integ-header"><div class="integ-icon">📊</div><div class="integ-name">Microsoft Sentinel</div></div>
+        <div class="integ-how">SIEM integration — all MDC alerts stream into Sentinel as security incidents.</div>
+        <span class="integ-tag">Bi-directional</span><span class="integ-tag">Auto-enabled</span>
+        <div class="expand-toggle">How it integrates →</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li><strong>Data connector:</strong> Enable the "Microsoft Defender for Cloud" connector in Sentinel — one click, all alerts flow in</li>
+          <li><strong>Bi-directional sync:</strong> Alert status changes in Sentinel sync back to MDC and vice versa</li>
+          <li><strong>Continuous export:</strong> Stream recommendations, secure score changes, and regulatory compliance data to Log Analytics</li>
+          <li><strong>Workbooks:</strong> Pre-built Sentinel workbooks visualize MDC data — posture trends, alert heatmaps, compliance dashboards</li>
+          <li><strong>Automation:</strong> Sentinel playbooks (Logic Apps) trigger on MDC alerts — auto-remediate, notify teams, create tickets</li>
+          <li><strong>Hunting:</strong> Query MDC security data alongside endpoint, identity, and email data in one KQL workspace</li>
+        </ul></div>
+      </div>
+
+      <div class="card integ-card expandable fade-in" style="border-left-color:var(--purple)">
+        <div class="integ-header"><div class="integ-icon">🛡️</div><div class="integ-name">Defender XDR</div></div>
+        <div class="integ-how">MDC alerts appear in the unified Defender XDR incident queue alongside endpoint and identity alerts.</div>
+        <span class="integ-tag">Unified Portal</span><span class="integ-tag">Auto-correlation</span>
+        <div class="expand-toggle">How it integrates →</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li><strong>Unified incidents:</strong> Cloud alerts are correlated with endpoint/identity alerts into single incidents in security.microsoft.com</li>
+          <li><strong>Auto-correlation:</strong> A compromised user identity (Defender for Identity) + compromised VM (MDC) = one incident, not two</li>
+          <li><strong>Shared investigation:</strong> Investigate cloud resource alerts alongside device timelines and user activity in one view</li>
+          <li><strong>Attack disruption:</strong> XDR can automatically contain threats spanning cloud + endpoint + identity</li>
+          <li><strong>No config needed:</strong> MDC alerts flow into XDR automatically when both are licensed</li>
+        </ul></div>
+      </div>
+
+      <div class="card integ-card expandable fade-in" style="border-left-color:var(--green)">
+        <div class="integ-header"><div class="integ-icon">🖥️</div><div class="integ-name">Defender for Endpoint</div></div>
+        <div class="integ-how">Defender for Servers auto-deploys MDE on every server — full EDR with one toggle.</div>
+        <span class="integ-tag">Embedded</span><span class="integ-tag">Auto-deploy</span>
+        <div class="expand-toggle">How it integrates →</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li><strong>Auto-provisioning:</strong> Enable Defender for Servers → MDE sensor auto-installs on all Azure VMs and Arc-connected servers</li>
+          <li><strong>Unified vulnerability assessment:</strong> MDE's TVM feeds vulnerability data back into MDC recommendations and attack paths</li>
+          <li><strong>Shared alerts:</strong> MDE endpoint alerts appear in both the MDC alerts page and the XDR incident queue</li>
+          <li><strong>License included:</strong> MDE P2 license is included with Defender for Servers P2 — no separate purchase</li>
+          <li><strong>Cross-platform:</strong> Works on Windows Server, Linux (Azure + Arc), and even AWS EC2/GCP Compute via Arc</li>
+        </ul></div>
+      </div>
+
+      <div class="card integ-card expandable fade-in" style="border-left-color:var(--cyan)">
+        <div class="integ-header"><div class="integ-icon">📋</div><div class="integ-name">Azure Policy</div></div>
+        <div class="integ-how">MDC recommendations map to Azure Policy definitions. Policy enforces what MDC recommends.</div>
+        <span class="integ-tag">Prevention</span><span class="integ-tag">Guardrails</span>
+        <div class="expand-toggle">How it integrates →</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li><strong>MCSB as policy:</strong> The Microsoft Cloud Security Benchmark is implemented as an Azure Policy initiative — auto-assigned to every subscription</li>
+          <li><strong>Deny policies:</strong> Go beyond recommendations → enforce "deny public storage accounts" so they can't be created at all</li>
+          <li><strong>Remediation tasks:</strong> MDC "Fix" button creates Azure Policy remediation tasks that auto-fix non-compliant resources</li>
+          <li><strong>Custom policies:</strong> Create custom Azure Policies that feed into MDC as custom recommendations with secure score impact</li>
+          <li><strong>Regulatory compliance:</strong> Compliance standards (CIS, NIST, PCI-DSS) are implemented as Policy initiatives that MDC tracks</li>
+        </ul></div>
+      </div>
+
+      <div class="card integ-card expandable fade-in" style="border-left-color:var(--orange)">
+        <div class="integ-header"><div class="integ-icon">📱</div><div class="integ-name">Microsoft Intune</div></div>
+        <div class="integ-how">MDC recommendations for endpoint configuration flow into Intune for remediation on managed devices.</div>
+        <span class="integ-tag">Remediation</span><span class="integ-tag">Config Mgmt</span>
+        <div class="expand-toggle">How it integrates →</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li><strong>Security baselines:</strong> Intune enforces OS security baselines that MDC tracks for compliance</li>
+          <li><strong>Conditional Access:</strong> MDC device risk score can feed into Entra ID Conditional Access via Intune compliance policies</li>
+          <li><strong>Patch management:</strong> MDC vulnerability recommendations can trigger Intune update rings for patch deployment</li>
+          <li><strong>Configuration profiles:</strong> Security recommendations translate to Intune configuration profiles for enforcement</li>
+        </ul></div>
+      </div>
+
+      <div class="card integ-card expandable fade-in" style="border-left-color:var(--yellow)">
+        <div class="integ-header"><div class="integ-icon">📈</div><div class="integ-name">Azure Monitor</div></div>
+        <div class="integ-how">MDC uses Azure Monitor Agent for data collection and Log Analytics for alert storage and analysis.</div>
+        <span class="integ-tag">Data Pipeline</span><span class="integ-tag">Alerts</span>
+        <div class="expand-toggle">How it integrates →</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li><strong>Azure Monitor Agent:</strong> MDC's agent-based collection uses AMA for file integrity monitoring and adaptive app controls</li>
+          <li><strong>Log Analytics workspace:</strong> Security data stored in your workspace — query with KQL, build custom workbooks</li>
+          <li><strong>Continuous export:</strong> Stream MDC recommendations, alerts, and compliance data to Event Hub or Log Analytics</li>
+          <li><strong>Alert rules:</strong> Create Azure Monitor alert rules on MDC data — notify via email, SMS, webhook, or Logic App</li>
+          <li><strong>Workbooks:</strong> Build custom dashboards combining MDC security data with operational metrics</li>
+        </ul></div>
+      </div>
+
+      <div class="card integ-card expandable fade-in" style="border-left-color:var(--pink)">
+        <div class="integ-header"><div class="integ-icon">🔑</div><div class="integ-name">Microsoft Entra ID</div></div>
+        <div class="integ-how">Identity context enriches MDC alerts. Over-privileged identities appear in attack paths.</div>
+        <span class="integ-tag">Identity</span><span class="integ-tag">RBAC</span>
+        <div class="expand-toggle">How it integrates →</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li><strong>Identity in attack paths:</strong> Over-privileged managed identities and service principals appear as nodes in attack path analysis</li>
+          <li><strong>RBAC recommendations:</strong> MDC recommends least-privilege role assignments based on actual usage patterns</li>
+          <li><strong>Conditional Access:</strong> Device risk from MDC can feed into Entra ID Conditional Access policies</li>
+          <li><strong>Identity alerts:</strong> Suspicious identity operations (mass role assignments, new admin accounts) generate MDC alerts</li>
+          <li><strong>Security graph:</strong> Entra ID identities are nodes in the cloud security graph — queryable via Security Explorer</li>
+        </ul></div>
+      </div>
+
+      <div class="card integ-card expandable fade-in" style="border-left-color:var(--red)">
+        <div class="integ-header"><div class="integ-icon">🔧</div><div class="integ-name">ServiceNow</div></div>
+        <div class="integ-how">MDC recommendations auto-create ServiceNow tickets with remediation steps and tracking.</div>
+        <span class="integ-tag">ITSM</span><span class="integ-tag">Ticketing</span>
+        <div class="expand-toggle">How it integrates →</div>
+        <div class="expand-content"><ul class="detail-list">
+          <li><strong>Bi-directional sync:</strong> MDC recommendations create ServiceNow incidents/change requests automatically</li>
+          <li><strong>Remediation tracking:</strong> When the ServiceNow ticket is resolved, MDC governance tracks the recommendation as remediated</li>
+          <li><strong>Assignment rules:</strong> Route recommendations to the right team based on resource type, subscription, or severity</li>
+          <li><strong>SLA tracking:</strong> Governance rules set remediation deadlines that sync with ServiceNow SLA policies</li>
+          <li><strong>No custom development:</strong> Native integration — configure in MDC settings, authenticate to ServiceNow, map fields</li>
+        </ul></div>
+      </div>
+    </div>
+
+    <div class="why-box fade-in">
+      <div class="why-title">💡 Why Integration Matters</div>
+      <div class="why-grid">
+        <div class="why-item"><div class="why-icon">🔗</div><div class="why-content"><h4>Cloud Alert → SOC Incident</h4><p>Defender for Cloud alerts flow into Sentinel and Defender XDR automatically. Your SOC sees cloud threats alongside endpoint and identity alerts — one incident queue for everything.</p></div></div>
+        <div class="why-item"><div class="why-icon">📋</div><div class="why-content"><h4>Policy-Driven Remediation</h4><p>Azure Policy enforces security standards automatically. Defender for Cloud recommends, Policy prevents — "deny public storage accounts" is enforced before resources are even created.</p></div></div>
+        <div class="why-item"><div class="why-icon">🖥️</div><div class="why-content"><h4>MDE Inside MDC</h4><p>Defender for Servers includes full MDE (Defender for Endpoint). One click enables EDR, vulnerability scanning, and AV on every server — no separate deployment needed.</p></div></div>
+        <div class="why-item"><div class="why-icon">🔧</div><div class="why-content"><h4>ServiceNow Ticketing</h4><p>Recommendations auto-create ServiceNow tickets with remediation steps. Security findings flow directly into your IT operations workflow without manual copy-paste.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<button class="chat-toggle" id="chat-toggle" onclick="toggleChat()">💬</button>
+<div class="chat-panel" id="chat-panel">
+  <div class="chat-header"><span>🔍</span><span class="ch-title">Cloud Security Terms</span><span class="ch-sub">150+ terms</span></div>
+  <div class="chat-messages" id="chat-messages">
+    <div class="chat-msg bot">👋 Ask about any cloud security term. Try: <strong>CSPM</strong>, <strong>CWPP</strong>, <strong>attack path</strong>, <strong>Private Endpoint</strong>, <strong>agentless scanning</strong></div>
+  </div>
+  <div class="chat-suggestions">
+    <span class="chat-sug" onclick="chatAsk('CSPM')">CSPM</span>
+    <span class="chat-sug" onclick="chatAsk('CWPP')">CWPP</span>
+    <span class="chat-sug" onclick="chatAsk('attack path')">Attack Path</span>
+    <span class="chat-sug" onclick="chatAsk('secure score')">Secure Score</span>
+    <span class="chat-sug" onclick="chatAsk('agentless')">Agentless</span>
+    <span class="chat-sug" onclick="chatAsk('Private Endpoint')">Private Endpoint</span>
+  </div>
+  <div class="chat-input-row">
+    <input class="chat-input" id="chat-input" placeholder="Ask about any cloud security term..." onkeydown="if(event.key==='Enter')sendChat()">
+    <button class="chat-send" onclick="sendChat()">→</button>
+  </div>
+</div>
+<footer>
+  <p>Built for learning • All data validated against <a href="https://learn.microsoft.com/en-us/azure/defender-for-cloud/" target="_blank">Microsoft Learn documentation</a> • March 2026</p>
+  <p style="margin-top:.5rem">Covers: Azure • AWS • GCP • On-premises • GitHub • Azure DevOps • GitLab</p>
+</footer>
+
+<script>
+// Particle background
+(function(){
+  const c=document.getElementById('particles-canvas'),ctx=c.getContext('2d');
+  let w,h,particles=[];
+  function resize(){w=c.width=innerWidth;h=c.height=innerHeight}
+  resize();addEventListener('resize',resize);
+  class P{
+    constructor(){this.reset()}
+    reset(){this.x=Math.random()*w;this.y=Math.random()*h;this.vx=(Math.random()-.5)*.3;this.vy=(Math.random()-.5)*.3;this.r=Math.random()*1.5+.5;this.a=Math.random()*.3+.1}
+    update(){this.x+=this.vx;this.y+=this.vy;if(this.x<0||this.x>w)this.vx*=-1;if(this.y<0||this.y>h)this.vy*=-1}
+    draw(){ctx.beginPath();ctx.arc(this.x,this.y,this.r,0,Math.PI*2);ctx.fillStyle=`rgba(59,130,246,${this.a})`;ctx.fill()}
+  }
+  for(let i=0;i<80;i++)particles.push(new P);
+  function loop(){
+    ctx.clearRect(0,0,w,h);
+    particles.forEach(p=>{p.update();p.draw()});
+    for(let i=0;i<particles.length;i++){
+      for(let j=i+1;j<particles.length;j++){
+        const dx=particles[i].x-particles[j].x,dy=particles[i].y-particles[j].y,d=Math.sqrt(dx*dx+dy*dy);
+        if(d<150){ctx.beginPath();ctx.moveTo(particles[i].x,particles[i].y);ctx.lineTo(particles[j].x,particles[j].y);ctx.strokeStyle=`rgba(59,130,246,${.06*(1-d/150)})`;ctx.stroke()}
+      }
+    }
+    requestAnimationFrame(loop);
+  }
+  loop();
+})();
+
+// Scroll fade-in
+const observer=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');observer.unobserve(e.target)}});
+},{threshold:.15});
+document.querySelectorAll('.fade-in').forEach(el=>observer.observe(el));
+
+// Active nav
+const sections=document.querySelectorAll('section[id]');
+const navLinks=document.querySelectorAll('nav .nav-links a');
+addEventListener('scroll',()=>{
+  let current='';
+  sections.forEach(s=>{if(scrollY>=s.offsetTop-100)current=s.id});
+  navLinks.forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+current));
+});
+
+// Expandable cards
+document.querySelectorAll('.expandable').forEach(el=>{
+  el.addEventListener('click',()=>el.classList.toggle('open'));
+});
+
+// ===== DEFENDER FOR CLOUD SIMULATION =====
+let simRunning=false,simPaused=false,simIdx=0,simTimer=null,simSpeed=1;
+const BD=2.5;
+
+const STEPS=[
+  {d:0,p:'narr',ns:'Phase 0 of 8',nt:'🎬 Simulation starting... Defender for Cloud has been continuously monitoring this environment. Several recommendations remain unresolved.',nc:''},
+
+  // PROACTIVE — MDC already flagged these (faster pacing)
+  {d:1500,p:'mdc',c:'log-blue',i:'📋',m:'[Prior scan] Recommendation: "Storage account contosofin allows public blob access" — Severity: HIGH'},
+  {d:1200,p:'mdc',c:'log-blue',i:'📋',m:'[Prior scan] Recommendation: "VM web-prod-01 has 3 critical unpatched CVEs" — Severity: CRITICAL'},
+  {d:1200,p:'mdc',c:'log-blue',i:'📋',m:'[Prior scan] Recommendation: "Managed identity has excessive permissions on storage" — Severity: HIGH'},
+  {d:1200,p:'mdc',c:'log-blue',i:'🗺️',m:'[Prior scan] Attack path: Internet → VM (CVE) → Managed Identity → Storage → PII data'},
+  {d:1000,p:'mdc',c:'log-dim',i:'📊',m:'Secure Score: 45/100 — 14 recommendations outstanding'},
+  {d:1500,p:'mdc',c:'log-dim',i:'📧',m:'Email notifications sent to subscription owners and Security Admins per configured policy'},
+  {d:2500,p:'narr',ns:'Current Posture',nt:'Defender for Cloud has identified several unresolved recommendations in this environment, including exposed storage, unpatched VMs, and over-privileged identities. Notifications were sent per email configuration policy. These findings remain open.',nc:'narr-orange'},
+
+  // PHASE 1: RECON
+  {d:1500,p:'attacker',c:'log-red',i:'🔎',m:'Running Shodan/Censys scan for exposed Azure storage accounts'},
+  {d:1200,p:'attacker',c:'log-red',i:'🎯',m:'Found: contosofin.blob.core.windows.net — public blob access enabled'},
+  {d:1200,p:'attacker',c:'log-red',i:'📄',m:'Listing blobs... found: /backups/db-export-2026.sql'},
+  {d:2500,p:'narr',ns:'Phase 1 of 8 — Reconnaissance',nt:'🔎 The attacker discovers a publicly accessible storage account — the same misconfiguration MDC had already identified in its recommendations.',nc:'narr-red'},
+  {d:1500,p:'mdc',c:'log-orange',i:'📋',m:'Existing recommendation: "Storage account allows public blob access" — still UNHEALTHY'},
+  {d:1000,p:'mdc',c:'log-dim',i:'📊',m:'Secure Score impact: -3 points | This recommendation has been open'},
+
+  // PHASE 2: STORAGE EXPLOIT
+  {d:2000,p:'narr',ns:'Phase 2 of 8 — Storage Exploitation',nt:'💾 The attacker downloads the exposed database backup. Defender for Storage detects the anomalous unauthenticated access pattern.',nc:'narr-red'},
+  {d:1500,p:'attacker',c:'log-red',i:'⬇️',m:'Downloading db-export-2026.sql (450MB) — unauthenticated access'},
+  {d:1200,p:'cloud-env',c:'log-cyan',i:'💾',m:'Storage: contosofin — anonymous GET request from 185.220.101.42'},
+  {d:1000,p:'cloud-env',c:'log-cyan',i:'📊',m:'Anomaly: 450MB download from unknown IP — first-time access pattern'},
+  {d:1500,p:'mdc',c:'log-orange',i:'🚨',m:'ALERT: Anonymous access to storage — unusual data download detected'},
+  {d:800,p:'mdc',c:'log-dim',i:'📋',m:'Defender for Storage | Severity: HIGH | MITRE: TA0010 Exfiltration'},
+  {d:1200,p:'mdc',c:'log-dim',i:'📧',m:'Email notification sent to subscription owners and Security Admins'},
+
+  // PHASE 3: VM DISCOVERY
+  {d:2000,p:'narr',ns:'Phase 3 of 8 — Infrastructure Scanning',nt:'🖥️ The attacker finds a web server with a critical CVE. MDC\'s agentless scanner had previously identified this vulnerability in its recommendations.',nc:'narr-red'},
+  {d:1500,p:'attacker',c:'log-red',i:'🖥️',m:'Port scanning Azure IP range... found web-prod-01 (20.85.x.x:443)'},
+  {d:1200,p:'attacker',c:'log-red',i:'🔓',m:'Identified: Apache/2.4.49 — CVE-2021-41773 (Path Traversal, CVSS 9.8)'},
+  {d:1500,p:'mdc',c:'log-orange',i:'🔍',m:'Existing recommendation: "web-prod-01 has 3 critical vulns including CVE-2021-41773" — UNPATCHED'},
+  {d:1000,p:'mdc',c:'log-dim',i:'⚠️',m:'CVE-2021-41773: CRITICAL | Public exploit available | Internet-facing'},
+
+  // PHASE 4: ATTACK PATH LIGHTS UP
+  {d:2000,p:'narr',ns:'Phase 4 of 8 — Attack Path Playing Out',nt:'🗺️ The attack path MDC previously mapped is now playing out: Internet → VM (CVE) → Managed Identity → Storage → Sensitive Data. Each hop corresponds to an open recommendation.',nc:'narr-red'},
+  {d:1500,p:'mdc',c:'log-red',i:'🗺️',m:'Previously identified attack path is now ACTIVE: Internet → web-prod-01 → MI → contosofin → PII'},
+  {d:1200,p:'mdc',c:'log-orange',i:'🔑',m:'Existing recommendation: "Managed identity has excessive permissions on storage accounts"'},
+  {d:1200,p:'mdc',c:'log-blue',i:'🔐',m:'Agentless secrets scan: connection string found in /etc/app/config.env'},
+  {d:1500,p:'cloud-env',c:'log-cyan',i:'🗺️',m:'Attack path progressing — 4 hops, each linked to an open MDC recommendation'},
+
+  // PHASE 5: VM EXPLOITATION
+  {d:2000,p:'narr',ns:'Phase 5 of 8 — VM Exploitation',nt:'⚔️ The attacker exploits the CVE to get shell access. Defender for Servers (CWPP) detects the suspicious process execution and reverse shell.',nc:'narr-red'},
+  {d:1500,p:'attacker',c:'log-red',i:'💥',m:'Exploiting CVE-2021-41773 — path traversal to RCE...'},
+  {d:1200,p:'attacker',c:'log-red',i:'🐚',m:'Reverse shell established: web-prod-01 → attacker C2 (185.220.101.42:4444)'},
+  {d:1000,p:'cloud-env',c:'log-cyan',i:'⚡',m:'Process: /bin/bash spawned by apache2 (PID 1847) — unusual parent'},
+  {d:1000,p:'cloud-env',c:'log-cyan',i:'🌐',m:'Outbound connection: web-prod-01 → 185.220.101.42:4444'},
+  {d:1500,p:'mdc',c:'log-red',i:'🚨',m:'ALERT: Suspicious process execution detected on web-prod-01'},
+  {d:800,p:'mdc',c:'log-dim',i:'📋',m:'Defender for Servers | Severity: HIGH | MITRE: TA0002 Execution'},
+  {d:1200,p:'mdc',c:'log-red',i:'🚨',m:'ALERT: Reverse shell connection to known malicious IP'},
+  {d:800,p:'mdc',c:'log-dim',i:'📋',m:'Defender for Servers | Severity: CRITICAL | MITRE: TA0011 C2'},
+  {d:1000,p:'mdc',c:'log-dim',i:'📧',m:'Critical severity alert — email sent to configured notification recipients'},
+
+  // PHASE 6: LATERAL TO STORAGE
+  {d:3000,p:'narr',ns:'Phase 6 of 8 — Lateral Movement to Storage',nt:'↔️ The attacker discovers the VM\'s managed identity and uses it to access other storage accounts. Defender for Cloud sees the identity being used from a compromised context — the attack path is now playing out in real-time.',nc:'narr-red'},
+  {d:2500,p:'attacker',c:'log-red',i:'🔑',m:'Querying IMDS: curl 169.254.169.254/metadata/identity — got managed identity token'},
+  {d:2000,p:'attacker',c:'log-red',i:'💾',m:'Using MI token to list storage accounts... found contosohr, contosopayroll'},
+  {d:1500,p:'cloud-env',c:'log-cyan',i:'🔑',m:'Managed identity token used from web-prod-01 — Storage API calls'},
+  {d:2000,p:'mdc',c:'log-orange',i:'🚨',m:'ALERT: Suspicious use of managed identity from compromised VM'},
+  {d:1000,p:'mdc',c:'log-dim',i:'📋',m:'Defender for Resource Manager | Severity: HIGH | MITRE: TA0008 Lateral Movement'},
+  {d:2000,p:'soc',c:'log-red',i:'🚨',m:'CRITICAL: Compromised VM accessing sensitive storage via managed identity'},
+
+  // PHASE 7: REMEDIATION
+  {d:3500,p:'narr',ns:'Phase 7 of 8 — Automated Response',nt:'🤖 The SOC team acts on Defender for Cloud\'s alerts and recommendations. They remediate the root causes: disable public storage access, isolate the VM, revoke the managed identity, and patch the vulnerability.',nc:'narr-green'},
+  {d:2500,p:'soc',c:'log-purple',i:'🤖',m:'Incident created: INC-2026-1192 | Correlating 5 alerts across storage + VM'},
+  {d:2000,p:'soc',c:'log-green',i:'🔒',m:'ACTION: Disabled public blob access on contosofin storage account'},
+  {d:1500,p:'cloud-env',c:'log-green',i:'🔒',m:'Storage: contosofin — public access revoked, private only'},
+  {d:2000,p:'soc',c:'log-green',i:'🖥️',m:'ACTION: Isolated web-prod-01 via NSG — all inbound/outbound blocked'},
+  {d:1500,p:'soc',c:'log-green',i:'🔑',m:'ACTION: Revoked managed identity token and removed over-privileged role'},
+  {d:1500,p:'soc',c:'log-green',i:'🛡️',m:'ACTION: JIT VM access enabled — management ports closed by default'},
+  {d:2000,p:'mdc',c:'log-green',i:'📊',m:'Secure Score: +5 points — 2 recommendations remediated'},
+
+  // PHASE 8: POSTURE HARDENING
+  {d:3000,p:'narr',ns:'Phase 8 of 8 — Posture Hardening',nt:'🛡️ After containment, the team uses Defender for Cloud to harden posture across the entire environment — not just the compromised resources. Governance rules ensure these misconfigurations never recur.',nc:'narr-green'},
+  {d:2500,p:'soc',c:'log-green',i:'📋',m:'Applied Azure Policy: "Deny public access on all storage accounts" — org-wide'},
+  {d:2000,p:'soc',c:'log-green',i:'🔍',m:'Ran Security Explorer: "All VMs with public IPs + critical CVEs" — found 2 more'},
+  {d:2000,p:'soc',c:'log-green',i:'🔧',m:'Created governance rule: "All critical vulns must be patched within 72 hours"'},
+  {d:1500,p:'mdc',c:'log-green',i:'🗺️',m:'Attack paths reduced: 12 → 4 after remediation'},
+  {d:2000,p:'mdc',c:'log-green',i:'📊',m:'Secure Score: 67 → 82 — significant posture improvement'},
+  {d:1500,p:'soc',c:'log-green',i:'✅',m:'Incident INC-2026-1192 resolved — root cause addressed, posture hardened'},
+
+  {d:3500,p:'narr',ns:'✅ Simulation Complete',nt:'This entire breach was <strong>predicted and preventable</strong>. MDC flagged every vulnerability 30 days before the attacker found them. <strong>CSPM showed the gaps → Attack paths mapped the blast radius → Nobody acted → The breach happened exactly as MDC predicted.</strong> After remediation, Secure Score went from 45 to 82 and attack paths dropped from 12 to 4. The question isn\'t whether MDC works — it\'s whether you act on what it tells you.',nc:'narr-green'},
+];
+
+const totalDur=STEPS.reduce((a,s)=>a+s.d,0);
+
+function addLog(pid,cls,icon,msg){
+  const log=document.getElementById('log-'+pid);if(!log)return;
+  const ts=new Date().toLocaleTimeString('en-US',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const e=document.createElement('div');
+  e.className='log-entry '+cls;
+  e.innerHTML=`<span class="log-time">${ts}</span><span class="log-icon">${icon}</span><span class="log-msg">${msg}</span>`;
+  log.appendChild(e);
+  requestAnimationFrame(()=>{e.classList.add('visible');log.scrollTop=log.scrollHeight});
+}
+function setNarr(step,text,cls){
+  const n=document.getElementById('sim-narrative');
+  n.className='sim-narrative '+(cls||'');
+  n.innerHTML=`<div class="narr-step">${step}</div><div class="narr-text">${text}</div>`;
+}
+function hlPanel(id,type){
+  ['attacker','cloud-env','mdc','soc'].forEach(p=>{const el=document.getElementById('panel-'+p);if(el)el.classList.remove('highlight','alert-highlight','green-highlight')});
+  if(id){const el=document.getElementById('panel-'+id);if(el&&type)el.classList.add(type)}
+}
+function updateProg(){document.getElementById('sim-progress-bar').style.width=(STEPS.slice(0,simIdx).reduce((a,s)=>a+s.d,0)/totalDur*100)+'%'}
+
+function execStep(i){
+  if(i>=STEPS.length){simRunning=false;simPaused=false;document.getElementById('sim-play').textContent='▶ Replay';document.getElementById('sim-play').classList.remove('active');document.getElementById('sim-pause').textContent='⏸ Pause';hlPanel('soc','green-highlight');return}
+  const s=STEPS[i];simIdx=i+1;updateProg();
+  document.getElementById('sim-step-label').textContent=s.ns||document.getElementById('sim-step-label').textContent;
+  if(s.p==='narr'){setNarr(s.ns,s.nt,s.nc)}
+  else{
+    addLog(s.p,s.c,s.i,s.m);
+    if(s.p==='attacker')hlPanel('attacker','alert-highlight');
+    else if(s.p==='cloud-env')hlPanel('cloud-env','highlight');
+    else if(s.p==='mdc'&&s.c&&s.c.includes('green'))hlPanel('mdc','green-highlight');
+    else if(s.p==='mdc')hlPanel('mdc','highlight');
+    else if(s.p==='soc'&&s.c&&s.c.includes('green'))hlPanel('soc','green-highlight');
+    else if(s.p==='soc')hlPanel('soc','alert-highlight');
+  }
+}
+function schedNext(){
+  if(!simRunning||simPaused||simIdx>=STEPS.length)return;
+  const nd=STEPS[simIdx]?STEPS[simIdx].d:1000;
+  simTimer=setTimeout(()=>{execStep(simIdx);schedNext()},(nd*BD)/simSpeed);
+}
+function startSim(){
+  if(simRunning&&!simPaused)return;
+  if(simPaused){togglePause();return}
+  if(simIdx>=STEPS.length)resetSim();
+  simRunning=true;simPaused=false;
+  document.getElementById('sim-play').classList.add('active');document.getElementById('sim-play').textContent='▶ Playing...';
+  schedNext();
+}
+function togglePause(){
+  if(!simRunning)return;simPaused=!simPaused;
+  const b=document.getElementById('sim-pause'),p=document.getElementById('sim-play');
+  if(simPaused){clearTimeout(simTimer);b.textContent='▶ Resume';b.classList.add('paused');p.textContent='⏸ Paused';p.classList.remove('active')}
+  else{b.textContent='⏸ Pause';b.classList.remove('paused');p.textContent='▶ Playing...';p.classList.add('active');schedNext()}
+}
+function nextStep(){
+  if(simIdx>=STEPS.length)return;clearTimeout(simTimer);simRunning=true;simPaused=true;
+  document.getElementById('sim-play').textContent='⏸ Paused';document.getElementById('sim-play').classList.remove('active');
+  document.getElementById('sim-pause').textContent='▶ Resume';document.getElementById('sim-pause').classList.add('paused');
+  execStep(simIdx);
+}
+function setSpeed(s){
+  simSpeed=s;document.querySelectorAll('.speed-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById(s===0.5?'speed-slow':s===1?'speed-normal':'speed-fast').classList.add('active');
+  if(simRunning&&!simPaused){clearTimeout(simTimer);schedNext()}
+}
+function resetSim(){
+  simRunning=false;simPaused=false;simIdx=0;clearTimeout(simTimer);
+  ['attacker','cloud-env','mdc','soc'].forEach(p=>{const el=document.getElementById('log-'+p);if(el)el.innerHTML=''});
+  document.getElementById('sim-progress-bar').style.width='0%';
+  document.getElementById('sim-step-label').textContent='Ready to start';
+  document.getElementById('sim-play').classList.remove('active');document.getElementById('sim-play').textContent='▶ Play';
+  document.getElementById('sim-pause').textContent='⏸ Pause';document.getElementById('sim-pause').classList.remove('paused');
+  hlPanel(null);setNarr('Welcome','Press <strong>▶ Play</strong> to auto-play, or <strong>⏭ Next Step</strong> to advance manually for presentations.','');
+}
+// ===== CLOUD SECURITY CHATBOX =====
+const TERMS={
+'cspm':{n:'CSPM (Cloud Security Posture Management)',c:'MDC Pillar',d:'Continuously assesses your cloud infrastructure against security standards. Finds misconfigurations, tracks compliance, scores posture.<br><br>⚙️ <strong>Configure:</strong> Defender for Cloud → Environment Settings → select subscription → enable Foundational (free) or Defender CSPM (paid). Paid adds: attack paths, security explorer, agentless scanning, regulatory compliance, governance rules.<br><br>⚠️ <strong>Blockers:</strong><br>• Free tier doesn\'t include attack path analysis or compliance tracking<br>• Recommendations require contributor access to remediate — Reader role can only view<br>• Multicloud (AWS/GCP) CSPM requires the native connector to be configured first'},
+'cwpp':{n:'CWPP (Cloud Workload Protection Platform)',c:'MDC Pillar',d:'Runtime threat detection for specific workload types — VMs, containers, storage, databases, etc.<br><br>⚙️ <strong>Configure:</strong> Defender for Cloud → Environment Settings → Defender Plans → toggle ON per workload type. Each plan has its own pricing and features.<br><br>⚠️ <strong>Key distinction:</strong> CSPM finds misconfigurations (prevention). CWPP detects active threats (detection). You need BOTH for complete coverage.'},
+'cnapp':{n:'CNAPP (Cloud Native App Protection Platform)',c:'MDC Concept',d:'Unified platform combining CSPM + DevSecOps + CWPP. Defender for Cloud IS a CNAPP — it covers posture, code security, and runtime protection in one product.<br><br>💡 <strong>Why it matters:</strong> Instead of separate tools for posture, code scanning, and workload protection, CNAPP unifies them. A vulnerability found in code traces through deployment to the running workload.'},
+'attack path':{n:'Attack Path Analysis',c:'MDC Feature',d:'Models how an attacker could traverse your cloud environment to reach critical assets.<br><br>⚙️ <strong>Configure:</strong> Requires Defender CSPM (paid). Auto-generates paths. View in MDC → Attack Path Analysis blade. Example: Internet → VM (CVE) → Managed Identity → Storage → Sensitive Data.<br><br>⚠️ <strong>Blockers:</strong><br>• Requires Defender CSPM — not available in free tier<br>• Attack paths update periodically (not real-time) — ~24hr refresh cycle<br>• Multicloud paths require AWS/GCP connectors<br><br>✅ <strong>Key insight:</strong> You don\'t need to fix every finding in a path. Break ONE link and the entire path is eliminated.'},
+'security explorer':{n:'Cloud Security Explorer',c:'MDC Feature',d:'Query-based tool to explore your cloud security graph. Like KQL but for cloud architecture.<br><br>⚙️ <strong>Example queries:</strong><br>• "Show all VMs with public IPs + critical CVEs + access to sensitive storage"<br>• "Find all managed identities with Owner role on production subscriptions"<br><br>⚠️ <strong>Requires:</strong> Defender CSPM paid plan.'},
+'secure score':{n:'Secure Score',c:'MDC Feature',d:'0-100 score summarizing your cloud security posture. Higher = more secure.<br><br>⚙️ <strong>How it works:</strong> Each recommendation has a score impact. Fix the recommendation → score improves. Recommendations are weighted by severity and resource count.<br><br>⚠️ <strong>Gotchas:</strong><br>• Score only reflects assessed resources — if a resource type isn\'t onboarded, its issues don\'t affect the score<br>• Exempt recommendations still affect the score unless you create an exemption with a proper justification<br>• Score can drop when new recommendations are added (not because you got worse — the benchmark expanded)'},
+'agentless':{n:'Agentless Scanning',c:'MDC Feature',d:'Scans VM disks by taking snapshots and analyzing them externally. Zero performance impact — the workload never knows.<br><br>⚙️ <strong>Configure:</strong> Defender for Servers P2 or Defender CSPM → Settings → enable agentless scanning. Works across Azure, AWS, and GCP.<br><br>⚠️ <strong>What it finds:</strong> Software vulnerabilities (CVEs), secrets in files (passwords, keys, connection strings), malware.<br><br>✅ <strong>Key advantage:</strong> No agent to deploy, no performance impact, no maintenance. Security teams can scan everything without asking app owners for permission.'},
+'defender for servers':{n:'Defender for Servers',c:'MDC Plan',d:'Threat detection for Windows/Linux VMs across Azure, AWS, GCP, and on-premises.<br><br>⚙️ <strong>Plans:</strong><br>• <strong>P1:</strong> MDE integration, vulnerability assessment — basic protection<br>• <strong>P2:</strong> Everything in P1 + JIT VM access, file integrity monitoring (FIM), adaptive application controls, agentless scanning<br><br>⚠️ <strong>Blockers:</strong><br>• On-premises servers require Azure Arc onboarding first<br>• AWS EC2 instances need the Arc agent installed via the multicloud connector<br>• P1 does NOT include JIT, FIM, or agentless — those require P2'},
+'defender for containers':{n:'Defender for Containers',c:'MDC Plan',d:'Kubernetes security — image scanning, runtime protection, cluster hardening.<br><br>⚙️ <strong>Configure:</strong> MDC → Defender Plans → Defender for Containers ON. Auto-deploys defender profile on AKS clusters.<br><br>⚠️ <strong>Covers:</strong> AKS (Azure), EKS (AWS), GKE (GCP). Image vulnerability scanning at registry + runtime. Kubernetes runtime threat detection. Cluster misconfiguration recommendations.'},
+'defender for storage':{n:'Defender for Storage',c:'MDC Plan',d:'Protects Azure Storage from malware, data leakage, and suspicious access.<br><br>⚙️ <strong>Configure:</strong> MDC → Defender Plans → Defender for Storage ON. Per-transaction pricing (new) or per-storage-account (legacy).<br><br>⚠️ <strong>Detects:</strong> Malware uploaded to blobs (near real-time scanning), anonymous access from suspicious IPs, unusual data download patterns, SAS token misuse.'},
+'defender for sql':{n:'Defender for SQL/Databases',c:'MDC Plan',d:'Attack detection for Azure SQL, SQL on VMs, PostgreSQL, MySQL, Cosmos DB.<br><br>⚙️ <strong>Configure:</strong> Enable at subscription level (not per-database) via MDC for consistent coverage.<br><br>⚠️ <strong>Detects:</strong> SQL injection attempts, brute force login, anomalous access patterns, suspicious data exports. Audit logs should go to Log Analytics for Sentinel integration.'},
+'defender for key vault':{n:'Defender for Key Vault',c:'MDC Plan',d:'Detects unusual access to Key Vault secrets, keys, and certificates.<br><br>⚠️ <strong>Detects:</strong> Access from suspicious IPs/Tor, unusual secret listing/download patterns, high volume of operations, policy changes. This is what caught the exfiltration in the simulation.'},
+'azure arc':{n:'Azure Arc',c:'Azure Service',d:'Projects non-Azure machines (on-premises, AWS, GCP) as Azure resources. Extends Defender for Cloud to anywhere.<br><br>⚙️ <strong>Configure:</strong> Install the Arc agent on the server → it appears in Azure as a resource → Defender for Servers policies apply automatically.<br><br>⚠️ <strong>Blockers:</strong><br>• Requires outbound HTTPS (443) connectivity to Azure — blocked by strict firewalls<br>• Linux requires specific distro versions<br>• The Arc agent itself needs to be updated periodically'},
+'governance rules':{n:'Governance Rules',c:'MDC Feature',d:'Assign remediation owners, set deadlines, track progress at scale.<br><br>⚙️ <strong>Configure:</strong> MDC → Governance → Create rule → define scope (subscription/resource type), assign owner, set grace period (e.g., Critical=72hrs, High=2 weeks).<br><br>✅ <strong>Why it matters:</strong> Without governance rules, recommendations pile up with no accountability. Governance turns "you should fix this" into "you MUST fix this by Friday."'},
+'continuous export':{n:'Continuous Export',c:'MDC Feature',d:'Streams MDC data to Log Analytics workspace or Event Hub in real-time.<br><br>⚙️ <strong>Configure:</strong> MDC → Environment Settings → Continuous Export → select: security alerts, recommendations, secure score, regulatory compliance → destination: Log Analytics workspace.<br><br>⚠️ <strong>Blocker:</strong> If continuous export isn\'t configured, Sentinel can\'t see MDC data. This is the #1 missed integration step.'},
+'private endpoint':{n:'Private Endpoint',c:'Azure Networking',d:'A network interface with a private IP from your VNet assigned to a PaaS service.<br><br>⚙️ <strong>Configure:</strong> Private Link Center → Create PE → select resource type → select subnet → integrate with Private DNS Zone.<br><br>⚠️ <strong>#1 Blocker: DNS!</strong> Without a Private DNS Zone, the FQDN resolves to the public IP and bypasses the PE. Verify with nslookup — it MUST return a 10.x.x.x private IP. Also MUST disable public network access on the resource.'},
+'managed identity':{n:'Managed Identity',c:'Azure Feature',d:'Azure-managed credentials for service-to-service auth — no passwords in code.<br><br>⚙️ <strong>Types:</strong> System-assigned (unique per resource, auto-deleted) vs User-assigned (standalone, shareable but increases blast radius).<br><br>⚠️ <strong>Security risk:</strong> Over-privileged managed identities appear in MDC attack paths. An MI with Contributor on the subscription is an attack path to every resource.'},
+'rbac':{n:'RBAC (Role-Based Access Control)',c:'Security Concept',d:'Permissions model based on roles at specific scopes. Key principle: least privilege.<br><br>⚠️ <strong>Common mistake:</strong> Assigning Contributor (management-plane) when a data-plane role exists. Storage Blob Data Reader is better than Contributor for reading blobs. Data-plane roles are more granular and more secure.'},
+'regulatory compliance':{n:'Regulatory Compliance',c:'MDC Feature',d:'Track compliance against standards like CIS, NIST 800-53, PCI-DSS, SOC 2, ISO 27001.<br><br>⚙️ <strong>Configure:</strong> MDC → Regulatory Compliance → Add Standard. Requires Defender CSPM paid plan.<br><br>✅ <strong>How it works:</strong> Each standard maps controls to MDC recommendations. The dashboard shows pass/fail per control with remediation guidance.'},
+'nsg':{n:'NSG (Network Security Group)',c:'Azure Networking',d:'Firewall-like filter with allow/deny rules evaluated by priority (lower number = first).<br><br>⚠️ <strong>Key gotchas:</strong> Rules on both subnet AND NIC are both evaluated. UDRs override NSG — traffic allowed by NSG can still be blocked by Azure Firewall. Use Network Watcher → "Effective Security Rules" to troubleshoot.'},
+'azure policy':{n:'Azure Policy',c:'Azure Governance',d:'Enforces standards on Azure resources. Effects: Deny, Audit, DeployIfNotExists, Modify.<br><br>⚙️ <strong>MDC connection:</strong> MCSB (Microsoft Cloud Security Benchmark) is an Azure Policy initiative that feeds MDC recommendations. Custom policies can create custom MDC recommendations.'},
+'key vault':{n:'Azure Key Vault',c:'Azure Service',d:'Secure storage for secrets, keys, and certificates.<br><br>⚙️ <strong>Configure:</strong> RBAC (recommended, not vault access policies) → Private Endpoint → enable purge protection → diagnostic logs to Log Analytics.<br><br>⚠️ <strong>Blockers:</strong> Purge protection can\'t be reversed once enabled. CMK scenarios require soft delete + purge protection as prerequisites. "Trusted services" bypass must be enabled for MDC/Backup.'},
+};
+function toggleChat(){const p=document.getElementById('chat-panel'),b=document.getElementById('chat-toggle');const o=p.classList.toggle('open');b.classList.toggle('open');b.textContent=o?'✕':'💬';if(o)document.getElementById('chat-input').focus()}
+function sendChat(){const i=document.getElementById('chat-input');const q=i.value.trim();if(!q)return;i.value='';chatAsk(q)}
+function chatAsk(q){const msgs=document.getElementById('chat-messages');const u=document.createElement('div');u.className='chat-msg user';u.textContent=q;msgs.appendChild(u);const key=q.toLowerCase().replace(/[^a-z0-9\.\s&]/g,'').trim();let found=TERMS[key];if(!found){for(const k of Object.keys(TERMS)){if(k.includes(key)||TERMS[k].n.toLowerCase().includes(key)||TERMS[k].d.toLowerCase().includes(key)){found=TERMS[k];break}}}const b=document.createElement('div');b.className='chat-msg bot';if(found){b.innerHTML=`<span class="term-name">${found.n}</span><span class="term-category">${found.c}</span>${found.d}`}else{b.innerHTML=`I don't have "<strong>${q}</strong>" in my dictionary yet. Try: <strong>CSPM</strong>, <strong>CWPP</strong>, <strong>attack path</strong>, <strong>agentless</strong>, <strong>secure score</strong>, or <strong>Private Endpoint</strong>.`}msgs.appendChild(b);msgs.scrollTop=msgs.scrollHeight;if(!document.getElementById('chat-panel').classList.contains('open'))toggleChat()}
+</script>
+</body>
+</html>

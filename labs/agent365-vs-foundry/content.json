@@ -1,0 +1,235 @@
+{
+  "meta": {
+    "id": "agent365-vs-foundry",
+    "title": "Agent 365 vs Azure AI Foundry — Interactive Comparison",
+    "shortTitle": "Agent 365 vs Foundry",
+    "icon": "🤖",
+    "category": "comparison",
+    "color": "#00e5ff",
+    "colorSecondary": "#a855f7",
+    "updated": "March 2026",
+    "description": "Side-by-side comparison of Microsoft's AI agent management and development platforms",
+    "tags": ["agent-365", "foundry", "ai", "governance", "comparison"]
+  },
+  "hero": {
+    "badge": "Updated March 2026",
+    "title": [
+      { "text": "Agent 365", "accent": true, "accentIndex": 0 },
+      { "text": "vs" },
+      { "text": "Azure AI Foundry", "accent": true, "accentIndex": 1 }
+    ],
+    "subtitle": "Two platforms. Different missions. One lets you <strong>manage</strong> AI agents at enterprise scale. The other lets you <strong>build</strong> them from scratch.",
+    "stats": [
+      { "value": "$15", "label": "Agent 365 / user / mo", "accentIndex": 0 },
+      { "value": "Pay-as-you-go", "label": "Foundry / Azure consumption", "accentIndex": 1 },
+      { "value": "IT Admins", "label": "Agent 365 audience", "accentIndex": 0 },
+      { "value": "Developers", "label": "Foundry audience", "accentIndex": 1 }
+    ]
+  },
+  "sections": [
+    {
+      "id": "identity",
+      "type": "dual-compare",
+      "label": "Core Identity",
+      "labelIcon": "⚡",
+      "labelColor": "#00e5ff",
+      "title": "Two Sides of the AI Agent Coin",
+      "description": "Think of Agent 365 as the <strong>command center</strong> and Foundry as the <strong>workshop</strong>. One governs. One creates.",
+      "content": {
+        "left": {
+          "title": "Agent 365 — The Command Center",
+          "icon": "🛡️",
+          "items": [
+            { "icon": "📋", "title": "Centralized Dashboard", "description": "Single pane of glass to monitor every AI agent across your M365 tenant" },
+            { "icon": "🔐", "title": "Identity & Access", "description": "Entra-integrated RBAC, agent identity management, permission boundaries" },
+            { "icon": "📜", "title": "Policy Enforcement", "description": "Org-wide policies, compliance rules, approved agent registries" },
+            { "icon": "🔍", "title": "Audit & Observability", "description": "Full activity logs, lifecycle tracking, who created what and when" },
+            { "icon": "🛡️", "title": "Security Integration", "description": "Defender, Purview, Intune — treat AI agents like first-class security principals" },
+            { "icon": "⚙️", "title": "No/Low-Code", "description": "Configuration-driven management, extensible via Copilot Studio plugins" }
+          ]
+        },
+        "right": {
+          "title": "Azure AI Foundry — The Workshop",
+          "icon": "🏗️",
+          "items": [
+            { "icon": "💻", "title": "Code-First Platform", "description": "SDKs, APIs, and a developer studio for maximum flexibility" },
+            { "icon": "🧠", "title": "Model Control", "description": "Bring your own model, fine-tune, customize prompts, full RAG pipelines" },
+            { "icon": "🔄", "title": "Advanced Orchestration", "description": "Concurrent fan-out/fan-in, multi-agent workflows, parallel execution" },
+            { "icon": "🔬", "title": "Experimentation", "description": "A/B testing, evaluation frameworks, prompt engineering tools" },
+            { "icon": "🌐", "title": "Open Ecosystem", "description": "Third-party APIs, open-source models, custom connectors" },
+            { "icon": "📊", "title": "Azure-Scale Infrastructure", "description": "PaaS deployment, auto-scaling, global regions, enterprise SLAs" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "h2h",
+      "type": "head-to-head",
+      "label": "Head-to-Head",
+      "labelIcon": "⚔️",
+      "labelColor": "#a855f7",
+      "title": "Category-by-Category Breakdown",
+      "description": "Click a category to see how they stack up in each area.",
+      "content": {
+        "categories": [
+          {
+            "id": "audience",
+            "label": "Audience",
+            "left": { "title": "🛡️ Agent 365", "description": "IT administrators, security teams, compliance officers. People who <em>manage and secure</em> technology.", "score": 95, "scoreLabel": "Enterprise IT ★★★★★" },
+            "right": { "title": "🏗️ Azure AI Foundry", "description": "Professional developers, data scientists, ML engineers. People who <em>build and deploy</em> AI solutions.", "score": 95, "scoreLabel": "Developers ★★★★★" }
+          },
+          {
+            "id": "deployment",
+            "label": "Deployment",
+            "left": { "title": "🛡️ Agent 365", "description": "<strong>SaaS — Microsoft-managed.</strong> No infrastructure to provision. Agents governed within your M365 tenant. Flip-a-switch simplicity.", "score": 90, "scoreLabel": "Simplicity ★★★★★" },
+            "right": { "title": "🏗️ Azure AI Foundry", "description": "<strong>PaaS — Azure-managed, you control.</strong> You provision resources, pick regions, configure networking. Full control, more responsibility.", "score": 90, "scoreLabel": "Control ★★★★★" }
+          },
+          {
+            "id": "governance",
+            "label": "Governance",
+            "left": { "title": "🛡️ Agent 365", "description": "<strong>Centralized, org-wide.</strong> Tenant-level policy enforcement, Entra identity, Purview compliance, Defender protection. Governance is the <em>primary purpose</em>.", "score": 98, "scoreLabel": "Governance ★★★★★" },
+            "right": { "title": "🏗️ Azure AI Foundry", "description": "<strong>Workload-level, custom.</strong> Azure RBAC, app-level permissions, custom guardrails in code. Governance is <em>your responsibility</em>.", "score": 55, "scoreLabel": "Governance ★★★☆☆" }
+          },
+          {
+            "id": "orchestration",
+            "label": "Orchestration",
+            "left": { "title": "🛡️ Agent 365", "description": "<strong>Sequential, low-code.</strong> Copilot Studio-style orchestration with limits on session duration and concurrency.", "score": 40, "scoreLabel": "Orchestration ★★☆☆☆" },
+            "right": { "title": "🏗️ Azure AI Foundry", "description": "<strong>True concurrent orchestration.</strong> Fan-out/fan-in, parallel multi-agent execution, complex DAGs, real-time processing.", "score": 95, "scoreLabel": "Orchestration ★★★★★" }
+          },
+          {
+            "id": "extensibility",
+            "label": "Extensibility",
+            "left": { "title": "🛡️ Agent 365", "description": "<strong>Plugins & Studio.</strong> Extend via Copilot Studio declarative agents, Power Platform connectors, Work IQ integrations.", "score": 60, "scoreLabel": "Extensibility ★★★☆☆" },
+            "right": { "title": "🏗️ Azure AI Foundry", "description": "<strong>Full custom code.</strong> Any SDK, any API, any model. Python, .NET, REST APIs, open-source frameworks — limitless.", "score": 98, "scoreLabel": "Extensibility ★★★★★" }
+          },
+          {
+            "id": "models",
+            "label": "Model Control",
+            "left": { "title": "🛡️ Agent 365", "description": "<strong>Abstracted, Microsoft-managed.</strong> You don't pick or tune models — Microsoft handles it. Simpler but less control.", "score": 30, "scoreLabel": "Model Control ★★☆☆☆" },
+            "right": { "title": "🏗️ Azure AI Foundry", "description": "<strong>Full control.</strong> Azure OpenAI, Llama, Mistral, Phi, custom models. Fine-tune, adjust parameters, build custom RAG.", "score": 98, "scoreLabel": "Model Control ★★★★★" }
+          },
+          {
+            "id": "knowledge",
+            "label": "Knowledge",
+            "left": { "title": "🛡️ Agent 365", "description": "<strong>Entra-aware, Work IQ.</strong> Permission-aware grounding via Microsoft Graph, SharePoint, OneDrive. Respects M365 access controls.", "score": 80, "scoreLabel": "Knowledge ★★★★☆" },
+            "right": { "title": "🏗️ Azure AI Foundry", "description": "<strong>Azure AI Search + Foundry IQ.</strong> Custom vector stores, hybrid search, permission-aware RAG, custom embeddings.", "score": 90, "scoreLabel": "Knowledge ★★★★★" }
+          }
+        ]
+      }
+    },
+    {
+      "id": "flow",
+      "type": "flow-diagram",
+      "label": "Architecture",
+      "labelIcon": "🔄",
+      "labelColor": "#22c55e",
+      "title": "How They Fit Together",
+      "description": "Build in Foundry. Manage with Agent 365. They're complementary layers of the same stack.",
+      "content": {
+        "rows": [
+          { "nodes": [
+            { "icon": "💻", "name": "Developer", "sub": "Writes code", "style": "secondary" },
+            { "icon": "🏗️", "name": "AI Foundry", "sub": "Build & train agents", "style": "secondary" },
+            { "icon": "🧠", "name": "Custom Models", "sub": "Fine-tuned AI", "style": "secondary" }
+          ], "showArrows": true },
+          { "type": "arrow", "rotate": 90 },
+          { "nodes": [
+            { "icon": "🤖", "name": "AI Agents", "sub": "Deployed to production", "style": "shared" }
+          ] },
+          { "type": "arrow", "rotate": 90 },
+          { "type": "connector", "nodes": [
+            { "icon": "🛡️", "name": "Agent 365", "sub": "Govern & secure", "style": "primary" },
+            { "icon": "📋", "name": "Policy Engine", "sub": "Enforce compliance", "style": "primary" },
+            { "icon": "🔍", "name": "Audit & Monitor", "sub": "Track everything", "style": "primary" }
+          ]},
+          { "type": "arrow", "rotate": 90 },
+          { "nodes": [
+            { "icon": "🔐", "name": "Entra ID", "sub": "Identity", "style": "shared" },
+            { "icon": "🛡️", "name": "Defender", "sub": "Threat protection", "style": "shared" },
+            { "icon": "📜", "name": "Purview", "sub": "Compliance", "style": "shared" },
+            { "icon": "📱", "name": "Intune", "sub": "Device mgmt", "style": "shared" }
+          ] }
+        ]
+      }
+    },
+    {
+      "id": "decision",
+      "type": "decision-guide",
+      "label": "Decision Guide",
+      "labelIcon": "🧭",
+      "labelColor": "#f97316",
+      "title": "Which One Do You Need?",
+      "description": "Answer these questions to find your path. Many organizations use <strong>both</strong>.",
+      "content": {
+        "cards": [
+          { "question": "\"I need to monitor all AI agents across my org\"", "options": [
+            { "label": "🛡️ Agent 365", "sublabel": "Built for this", "type": "primary" },
+            { "label": "🏗️ Foundry", "sublabel": "Not its job", "type": "secondary", "dimmed": true }
+          ]},
+          { "question": "\"I need to build a custom multi-agent system\"", "options": [
+            { "label": "🛡️ Agent 365", "sublabel": "Not its job", "type": "primary", "dimmed": true },
+            { "label": "🏗️ Foundry", "sublabel": "Built for this", "type": "secondary" }
+          ]},
+          { "question": "\"I need compliance and audit trails for agents\"", "options": [
+            { "label": "🛡️ Agent 365", "sublabel": "Purview + Entra", "type": "primary" },
+            { "label": "🏗️ Foundry", "sublabel": "DIY", "type": "secondary", "dimmed": true }
+          ]},
+          { "question": "\"I need to fine-tune models and use custom data\"", "options": [
+            { "label": "🛡️ Agent 365", "sublabel": "Abstracted away", "type": "primary", "dimmed": true },
+            { "label": "🏗️ Foundry", "sublabel": "Full control", "type": "secondary" }
+          ]},
+          { "question": "\"I want to secure agents like I secure users\"", "options": [
+            { "label": "🛡️ Agent 365", "sublabel": "Exactly this", "type": "primary" },
+            { "label": "🏗️ Foundry", "sublabel": "Custom work", "type": "secondary", "dimmed": true }
+          ]},
+          { "question": "\"I need both — build AND govern\"", "options": [
+            { "label": "✅ Use Both Together", "sublabel": "Build in Foundry → Manage in Agent 365", "type": "both" }
+          ]}
+        ]
+      }
+    },
+    {
+      "id": "pricing",
+      "type": "pricing",
+      "label": "Pricing",
+      "labelIcon": "💰",
+      "labelColor": "#22c55e",
+      "title": "How They're Licensed",
+      "description": "Different pricing models for different use cases.",
+      "content": {
+        "cards": [
+          {
+            "name": "Agent 365 Standalone", "icon": "🛡️", "price": "$15", "period": "per user / month", "accentIndex": 0,
+            "features": ["Full agent governance dashboard", "Policy enforcement engine", "Entra identity integration", "Audit & compliance logs", "Defender / Purview integration"]
+          },
+          {
+            "name": "M365 E7 Frontier Suite", "icon": "🏢", "price": "$99", "period": "per user / month (bundle)", "accentIndex": 1, "featured": true,
+            "features": ["Everything in M365 E5", "Microsoft Copilot", "Agent 365 (included)", "Entra Suite", "Premium AI features"]
+          },
+          {
+            "name": "Azure AI Foundry", "icon": "🏗️", "price": "Pay-as-you-go", "period": "Azure consumption-based", "accentIndex": 2,
+            "features": ["Model hosting & inference", "Fine-tuning compute", "AI Search & vector stores", "Developer Studio & SDKs", "Scale-to-zero available"]
+          }
+        ]
+      }
+    },
+    {
+      "id": "together",
+      "type": "why-box",
+      "label": "Better Together",
+      "labelIcon": "🤝",
+      "labelColor": "#00e5ff",
+      "title": "Not Either/Or — Both",
+      "description": "The most mature organizations will use both platforms as complementary layers.",
+      "content": {
+        "title": "🔑 The Enterprise Pattern",
+        "items": [
+          { "icon": "1️⃣", "title": "Build in Foundry", "description": "Developers create custom AI agents with full model control, RAG pipelines, and advanced orchestration" },
+          { "icon": "2️⃣", "title": "Register in Agent 365", "description": "Agents are registered in the enterprise agent registry for visibility and lifecycle management" },
+          { "icon": "3️⃣", "title": "Govern & Secure", "description": "IT applies policies, sets boundaries, integrates with Entra, Defender, and Purview for compliance" },
+          { "icon": "4️⃣", "title": "Monitor at Scale", "description": "Agent 365 provides ongoing observability — audit trails, anomaly detection, and usage analytics" }
+        ]
+      }
+    }
+  ]
+}

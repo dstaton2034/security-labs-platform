@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Loading Lab...</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<canvas id="particles-canvas"></canvas>
+<nav id="main-nav"><div class="nav-inner"><div class="logo" id="nav-logo"></div><div class="nav-links" id="nav-links"></div><a href="../index.html" class="nav-home">← All Labs</a></div></nav>
+<div id="hero-container"></div>
+<div id="sections-container"></div>
+<footer><p id="footer-text"></p></footer>
+
+<script>
+/* ============================================================
+   SECURITY LABS PLATFORM — Universal Template Engine
+   Reads content.json and renders a full interactive lab page.
+   ============================================================ */
+
+(async function(){
+  // Determine content path — either from query string or relative
+  const params = new URLSearchParams(window.location.search);
+  let contentPath = params.get('lab');
+  if (contentPath) {
+    contentPath = `../labs/${contentPath}/content.json`;
+  } else {
+    // Try relative content.json (when template.html is copied into lab folder)
+    contentPath = 'content.json';
+  }
+
+  let lab;
+  try {
+    const resp = await fetch(contentPath);
+    if (!resp.ok) throw new Error(`Failed to load ${contentPath}`);
+    lab = await resp.json();
+  } catch(e) {
+    document.body.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#ef4444;font-family:system-ui;font-size:1.2rem;flex-direction:column;gap:1rem"><h1>⚠️ Lab Not Found</h1><p>${e.message}</p><a href="../index.html" style="color:#00e5ff">← Back to Portal</a></div>`;
+    return;
+  }
+
+  const m = lab.meta;
+  const c1 = m.color || '#00e5ff';
+  const c2 = m.colorSecondary || '#a855f7';
+
+  // Set CSS custom properties from lab meta
+  document.documentElement.style.setProperty('--accent1', c1);
+  document.documentElement.style.setProperty('--accent2', c2);
+  document.documentElement.style.setProperty('--accent1-dim', hexToRgba(c1, 0.12));
+  document.documentElement.style.setProperty('--accent2-dim', hexToRgba(c2, 0.12));
+  document.title = m.title;
+
+  // Build Nav
+  document.getElementById('nav-logo').innerHTML = `${m.icon} ${m.shortTitle || m.title}`;
+  const navLinks = document.getElementById('nav-links');
+  lab.sections.forEach(s => {
+    const a = document.createElement('a');
+    a.href = `#${s.id}`;
+    a.textContent = s.label || s.title;
+    navLinks.appendChild(a);
+  });
+
+  // Build Hero
+  document.getElementById('hero-container').innerHTML = renderHero(lab.hero, c1, c2);
+
+  // Build Sections
+  const container = document.getElementById('sections-container');
+  lab.sections.forEach((s, i) => {
+    container.innerHTML += renderSection(s, c1, c2, i);
+  });
+
+  // Footer
+  document.getElementById('footer-text').innerHTML = `${m.title} &nbsp;|&nbsp; <a href="https://learn.microsoft.com" target="_blank">Microsoft Learn</a> &nbsp;|&nbsp; Updated ${m.updated || 'March 2026'}`;
+
+  // Post-render: attach interactivity
+  initParticles(c1, c2);
+  initScrollAnimations();
+  initActiveNav();
+  initH2HTabs();
+  initExpandableCards();
+})();
+
+/* ===================== RENDERERS ===================== */
+
+function renderHero(h, c1, c2) {
+  const titleHtml = h.title.map(t => {
+    if (t.accent) {
+      const color = t.accentIndex === 1 ? c2 : c1;
+      return `<span class="accent" style="background:linear-gradient(135deg,${color},${adjustColor(color, 30)});-webkit-background-clip:text;-webkit-text-fill-color:transparent">${t.text}</span>`;
+    }
+    return t.text;
+  }).join(' ');
+
+  const statsHtml = (h.stats || []).map(s => {
+    const color = s.accentIndex === 1 ? c2 : c1;
+    return `<div class="stat"><div class="stat-value" style="background:linear-gradient(135deg,${color},${adjustColor(color, 30)});-webkit-background-clip:text;-webkit-text-fill-color:transparent">${s.value}</div><div class="stat-label">${s.label}</div></div>`;
+  }).join('');
+
+  return `
+  <div class="hero">
+    ${h.badge ? `<div class="badge"><span class="dot"></span> ${h.badge}</div>` : ''}
+    <h1>${titleHtml}</h1>
+    <p>${h.subtitle}</p>
+    ${statsHtml ? `<div class="stats-bar">${statsHtml}</div>` : ''}
+  </div>`;
+}
+
+function renderSection(s, c1, c2, index) {
+  const bg = index % 2 === 0 ? 'var(--bg)' : 'var(--bg2)';
+  const labelColor = s.labelColor || c1;
+
+  let contentHtml = '';
+  switch(s.type) {
+    case 'cards-grid':       contentHtml = renderCardsGrid(s.content, c1); break;
+    case 'dual-compare':     contentHtml = renderDualCompare(s.content, c1, c2); break;
+    case 'head-to-head':     contentHtml = renderH2H(s.content, c1, c2); break;
+    case 'flow-diagram':     contentHtml = renderFlowDiagram(s.content, c1, c2); break;
+    case 'decision-guide':   contentHtml = renderDecisionGuide(s.content, c1, c2); break;
+    case 'pricing':          contentHtml = renderPricing(s.content, c1, c2); break;
+    case 'why-box':          contentHtml = renderWhyBox(s.content, c1); break;
+    case 'expandable-cards': contentHtml = renderExpandableCards(s.content, c1); break;
+    case 'timeline':         contentHtml = renderTimeline(s.content, c1); break;
+    case 'custom-html':      contentHtml = s.content.html || ''; break;
+    default:                 contentHtml = `<p style="color:var(--text-dim)">Unknown section type: ${s.type}</p>`;
+  }
+
+  return `
+  <section id="${s.id}" style="background:${bg}">
+    <div class="section-inner fade-in">
+      ${s.label ? `<div class="section-label" style="background:${hexToRgba(labelColor, 0.1)};color:${labelColor}">${s.labelIcon || ''} ${s.label}</div>` : ''}
+      <div class="section-title">${s.title}</div>
+      ${s.description ? `<div class="section-desc">${s.description}</div>` : ''}
+      ${contentHtml}
+    </div>
+  </section>`;
+}
+
+function renderCardsGrid(content, c1) {
+  const cards = content.cards || [];
+  return `<div class="cards-grid">${cards.map(card => {
+    const color = card.color || c1;
+    const tagsHtml = (card.tags || []).map(t => `<span class="tag" style="background:${hexToRgba(color, 0.1)};color:${color}">${t}</span>`).join('');
+    const expandHtml = card.expandable ? `<div class="expand-trigger" data-expand>Details →</div><div class="expand-content">${card.details || ''}</div>` : '';
+    const itemsHtml = (card.items || []).map(it => `<div class="card-item"><span class="ci-icon">${it.icon || '•'}</span><span><strong>${it.label}</strong> ${it.value || ''}</span></div>`).join('');
+    return `
+    <div class="card ${card.expandable ? 'expandable-card' : ''}" style="border-left:3px solid ${hexToRgba(color, 0.4)}">
+      <div class="card-icon" style="background:${hexToRgba(color, 0.1)};color:${color}">${card.icon || '📄'}</div>
+      <h3>${card.title}</h3>
+      <p>${card.description || ''}</p>
+      ${itemsHtml}
+      ${tagsHtml}
+      ${expandHtml}
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function renderDualCompare(content, c1, c2) {
+  return `<div class="dual-compare">${[content.left, content.right].map((col, i) => {
+    const color = i === 0 ? c1 : c2;
+    const side = i === 0 ? 'agent365' : 'foundry';
+    const itemsHtml = (col.items || []).map(it => `
+      <div class="compare-item">
+        <div class="ci-icon">${it.icon || '•'}</div>
+        <div class="ci-text"><strong>${it.title}</strong><span>${it.description || ''}</span></div>
+      </div>`).join('');
+    return `<div class="compare-col ${side}" style="border-top:3px solid ${color}">
+      <h3><span style="color:${color}">${col.icon || ''}</span> ${col.title}</h3>
+      ${itemsHtml}
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function renderH2H(content, c1, c2) {
+  const categories = content.categories || [];
+  const buttonsHtml = categories.map((cat, i) =>
+    `<button class="h2h-btn ${i === 0 ? 'active' : ''}" data-cat="${cat.id}">${cat.label}</button>`
+  ).join('');
+
+  const panelsHtml = categories.map((cat, i) => `
+    <div class="h2h-panel ${i === 0 ? 'active' : ''}" id="panel-${cat.id}">
+      <div class="h2h-row">
+        <div class="h2h-cell left" style="border-left:3px solid ${c1}">
+          <h4>${cat.left.title}</h4>
+          <p>${cat.left.description}</p>
+          <div class="score-bar"><div class="score-fill" style="width:${cat.left.score}%;background:linear-gradient(90deg,${c1},${adjustColor(c1, 30)})"></div></div>
+          <span style="font-size:.7rem;color:${c1}">${cat.left.scoreLabel || ''}</span>
+        </div>
+        <div class="h2h-vs">VS</div>
+        <div class="h2h-cell right" style="border-left:3px solid ${c2}">
+          <h4>${cat.right.title}</h4>
+          <p>${cat.right.description}</p>
+          <div class="score-bar"><div class="score-fill" style="width:${cat.right.score}%;background:linear-gradient(90deg,${c2},${adjustColor(c2, 30)})"></div></div>
+          <span style="font-size:.7rem;color:${c2}">${cat.right.scoreLabel || ''}</span>
+        </div>
+      </div>
+    </div>`).join('');
+
+  return `<div class="h2h-categories">${buttonsHtml}</div>${panelsHtml}`;
+}
+
+function renderFlowDiagram(content, c1, c2) {
+  const rows = content.rows || [];
+  return `<div class="flow-diagram">${rows.map(row => {
+    if (row.type === 'arrow') {
+      return `<div class="flow-row"><div class="flow-arrow" ${row.rotate ? `style="transform:rotate(${row.rotate}deg)"` : ''}>→</div></div>`;
+    }
+    if (row.type === 'connector') {
+      const nodesHtml = (row.nodes || []).map(n => renderFlowNode(n, c1, c2)).join('');
+      return `<div class="flow-connector">${nodesHtml}</div>`;
+    }
+    const nodesHtml = (row.nodes || []).map(n => {
+      const parts = [];
+      for (let i = 0; i < n.length; i++) {
+        if (typeof n[i] === 'string' && n[i] === '→') {
+          parts.push('<div class="flow-arrow">→</div>');
+        } else {
+          parts.push(renderFlowNode(n[i], c1, c2));
+        }
+      }
+      return parts.join('');
+    });
+    // If row.nodes is array of node objects (not arrays)
+    if (row.nodes && row.nodes.length > 0 && !Array.isArray(row.nodes[0])) {
+      const nodesHtml = row.nodes.map((n, i) => {
+        const pieces = [renderFlowNode(n, c1, c2)];
+        if (i < row.nodes.length - 1 && row.showArrows) pieces.push('<div class="flow-arrow">→</div>');
+        return pieces.join('');
+      }).join('');
+      return `<div class="flow-row">${nodesHtml}</div>`;
+    }
+    return `<div class="flow-row">${nodesHtml}</div>`;
+  }).join('')}</div>`;
+}
+
+function renderFlowNode(n, c1, c2) {
+  const styleMap = { primary: c1, secondary: c2, shared: '#22c55e' };
+  const color = styleMap[n.style] || c1;
+  return `<div class="flow-node" style="border-color:${hexToRgba(color, 0.3)};background:${hexToRgba(color, 0.04)}">
+    <div class="fn-icon">${n.icon || '📦'}</div>
+    <div class="fn-name">${n.name}</div>
+    ${n.sub ? `<div class="fn-sub">${n.sub}</div>` : ''}
+  </div>`;
+}
+
+function renderDecisionGuide(content, c1, c2) {
+  const cards = content.cards || [];
+  return `<div class="decision-grid">${cards.map(card => {
+    const optionsHtml = (card.options || []).map(opt => {
+      const colorMap = { primary: c1, secondary: c2, both: '#22c55e' };
+      const color = colorMap[opt.type] || c1;
+      return `<div class="dc-option" style="background:${hexToRgba(color, 0.08)};color:${color};border:1px solid ${hexToRgba(color, 0.2)};${opt.dimmed ? 'opacity:.4;' : ''}">${opt.label}<br><small>${opt.sublabel || ''}</small></div>`;
+    }).join('');
+    return `<div class="decision-card card"><div class="dc-q">🤔 ${card.question}</div><div class="dc-a">${optionsHtml}</div></div>`;
+  }).join('')}</div>`;
+}
+
+function renderPricing(content, c1, c2) {
+  const cards = content.cards || [];
+  const green = '#22c55e';
+  const colors = [c1, green, c2];
+  return `<div class="pricing-grid">${cards.map((card, i) => {
+    const color = colors[card.accentIndex ?? i] || c1;
+    return `<div class="price-card ${card.featured ? 'featured' : ''}" ${card.featured ? `style="border-color:${hexToRgba(color, 0.3)}"` : ''}>
+      <div class="pc-name">${card.icon || ''} ${card.name}</div>
+      <div class="pc-price" style="background:linear-gradient(135deg,${color},${adjustColor(color, 30)});-webkit-background-clip:text;-webkit-text-fill-color:transparent">${card.price}</div>
+      <div class="pc-period">${card.period || ''}</div>
+      <ul class="pc-features">${(card.features || []).map(f => `<li><span class="check">✓</span>${f}</li>`).join('')}</ul>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function renderWhyBox(content, c1) {
+  const items = content.items || [];
+  return `<div class="why-box" style="border-color:${hexToRgba(c1, 0.15)}">
+    <div class="why-title" style="color:${c1}">${content.title || '🔑 Key Takeaways'}</div>
+    <div class="why-grid">${items.map(it => `
+      <div class="why-item">
+        <div class="why-icon">${it.icon || '•'}</div>
+        <div class="why-content"><h4>${it.title}</h4><p>${it.description}</p></div>
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+function renderExpandableCards(content, c1) {
+  const cards = content.cards || [];
+  return `<div class="cards-grid">${cards.map(card => {
+    const color = card.color || c1;
+    return `<div class="card expandable-card" style="border-left:3px solid ${hexToRgba(color, 0.4)}">
+      <div class="card-icon" style="background:${hexToRgba(color, 0.1)};color:${color}">${card.icon || '📄'}</div>
+      <h3>${card.title}</h3>
+      <p>${card.description || ''}</p>
+      <div class="expand-trigger" data-expand>Details →</div>
+      <div class="expand-content">${card.details || ''}</div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function renderTimeline(content, c1) {
+  const steps = content.steps || [];
+  return `<div class="timeline">${steps.map((step, i) => `
+    <div class="timeline-step fade-in">
+      <div class="timeline-marker" style="background:${c1}">${i + 1}</div>
+      <div class="timeline-content">
+        <h4>${step.title}</h4>
+        <p>${step.description || ''}</p>
+      </div>
+    </div>`).join('')}
+  </div>`;
+}
+
+/* ===================== INTERACTIVITY ===================== */
+
+function initH2HTabs() {
+  document.querySelectorAll('.h2h-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.h2h-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.h2h-panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      const panel = document.getElementById('panel-' + btn.dataset.cat);
+      if (panel) panel.classList.add('active');
+    });
+  });
+}
+
+function initExpandableCards() {
+  document.querySelectorAll('[data-expand]').forEach(trigger => {
+    trigger.addEventListener('click', () => {
+      const content = trigger.nextElementSibling;
+      const isOpen = content.classList.contains('open');
+      content.classList.toggle('open');
+      trigger.textContent = isOpen ? 'Details →' : 'Close ↑';
+    });
+  });
+}
+
+function initScrollAnimations() {
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+  }, { threshold: 0.15 });
+  document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+}
+
+function initActiveNav() {
+  const sections = document.querySelectorAll('section[id]');
+  window.addEventListener('scroll', () => {
+    const scrollY = window.scrollY + 100;
+    sections.forEach(s => {
+      const top = s.offsetTop - 120, bottom = top + s.offsetHeight;
+      const link = document.querySelector(`nav a[href="#${s.id}"]`);
+      if (link) { link.classList.toggle('active', scrollY >= top && scrollY < bottom); }
+    });
+  });
+}
+
+/* ===================== PARTICLES ===================== */
+
+function initParticles(c1, c2) {
+  const canvas = document.getElementById('particles-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  let particles = [];
+  function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+  window.addEventListener('resize', resize); resize();
+
+  class P {
+    constructor() { this.reset(); }
+    reset() {
+      this.x = Math.random() * canvas.width;
+      this.y = Math.random() * canvas.height;
+      this.vx = (Math.random() - .5) * .3;
+      this.vy = (Math.random() - .5) * .3;
+      this.size = Math.random() * 1.5 + .5;
+      this.color = Math.random() > .5 ? c1 : c2;
+      this.alpha = Math.random() * .5 + .1;
+    }
+    update() {
+      this.x += this.vx; this.y += this.vy;
+      if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
+      if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
+    }
+    draw() {
+      ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+      ctx.fillStyle = hexToRgba(this.color, this.alpha); ctx.fill();
+    }
+  }
+
+  for (let i = 0; i < 60; i++) particles.push(new P());
+  (function animate() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    particles.forEach(p => { p.update(); p.draw(); });
+    for (let i = 0; i < particles.length; i++)
+      for (let j = i + 1; j < particles.length; j++) {
+        const dx = particles[i].x - particles[j].x, dy = particles[i].y - particles[j].y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 120) {
+          ctx.beginPath(); ctx.moveTo(particles[i].x, particles[i].y);
+          ctx.lineTo(particles[j].x, particles[j].y);
+          ctx.strokeStyle = hexToRgba(c1, (1 - dist / 120) * .08); ctx.stroke();
+        }
+      }
+    requestAnimationFrame(animate);
+  })();
+}
+
+/* ===================== UTILITIES ===================== */
+
+function hexToRgba(hex, alpha) {
+  hex = hex.replace('#', '');
+  if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function adjustColor(hex, amount) {
+  hex = hex.replace('#', '');
+  if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+  let r = Math.min(255, parseInt(hex.substring(0, 2), 16) + amount);
+  let g = Math.min(255, parseInt(hex.substring(2, 4), 16) + amount);
+  let b = Math.min(255, parseInt(hex.substring(4, 6), 16) + amount);
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}
+</script>
+</body>
+</html>
