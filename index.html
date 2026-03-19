@@ -109,7 +109,7 @@ footer a{color:var(--cyan);text-decoration:none}
 const categoryColors = {
   endpoint: '#00e5ff', cloud: '#3b82f6', identity: '#eab308',
   siem: '#a855f7', ai: '#ec4899', networking: '#14b8a6',
-  comparison: '#00e5ff', certification: '#f97316'
+  comparison: '#00e5ff', certification: '#f97316', practice: '#22c55e'
 };
 const categoryIcons = {
   endpoint: '🖥️', cloud: '☁️', identity: '🔑', siem: '📊',
@@ -205,7 +205,8 @@ function renderLabs(category, search) {
         'unified-security': 'labs/unified-security/index.html',
         'ai-security': 'labs/ai-security/index.html',
         'az500-simulator': 'labs/az500-simulator/index.html',
-        'azure-networking': 'labs/azure-networking/index.html'
+        'azure-networking': 'labs/azure-networking/index.html',
+        'meeting-sim': 'labs/meeting-sim/index.html'
       };
       href = folderMap[lab.id] || '#';
     }
