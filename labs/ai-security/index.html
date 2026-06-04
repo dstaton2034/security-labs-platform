@@ -580,6 +580,7 @@ function toggleChat(){const p=document.getElementById('chat-panel'),b=document.g
 function sendChat(){const i=document.getElementById('chat-input');const q=i.value.trim();if(!q)return;i.value='';chatAsk(q)}
 function chatAsk(q){const msgs=document.getElementById('chat-messages');const u=document.createElement('div');u.className='chat-msg user';u.textContent=q;msgs.appendChild(u);const key=q.toLowerCase().replace(/[^a-z0-9\.\s&]/g,'').trim();let found=TERMS[key];if(!found){for(const k of Object.keys(TERMS)){if(k.includes(key)||TERMS[k].n.toLowerCase().includes(key)||TERMS[k].d.toLowerCase().includes(key)){found=TERMS[k];break}}}const b=document.createElement('div');b.className='chat-msg bot';if(found){b.innerHTML=`<span class="term-name">${found.n}</span><span class="term-category">${found.c}</span>${found.d}`}else{b.innerHTML=`I don't have "<strong>${q}</strong>" yet. Try: <strong>prompt injection</strong>, <strong>RAG</strong>, <strong>Foundry</strong>, <strong>jailbreak</strong>, <strong>AI SPM</strong>, <strong>OWASP LLM Top 10</strong>, or <strong>hallucination</strong>.`}msgs.appendChild(b);msgs.scrollTop=msgs.scrollHeight;if(!document.getElementById('chat-panel').classList.contains('open'))toggleChat()}
 </script>
+<script src="../../engine/glossary.js" defer></script>
 </body>
 </html>
 

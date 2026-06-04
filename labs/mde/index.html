@@ -1265,6 +1265,30 @@ footer a{color:var(--cyan);text-decoration:none}
       </div>
     </div>
 
+    <!-- AIR: how it maps & correlates data -->
+    <div class="card fade-in" style="max-width:920px;margin:2.5rem auto 0">
+      <h3 style="margin-bottom:.75rem;color:var(--cyan)">🗺️ How AIR Maps &amp; Correlates Your Data</h3>
+      <p style="font-size:.9rem;color:var(--text-dim);margin-bottom:1.25rem">Before AIR acts, it builds a picture. It pulls every signal into an <strong>entity graph</strong> — then collapses the redundancy so your SOC sees one incident, not fifty alerts. <strong>Map first, then dedupe.</strong></p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1rem">
+        <div style="padding:1rem;background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.2);border-radius:8px">
+          <div style="font-weight:700;color:var(--purple);margin-bottom:.35rem">1 · Map the entities</div>
+          <p style="font-size:.8rem;color:var(--text-dim)">Files (by hash), processes &amp; command lines, registry keys, scheduled tasks, services, network connections, devices, and users — linked by relationships (this process spawned that, this device talked to that IP). Source: the device timeline plus the Intelligent Security Graph (threat intel).</p>
+        </div>
+        <div style="padding:1rem;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:8px">
+          <div style="font-weight:700;color:var(--blue);margin-bottom:.35rem">2 · Correlate into one incident</div>
+          <p style="font-size:.8rem;color:var(--text-dim)">Six related alerts from one attack don't become six tickets. Defender XDR correlates them — same attacker, same entities, same timeframe — into a <strong>single incident</strong>. That's the first redundancy cut.</p>
+        </div>
+        <div style="padding:1rem;background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.2);border-radius:8px">
+          <div style="font-weight:700;color:var(--yellow);margin-bottom:.35rem">3 · Expand scope, don't repeat</div>
+          <p style="font-size:.8rem;color:var(--text-dim)">The same malicious file on 20 devices is added to the <strong>same</strong> investigation — one verdict applied everywhere — instead of 20 duplicate investigations. This is how lateral movement gets caught.</p>
+        </div>
+        <div style="padding:1rem;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);border-radius:8px">
+          <div style="font-weight:700;color:var(--green);margin-bottom:.35rem">4 · Auto-resolve the noise</div>
+          <p style="font-size:.8rem;color:var(--text-dim)">When the verdict is "No threats found," AIR closes the alert automatically. Analysts only touch what needs human judgment — the rest is mapped, correlated, and cleared.</p>
+        </div>
+      </div>
+    </div>
+
     <div style="margin-top:2.5rem">
       <div class="card fade-in" style="max-width:700px;margin:0 auto;text-align:center">
         <h3 style="margin-bottom:.75rem">⚙️ Automation Levels</h3>
@@ -1283,6 +1307,36 @@ footer a{color:var(--cyan);text-decoration:none}
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- AIR: how to turn it on & configure -->
+    <div class="card fade-in" style="max-width:920px;margin:2.5rem auto 0">
+      <h3 style="margin-bottom:.75rem;color:var(--green)">⚙️ How to Turn It On &amp; Configure It</h3>
+      <p style="font-size:.9rem;color:var(--text-dim);margin-bottom:1.25rem">Automated investigation is <strong>on by default</strong> — the old "Automated Investigation" advanced-features toggle has been removed. What you actually control is the <strong>automation level per device group</strong>: how far AIR is allowed to go before it needs a human. You'll need at least the <strong>Security Administrator</strong> role.</p>
+      <ol style="font-size:.85rem;color:var(--text-dim);line-height:1.75;padding-left:1.2rem;margin:0">
+        <li>Open the <strong>Microsoft Defender portal</strong> (<code style="background:rgba(255,255,255,.06);padding:1px 6px;border-radius:4px">security.microsoft.com</code>).</li>
+        <li>Go to <strong>Settings → Endpoints → Device groups</strong>. Create groups (e.g. Servers, Workstations, Pilot) so you can apply different trust levels.</li>
+        <li>Open a device group and set its <strong>Automation level</strong> — Microsoft recommends <em>Full – remediate threats automatically</em>.</li>
+        <li>Confirm <strong>Microsoft Defender Antivirus</strong> is in <strong>active or passive</strong> mode with cloud-delivered protection on. If MDAV is disabled, AIR can't remediate.</li>
+        <li>Review what AIR did (or parked for approval) in the <strong>Action center</strong> (<code style="background:rgba(255,255,255,.06);padding:1px 6px;border-radius:4px">security.microsoft.com/action-center</code>) — <strong>Pending</strong> = awaiting approval, <strong>History</strong> = already actioned.</li>
+      </ol>
+    </div>
+
+    <!-- AIR: automation as a force multiplier -->
+    <div class="card fade-in" style="max-width:920px;margin:2.5rem auto 0;border:1px solid rgba(34,197,94,.25)">
+      <h3 style="margin-bottom:.75rem;color:var(--green)">🤝 Automation as a Force Multiplier</h3>
+      <p style="font-size:.9rem;color:var(--text-dim);margin-bottom:1rem">For a small team, AIR does the heavy lifting that a full SOC normally would. Think of it as splitting the work between automation and people:</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem;margin-bottom:1rem">
+        <div style="padding:1rem;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);border-radius:8px">
+          <div style="font-weight:700;color:var(--green);margin-bottom:.35rem">🤖 AIR — the hands</div>
+          <p style="font-size:.8rem;color:var(--text-dim)">Investigates every alert, correlates the noise into single incidents, and remediates the routine ones automatically. It covers the volume a small team can't physically keep up with — around the clock.</p>
+        </div>
+        <div style="padding:1rem;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:8px">
+          <div style="font-weight:700;color:var(--blue);margin-bottom:.35rem">💬 Security Copilot — the brain you ask</div>
+          <p style="font-size:.8rem;color:var(--text-dim)">The AI you talk to in plain English — "summarize this incident," "what happened on this device," "what should I do next." It turns a raw investigation into a guided answer, so you don't need a tier-3 analyst to read it.</p>
+        </div>
+      </div>
+      <div class="detection" style="font-size:.82rem">⚖️ <strong>Honest take:</strong> automation handles the volume, but a person still owns the judgment calls — approving high-impact actions (like isolating a critical server) and glancing at the Action center regularly. AIR makes a small team far more effective; it doesn't replace owning the decisions.</div>
     </div>
 
     <div class="why-box fade-in">
@@ -1937,6 +1991,7 @@ function chatAsk(q){
   if(!document.getElementById('chat-panel').classList.contains('open'))toggleChat();
 }
 </script>
+<script src="../../engine/glossary.js" defer></script>
 </body>
 </html>
 
