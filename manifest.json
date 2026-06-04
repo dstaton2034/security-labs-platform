@@ -90,18 +90,6 @@
       "tags": ["networking", "firewall", "nsg", "hub-spoke", "vnet"],
       "path": "labs/azure-networking",
       "status": "migrate"
-    },
-    {
-      "id": "az500-simulator",
-      "title": "AZ-500 Exam Simulator",
-      "shortTitle": "AZ-500",
-      "icon": "📝",
-      "category": "certification",
-      "color": "#f97316",
-      "description": "Interactive practice exam with questions, explanations, and score tracking",
-      "tags": ["az-500", "certification", "exam", "practice"],
-      "path": "labs/az500-simulator",
-      "status": "migrate"
     }
   ]
 }
