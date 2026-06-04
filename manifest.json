@@ -102,18 +102,6 @@
       "tags": ["az-500", "certification", "exam", "practice"],
       "path": "labs/az500-simulator",
       "status": "migrate"
-    },
-    {
-      "id": "meeting-sim",
-      "title": "Security Customer Meeting Simulator",
-      "shortTitle": "Meeting Sim",
-      "icon": "🎙️",
-      "category": "practice",
-      "color": "#22c55e",
-      "description": "Practice real customer conversations across MDE, XDR, Sentinel & Defender for Cloud. AI-graded responses with persona-driven roleplay.",
-      "tags": ["xdr", "mde", "sentinel", "mdc", "practice", "simulator", "roleplay"],
-      "path": "labs/meeting-sim",
-      "status": "migrate"
     }
   ]
 }

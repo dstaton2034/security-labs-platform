@@ -20,7 +20,7 @@
     ],
     "subtitle": "Two platforms. Different missions. One lets you <strong>manage</strong> AI agents at enterprise scale. The other lets you <strong>build</strong> them from scratch.",
     "stats": [
-      { "value": "$15", "label": "Agent 365 / user / mo", "accentIndex": 0 },
+      { "value": "Per-user", "label": "Agent 365 licensing", "accentIndex": 0 },
       { "value": "Pay-as-you-go", "label": "Foundry / Azure consumption", "accentIndex": 1 },
       { "value": "IT Admins", "label": "Agent 365 audience", "accentIndex": 0 },
       { "value": "Developers", "label": "Foundry audience", "accentIndex": 1 }
@@ -195,15 +195,15 @@
       "labelIcon": "💰",
       "labelColor": "#22c55e",
       "title": "How They're Licensed",
-      "description": "Different pricing models for different use cases.",
+      "description": "Different licensing models for different use cases. Check Microsoft's official pricing pages for current figures.",
       "content": {
         "cards": [
           {
-            "name": "Agent 365 Standalone", "icon": "🛡️", "price": "$15", "period": "per user / month", "accentIndex": 0,
+            "name": "Agent 365 Standalone", "icon": "🛡️", "price": "Per-user", "period": "subscription licensing", "accentIndex": 0,
             "features": ["Full agent governance dashboard", "Policy enforcement engine", "Entra identity integration", "Audit & compliance logs", "Defender / Purview integration"]
           },
           {
-            "name": "M365 E7 Frontier Suite", "icon": "🏢", "price": "$99", "period": "per user / month (bundle)", "accentIndex": 1, "featured": true,
+            "name": "M365 E7 Frontier Suite", "icon": "🏢", "price": "Suite bundle", "period": "Agent 365 included", "accentIndex": 1,
             "features": ["Everything in M365 E5", "Microsoft Copilot", "Agent 365 (included)", "Entra Suite", "Premium AI features"]
           },
           {
